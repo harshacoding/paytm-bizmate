@@ -51,12 +51,14 @@ name = "bizmate-backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "fastapi" },
     { name = "filelock" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "pydantic-settings" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -68,6 +70,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.8,<5" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "filelock", specifier = ">=3.16,<4" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28,<1" },
@@ -77,6 +80,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<10" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11,<1" },
     { name = "uvicorn", specifier = ">=0.34,<1" },
+    { name = "websockets", specifier = ">=15,<18" },
 ]
 provides-extras = ["dev"]
 

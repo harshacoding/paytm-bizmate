@@ -14,6 +14,7 @@ from bizmate.api.mock_routes import router as mock_router
 from bizmate.api.routes import router
 from bizmate.api.schema import install_domain_schemas
 from bizmate.api.settlement_routes import router as settlement_router
+from bizmate.api.voice import router as voice_router
 from bizmate.config import Settings
 from bizmate.domain.errors import AccessDenied, FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
@@ -209,6 +210,7 @@ def create_app(
     app.include_router(mock_router)
     app.include_router(campaign_router)
     app.include_router(settlement_router)
+    app.include_router(voice_router)
     install_domain_schemas(app)
     return app
 

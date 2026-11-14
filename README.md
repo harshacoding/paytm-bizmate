@@ -2,6 +2,20 @@
 
 **Your AI teammate for business.** Monorepo for the Paytm hackathon MVP: settlement investigation, customer win-back, and honest support handoff.
 
+## Connected merchant workspace
+
+The default screen at <http://127.0.0.1:5173> uses the local API for merchant context, durable conversations, messages, tasks, exact-input approvals, execution receipts and independent verification. Start both apps using the quick-start commands below.
+
+Chat and business tasks are separate in the supplied API contract. Send saves a conversation turn; **Start a task from this question** creates a tracked task. New intake now runs the BM-07/BM-08 orchestrator and pauses for clarification or exact approval. Approved work continues through the task-resume endpoint, with backend-owned execution, bounded recovery and independent verification. Under **Your tasks**, reopen work, inspect its next action and timeline, add clarification, or review a backend-prepared approval. Approve, execute and verify are distinct steps. A verified support ticket does not prove a missing bank credit has arrived.
+
+English, Hindi and Telugu selection persists as a conversation fallback preference. The UI preserves saved messages and uses the server-returned response language; the backend resolves English/Hindi/Telugu from each incoming message, using the selected preference when detection is uncertain. Light/dark themes, the compact composer, upward language picker, adjustable history panel and numeric unread badges remain available.
+
+**Speak** streams microphone audio through FastAPI to ElevenLabs Scribe v3 Live. Copy backend/.env.example to backend/.env and set BIZMATE_ELEVENLABS_API_KEY locally. The key stays on the server. Done lets the merchant review/edit; Send submits the draft. A missing key or microphone failure preserves the draft. Live provider accuracy requires testing with a configured key.
+
+The original timed walkthrough is available under **Sample walkthrough**, or at <http://127.0.0.1:5173/?demo=1>. It remains a browser-only simulation of the five merchant journeys, sales reports and bank support. Its simulated outcomes are not backend receipts or financial evidence.
+
+See the [BM-09/BM-16 integration and review guide](docs/BM09_BM16_UI_INTEGRATION.md) for the API boundary, exact approval semantics, isolated READY fixtures and verification evidence.
+
 ## Quick start
 
 Install Node.js 22.14+ (22.x or 24.x), Python 3.11-3.13, and [uv](https://docs.astral.sh/uv/getting-started/installation/). From the repository root:
@@ -18,18 +32,18 @@ npm run dev
 
 On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`; changing policy is unnecessary. Stop servers with Ctrl+C. To run separately, use `npm run dev:api` and `npm run dev:web` in separate terminals.
 
-No API key is required. Optional settings: copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`. Keep secrets on the backend; frontend `VITE_` configuration is public. Both development servers bind to loopback. Synthetic merchant selection is a local development convenience, not authentication.
+The offline planner and synthetic workflows require no model key. Voice dictation requires the optional backend speech key. Optional settings: copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`. Keep secrets on the backend; frontend `VITE_` configuration is public. Both development servers bind to loopback. Synthetic merchant selection is a local development convenience, not authentication.
 
 ## Implemented capabilities
 
-- React/TypeScript workspace with task navigation, request intake, timeline, loading/error/retry states, and labelled settlement/campaign component previews.
+- Connected React/TypeScript chat with server conversation history, multilingual task details, exact approval/cancel/defer controls, timelines, evidence, receipts and verification timestamps. An explicitly separate sample walkthrough remains available.
 - FastAPI task create/list/detail/events/messages, synthetic session and health endpoints, plus durable LangGraph execution and a task resume endpoint.
 - Merchant-scoped SQLite task storage, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
 - Typed tool registry with intent/scope discovery, strict input/output validation and executable preconditions. BM-04 adapters are registered and connected through validated backend plan templates. See [BM-05 integration contract](docs/BM_05_TOOL_REGISTRY.md).
 
-The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning is connected. Rich UI approval/send controls remain frontend work. Unknown approvals return HTTP 404.
+The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning is connected. The connected UI supports exact approval and explicit continuation through orchestration. Unknown approvals return HTTP 404.
 
-**BM-07/08 implemented:** structured intent extraction, multilingual clarification and summaries, validated workflow steps, durable checkpoints, approval/input pause and resume, bounded reads, source fallback and uncertain-write inspection. See [BM-07/BM-08 implementation and testing](docs/BM07_BM08_TESTING.md) for commands, model configuration and remaining integration. Default intent extraction uses an offline demo parser, with optional OpenAI structured extraction. Scheduling, fresh-credit closure and rich approval UI remain separate tasks. Static previews remain separate from task evidence.
+**BM-07/08 implemented:** structured intent extraction, multilingual clarification and summaries, validated workflow steps, durable checkpoints, approval/input pause and resume, bounded reads, source fallback and uncertain-write inspection. See [BM-07/BM-08 implementation and testing](docs/BM07_BM08_TESTING.md) for commands, model configuration and remaining integration. Default intent extraction uses an offline demo parser, with optional OpenAI structured extraction. Scheduling and fresh-credit closure remain separate workflow tasks. Static previews remain separate from task evidence.
 
 Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 
@@ -43,14 +57,14 @@ Customer segmentation and campaign cost are available through `POST /api/v1/camp
 
 Conversations and user/assistant message history persist in the same database. Open <http://127.0.0.1:8000/docs> and expand **conversations** to test the routes. The server resolves merchant ownership for every operation.
 
-| Method | Route | Result |
-| --- | --- | --- |
-| POST | `/api/v1/conversations` | Create a conversation with a title and preferred language |
-| GET | `/api/v1/conversations` | List this merchant's conversations, oldest first |
-| GET | `/api/v1/conversations/{id}` | Retrieve conversation details |
-| PATCH | `/api/v1/conversations/{id}` | Update this conversation's preferred language |
-| GET | `/api/v1/conversations/{id}/messages` | Retrieve ordered user and assistant history |
-| POST | `/api/v1/conversations/{id}/messages` | Save user content and the backend assistant reply |
+| Method | Route                                 | Result                                                    |
+| ------ | ------------------------------------- | --------------------------------------------------------- |
+| POST   | `/api/v1/conversations`               | Create a conversation with a title and preferred language |
+| GET    | `/api/v1/conversations`               | List this merchant's conversations, oldest first          |
+| GET    | `/api/v1/conversations/{id}`          | Retrieve conversation details                             |
+| PATCH  | `/api/v1/conversations/{id}`          | Update this conversation's preferred language             |
+| GET    | `/api/v1/conversations/{id}/messages` | Retrieve ordered user and assistant history               |
+| POST   | `/api/v1/conversations/{id}/messages` | Save user content and the backend assistant reply         |
 
 Run these commands from the repository root after starting the API.
 
@@ -114,11 +128,11 @@ contracts/                   Shared OpenAPI schema
 docs/                        Architecture, onboarding and smoke check
 ```
 
-| Developer | Start here | Tasks |
-| --- | --- | --- |
-| Harsha | Domain contracts, registry/policy, agent graph, settlement | BM-02, 05, 06, 07, 08, 10, 11 |
-| Devi | Repository, service ports/mocks, APIs, scheduler, campaign/handoff | BM-03, 04, 12, 13, 14, 15, 17 |
-| Saiteja | App, components, client, UI tests and demo docs | BM-01, 09, 16, 18 |
+| Developer | Start here                                                         | Tasks                         |
+| --------- | ------------------------------------------------------------------ | ----------------------------- |
+| Harsha    | Domain contracts, registry/policy, agent graph, settlement         | BM-02, 05, 06, 07, 08, 10, 11 |
+| Devi      | Repository, service ports/mocks, APIs, scheduler, campaign/handoff | BM-03, 04, 12, 13, 14, 15, 17 |
+| Saiteja   | App, components, client, UI tests and demo docs                    | BM-01, 09, 16, 18             |
 
 Read [Team start](docs/TEAM_START.md) before editing shared contracts. UI work can use fixtures while services are implemented. The scaffold supplies initial setup; task ownership and review requirements remain unchanged.
 
