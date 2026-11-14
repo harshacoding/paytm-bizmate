@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import App from '../App';
+import App from '../DemoApp';
 import { languages, translate } from '../i18n';
 import type { Language } from '../i18n';
 import { detectIntent } from '../demo';

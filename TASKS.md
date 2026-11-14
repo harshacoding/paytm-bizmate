@@ -18,13 +18,13 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 
 ## Milestones
 
-| Milestone | Result | Tasks |
-| --- | --- | --- |
-| M1 Foundation | Local app, scoped data, mock services, durable task records | BM-01 to BM-04 |
-| M2 Task engine | Validated plans, permissions, approvals, recovery, progress UI | BM-05 to BM-09 |
-| M3 Settlement | Explain the gap, verify a support ticket, resume and verify the credit | BM-10 to BM-12 |
-| M4 Remaining workflows | Approved simulated win-back and honest support handoff | BM-13 to BM-15 |
-| M5 Demonstrable MVP | Complete evidence UI, regression checks, repeatable demo | BM-16 to BM-18 |
+| Milestone              | Result                                                                 | Tasks          |
+| ---------------------- | ---------------------------------------------------------------------- | -------------- |
+| M1 Foundation          | Local app, scoped data, mock services, durable task records            | BM-01 to BM-04 |
+| M2 Task engine         | Validated plans, permissions, approvals, recovery, progress UI         | BM-05 to BM-09 |
+| M3 Settlement          | Explain the gap, verify a support ticket, resume and verify the credit | BM-10 to BM-12 |
+| M4 Remaining workflows | Approved simulated win-back and honest support handoff                 | BM-13 to BM-15 |
+| M5 Demonstrable MVP    | Complete evidence UI, regression checks, repeatable demo               | BM-16 to BM-18 |
 
 ## M1 Foundation
 
@@ -123,7 +123,9 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 
 ### BM-09 Build the chat and task workspace
 
-- [ ] Complete
+- [x] Frontend implementation complete against the supplied UI API contract
+- **Review status:** Ready for Devi review; full workflow acceptance still depends on BM-07.
+- **Evidence:** [Integration, tests and review instructions](docs/BM09_BM16_UI_INTEGRATION.md).
 - **Owner:** Saiteja
 - **Reviewer:** Devi
 - **Depends on:** BM-01, BM-02, BM-03; integrate with BM-07
@@ -199,7 +201,9 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 
 ### BM-16 Finish evidence views and merchant-facing UX
 
-- [ ] Complete
+- [x] Frontend implementation complete against the supplied UI API contract
+- **Review status:** Ready for Devi review; shared settlement, campaign and handoff workflow acceptance remains dependent on BM-11/12/14/15.
+- **Evidence:** [Integration, tests and review instructions](docs/BM09_BM16_UI_INTEGRATION.md).
 - **Owner:** Saiteja
 - **Reviewer:** Devi
 - **Depends on:** BM-09, BM-11, BM-12, BM-14, BM-15

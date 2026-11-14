@@ -8,9 +8,11 @@ const names = { en: 'English', hi: 'Hindi', te: 'Telugu' };
 export function LanguagePicker({
   disabled,
   onSelect,
+  onLanguageChange,
 }: {
   disabled: boolean;
   onSelect: () => void;
+  onLanguageChange?: (language: Language) => void;
 }) {
   const { language, setLanguage, t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -103,7 +105,8 @@ export function LanguagePicker({
               }}
               onClick={() => {
                 onSelect();
-                setLanguage(code);
+                if (onLanguageChange) onLanguageChange(code);
+                else setLanguage(code);
                 close(true);
               }}
             >

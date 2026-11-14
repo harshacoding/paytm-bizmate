@@ -1,626 +1,270 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, FormEvent } from 'react';
-import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
-import {
-  ResponseActivity,
-  activityState,
-  responseDuration,
-  replyDelay,
-  followupDelay,
-} from './components/ResponseActivity';
-import { Waveform, StaticWaveform } from './components/elevenlabs/waveform';
-import {
-  audience,
-  breakdown,
-  detectIntent,
-  expected,
-  initialOffer,
-  missing,
-  money,
-  questions,
-  moreQuestions,
-  readDelivery,
-  readFollowup,
-  received,
-  stages,
-} from './demo';
-import type { Turn } from './demo';
-import { useDictation } from './useDictation';
-import { useChats } from './useChats';
+import type { CSSProperties } from 'react';
+import DemoApp, { Icon } from './DemoApp';
+import { LanguageProvider, useLanguage } from './i18n';
+import { useWorkspace, errorText } from './useWorkspace';
 import { useSidebarWidth } from './useSidebarWidth';
-import { LanguageProvider, useLanguage, canonical } from './i18n';
+import { useDictation } from './useDictation';
+import { api } from './api/client';
 import { LanguagePicker } from './components/LanguagePicker';
-import { followup, answerFollowup } from './followup';
-import { SalesReport } from './components/SalesReport';
-import { CounterPayment, RefundFollowup, DailyClosing } from './components/MerchantChecks';
-import { amountFromQuestion } from './paymentDemo';
-
-const symbols = {
-  store:
-    'M3 9l2-5h14l2 5v3a3 3 0 0 1-4 2.8A3 3 0 0 1 12 14a3 3 0 0 1-5 .8A3 3 0 0 1 3 12V9zm2 6v5h14v-5M3 9h18',
-  mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-4 6v1a7 7 0 0 0 14 0v-1m-7 8v3m-3 0h6',
-  send: 'M12 20V4m-6 6l6-6 6 6',
-  replay: 'M3 12a9 9 0 1 1 2 6M3 4v8h8',
-  sales: 'M4 20h17M7 16v-4m5 4V8m5 8V4',
-  payment: 'M3 6h18v13H3zM3 10h18m-14 5h3',
-  campaign: 'M3 9v5h5l9 4V5L8 9H3zm5 5l2 6h3m7-11 2-2m-2 7 2 2',
-  bank: 'M3 9h18L12 3 3 9zm2 3v6m5-6v6m4-6v6m5-6v6M3 21h18',
-  arrow: 'M5 12h14m-5-5 5 5-5 5',
-} as const;
-
-function Icon({ name, size = 19 }: { name: keyof typeof symbols; size?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.65"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d={symbols[name]} />
-    </svg>
-  );
-}
-
-function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boolean }) {
-  const { t } = useLanguage();
-  const index = stages.filter((stage) => elapsed >= stage.at).length - 1;
-  const stage = stages[index];
-  const finished = stage.progress === 100;
-  return (
-    <section className="card">
-      <div className="card-top">
-        <span className="tile">
-          <Icon name="payment" />
-        </span>
-        <h2>{finished ? t('Payment check finished') : t('I’m checking your payment.')}</h2>
-      </div>
-      <div className="progress-status">
-        <div role="status" className="progress-copy">
-          {!finished && (
-            <BarVisualizer
-              aria-hidden="true"
-              className="thinking"
-              state={reduced ? undefined : activityState(elapsed, stages[3].at)}
-              demo={!reduced && activityState(elapsed, stages[3].at) === 'speaking'}
-              barCount={5}
-              minHeight={32}
-              centerAlign
-            />
-          )}
-          {t(stage.label)}
-        </div>
-        <strong>{stage.progress}%</strong>
-      </div>
-      <div
-        className="track"
-        role="progressbar"
-        aria-label={t('Payment check')}
-        aria-valuenow={stage.progress}
-        aria-valuetext={t(stage.label)}
-      >
-        <div
-          className={finished ? 'fill' : 'fill moving'}
-          style={{ width: stage.progress + '%' }}
-        />
-      </div>
-      {index === 1 && elapsed >= 3500 && (
-        <p className="delay" role="status">
-          {t('The payment report is taking longer than usual.')}
-        </p>
-      )}
-      <ol className="steps">
-        {stages.slice(0, 3).map((step, i) => (
-          <li key={step.at} data-current={i === index}>
-            <span>{t(step.label)}</span>
-            <span>{i < index ? t('Done') : i === index ? t('Checking') : t('Next')}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function ChatReply({
-  turn,
-  now,
-  reduced,
-  update,
-  onQuestion,
-}: {
-  turn: Turn;
-  now: number;
-  reduced: boolean;
-  update: (change: Partial<Turn>) => void;
-  onQuestion: (question: string) => void;
-}) {
-  const { t } = useLanguage();
-  const elapsed = Math.max(0, now - turn.started);
-  const payment = turn.intent === 'payment' && !turn.replyText;
-  const campaign = turn.intent === 'campaign' && !turn.replyText;
-  const delivery = readDelivery(turn);
-  const reference = 'BM-' + turn.id.slice(0, 8).toUpperCase();
-  const offerCost = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(audience.length * 2);
-  const ask = () => update({ action: 'confirm' });
-  const approve = () => update({ action: 'pending', approvedAt: Date.now() });
-  if (!payment && elapsed < replyDelay) {
-    return (
-      <div className="reply">
-        <span className="reply-avatar">
-          <Icon name="store" size={15} />
-        </span>
-        <div className="reply-content">
-          <div className="reply-name">BizMate</div>
-          <ResponseActivity elapsed={elapsed} duration={replyDelay} reduced={reduced} />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="reply">
-      <span className="reply-avatar">
-        <Icon name="store" size={15} />
-      </span>
-      <div className="reply-content">
-        <div className="reply-name">BizMate</div>
-        {turn.intent === 'sales' && (
-          <SalesReport turn={turn} now={now} reduced={reduced} update={update} />
-        )}
-        {!turn.replyText && turn.intent === 'counter' && (
-          <CounterPayment turn={turn} now={now} reduced={reduced} update={update} />
-        )}
-        {!turn.replyText && turn.intent === 'refund' && (
-          <RefundFollowup turn={turn} now={now} reduced={reduced} update={update} />
-        )}
-        {!turn.replyText && turn.intent === 'closing' && (
-          <DailyClosing turn={turn} onQuestion={onQuestion} />
-        )}
-        {turn.replyText && (
-          <section className="card">
-            <p>{t(turn.replyText)}</p>
-          </section>
-        )}
-        {payment && (
-          <>
-            <PaymentProgress elapsed={elapsed} reduced={reduced} />
-            {elapsed >= stages[3].at && (
-              <section className="card">
-                <h2>
-                  {money(missing)} {t('is still missing')}
-                </h2>
-                <p>
-                  {t('I compared your sales and deductions with the amount your bank received.')}
-                </p>
-                <dl className="totals">
-                  <div>
-                    <dt>{t('Expected')}</dt>
-                    <dd>{money(expected)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t('Received')}</dt>
-                    <dd>{money(received)}</dd>
-                  </div>
-                </dl>
-                <details>
-                  <summary>
-                    {t('View details')}
-                    <span>{t('· Payment breakdown')}</span>
-                  </summary>
-                  <dl className="breakdown">
-                    {breakdown.map((row) => (
-                      <div key={t(row.label)}>
-                        <dt>
-                          {t(row.label)}
-                          <small>{row.source}</small>
-                        </dt>
-                        <dd>{money(row.paise)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="fine">Sample bank record · BANK-2026-011</p>
-                </details>
-                {!turn.action && (
-                  <button type="button" className="primary" onClick={ask}>
-                    {t('Ask support')}
-                  </button>
-                )}
-              </section>
-            )}
-          </>
-        )}
-        {campaign && (
-          <section className="card">
-            <h2>{t('Bring customers back')}</h2>
-            <p>
-              <strong>
-                {audience.length} {t('customers who agreed to receive offers')}
-              </strong>{' '}
-              {t('haven’t visited in 30 days or more. The estimated cost is')}{' '}
-              <strong>{offerCost}</strong>.
-            </p>
-            <label className="offer-label" htmlFor={reference}>
-              {t('Offer message')}
-            </label>
-            <textarea
-              id={reference}
-              className="offer"
-              value={turn.offer}
-              readOnly={!!turn.action}
-              onChange={(event) => update({ offer: event.target.value })}
-            />
-            {!turn.action && (
-              <button type="button" className="primary" disabled={!turn.offer.trim()} onClick={ask}>
-                {t('Review simulated send')}
-              </button>
-            )}
-          </section>
-        )}
-        {turn.intent === 'bank' && !turn.replyText && (
-          <section className="card">
-            <h2>{t('Change your bank account')}</h2>
-            <p>
-              {t(
-                'Merchant support can help you change the bank account where you receive payments. I can prepare a support request for you.',
-              )}
-            </p>
-            {!turn.action && (
-              <button type="button" className="primary" onClick={ask}>
-                {t('Ask support')}
-              </button>
-            )}
-          </section>
-        )}
-        {turn.intent === 'other' && (
-          <section className="card">
-            <p>
-              {t(
-                'I can check a short payment, prepare a customer offer, or put you in touch with support for a bank account change. Which would you like help with?',
-              )}
-            </p>
-          </section>
-        )}
-        {turn.action === 'confirm' && turn.intent !== 'refund' && (
-          <section className="card confirmation">
-            <h2>{campaign ? t('Send this offer?') : t('Create a support request?')}</h2>
-            <p>
-              {campaign
-                ? t('Simulate sending the offer above to ') +
-                  audience.length +
-                  t(' customers at an estimated cost of ') +
-                  offerCost +
-                  '.'
-                : payment
-                  ? t(
-                      'Share the payment breakdown and missing amount with simulated merchant support.',
-                    )
-                  : t('Ask simulated merchant support to help change your bank account.')}
-            </p>
-            <div className="actions">
-              <button type="button" className="primary" onClick={approve}>
-                {campaign ? t('Confirm simulated send') : t('Confirm support request')}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => update({ action: undefined })}
-              >
-                {t('Cancel')}
-              </button>
-            </div>
-          </section>
-        )}
-        {turn.approvedAt && campaign && delivery && (
-          <section className="card outcome">
-            <h2>{t('Simulated delivery checked')}</h2>
-            <p role="status">
-              <strong>
-                {delivery.delivered} {t('delivered,')} {delivery.failed} {t('failed')}
-              </strong>
-            </p>
-          </section>
-        )}
-        {turn.approvedAt && !campaign && turn.intent !== 'refund' && (
-          <section className="card outcome">
-            <h2>
-              {turn.action === 'verified'
-                ? t('Missing credit verified')
-                : t('Support request created')}
-            </h2>
-            <p role="status">
-              {turn.action === 'verified'
-                ? money(missing) + t(' arrived in a fresh sample bank record. The issue is closed.')
-                : t('Pending with support.')}
-            </p>
-            {payment && turn.action === 'pending' && (
-              <>
-                <p className="fine">{t('Follow-up scheduled for tomorrow in the demo.')}</p>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => {
-                    if (readFollowup(turn)) update({ action: 'verified' });
-                  }}
-                >
-                  {t('Run simulated follow-up')}
-                </button>
-              </>
-            )}
-            <details>
-              <summary>
-                {t('View details')}
-                <span>{t('· Ticket reference')}</span>
-              </summary>
-              <p>
-                {t('Simulated ticket')}
-                <strong>{reference}</strong>
-              </p>
-              {turn.action === 'verified' && <p>Follow-up bank record · BANK-FOLLOWUP-012</p>}
-            </details>
-          </section>
-        )}
-      </div>
-    </div>
-  );
-}
+import { TaskWorkspace, taskLabel } from './components/TaskWorkspace';
+import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
+import { Waveform, StaticWaveform } from './components/elevenlabs/waveform';
+import { workspaceText } from './workspaceText';
+import type { LanguageCode } from './api/types';
+import { useUnread } from './useUnread';
 
 export default function App() {
+  if (new URLSearchParams(window.location.search).get('demo') === '1') return <DemoApp />;
   return (
     <LanguageProvider>
-      <MerchantApp />
+      <ConnectedApp />
     </LanguageProvider>
   );
 }
 
-function MerchantApp() {
-  const { language, t } = useLanguage();
-  const { chats, activeId, turns, draft, setTurns, setDraft, newChat, selectChat } = useChats();
-  const activeChat = chats.find((item) => item.id === activeId)!;
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function ConnectedApp() {
+  const { language, setLanguage } = useLanguage();
+  const t = (text: string) => workspaceText(text, language);
+  const workspace = useWorkspace(setLanguage);
+  const { unread, headers } = useUnread(
+    workspace.session?.merchant.merchant_id,
+    workspace.activeId,
+    workspace.messages,
+    workspace.opening,
+  );
+  const conversations = [
+    ...new Map(
+      [...(headers ?? []), ...workspace.conversations].map((item) => [item.conversation_id, item]),
+    ).values(),
+  ];
   const sidebar = useSidebarWidth();
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tab, setTab] = useState<'chat' | 'tasks'>('chat');
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [allTasks, setAllTasks] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
+  const taskLock = useRef(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const chat = useRef<HTMLElement>(null);
+  const focus = () => window.requestAnimationFrame(() => input.current?.focus());
+  const voice = useDictation(workspace.draft, workspace.setDraft, focus);
+  const [theme, setTheme] = useState(() => {
     try {
-      const saved = localStorage.getItem('bizmate-theme');
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch {}
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      return localStorage.getItem('bizmate-theme') ?? 'light';
+    } catch {
+      return 'light';
+    }
   });
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  );
+  const currentChat = workspace.conversations.find(
+    (item) => item.conversation_id === workspace.activeId,
+  );
+  const selectedSnapshot = workspace.tasks.find((task) => task.task_id === selectedTask);
+  const ticket = [
+    ...(selectedSnapshot?.receipts ??
+      workspace.tasks
+        .filter((task) => task.conversation_id === workspace.activeId)
+        .flatMap((task) => task.receipts)),
+  ]
+    .reverse()
+    .find((receipt) => receipt.action === 'create_support_ticket')?.external_reference;
+  const canWrite = !!workspace.session?.merchant.scopes.includes('tasks:write');
+  const contextLanguage: LanguageCode =
+    [...workspace.messages]
+      .reverse()
+      .find((message) => message.role === 'assistant' && message.response_language)
+      ?.response_language ?? language;
+  const taskLanguage: LanguageCode =
+    [...workspace.messages]
+      .reverse()
+      .find((message) => message.task_id === selectedTask && message.response_language)
+      ?.response_language ?? contextLanguage;
+  const scopedTasks = workspace.tasks.filter(
+    (task) => allTasks || (!!workspace.activeId && task.conversation_id === workspace.activeId),
+  );
+  const pendingHere =
+    workspace.pending?.conversationId === workspace.activeId ? workspace.pending : null;
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem('bizmate-theme', theme);
     } catch {}
   }, [theme]);
-  const [now, setNow] = useState(Date.now);
-  const [announcement, announce] = useState('');
-  const [reduced, setReduced] = useState(
-    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
-  );
-  const input = useRef<HTMLTextAreaElement>(null);
-  const chat = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    if (!input.current) return;
-    input.current.style.height = 'auto';
-    input.current.style.height = Math.min(input.current.scrollHeight, 120) + 'px';
-  }, [draft, activeId, language]);
-  const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
-  const voice = useDictation(draft, setDraft, focusComposer);
-  const working = turns.some(
-    (turn) =>
-      now - turn.started < responseDuration(turn) + followupDelay ||
-      (!!turn.reportRequestedAt && now - turn.reportRequestedAt < replyDelay) ||
-      (!!turn.counterQuery && now - turn.counterQuery.checkedAt < replyDelay) ||
-      (!!turn.refundQuery && now - turn.refundQuery.checkedAt < replyDelay),
-  );
-
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     const update = () => setReduced(media?.matches ?? false);
     media?.addEventListener('change', update);
     return () => media?.removeEventListener('change', update);
   }, []);
+  useLayoutEffect(() => {
+    if (!input.current) return;
+    input.current.style.height = 'auto';
+    input.current.style.height = `${Math.min(input.current.scrollHeight, 120)}px`;
+  }, [workspace.draft, language]);
   useEffect(() => {
-    if (!working) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(timer);
-  }, [working]);
+    setSelectedTask(null);
+    setTab('chat');
+    voice.reset();
+    // A recording belongs to the conversation where it started.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace.activeId]);
   useEffect(() => {
     const panel = chat.current;
-    if (!panel || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => {
-      if (panel.querySelector('.welcome-wrap')) {
-        panel.scrollTop = 0;
-        return;
+    if (panel && panel.dataset.follow !== 'false') panel.scrollTop = panel.scrollHeight;
+  }, [workspace.messages.length, workspace.pending?.id]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+        document.getElementById('history-toggle')?.focus();
       }
-      if (panel.dataset.follow !== 'false') panel.scrollTop = panel.scrollHeight;
-    });
-    if (panel.firstElementChild) observer.observe(panel.firstElementChild);
-    return () => observer.disconnect();
-  }, []);
+    };
+    document.addEventListener('keydown', close);
+    return () => document.removeEventListener('keydown', close);
+  }, [sidebarOpen]);
 
-  function sendQuestion(text: string) {
-    const question = text.trim();
-    if (!question || voice.mode) return;
-    const started = Date.now();
-    if (chat.current) chat.current.dataset.follow = 'true';
-    setNow(started);
-    const previousTurn = turns[turns.length - 1];
-    const detected = detectIntent(canonical(question));
-    const contextual =
-      previousTurn &&
-      previousTurn.intent !== 'other' &&
-      (detected === 'other' ||
-        (detected === previousTurn.intent &&
-          followup(previousTurn.intent).options.includes(canonical(question))));
-    const intent = contextual ? previousTurn.intent : detected;
-    const replyText =
-      contextual && intent !== 'sales' ? answerFollowup(intent, canonical(question)) : undefined;
-    const requestedAmount = amountFromQuestion(question);
-    setTurns((previous) => [
-      ...previous,
-      {
-        id: crypto.randomUUID(),
-        question,
-        started,
-        intent,
-        replyText,
-        offer: t(initialOffer),
-        counterQuery:
-          intent === 'counter' && requestedAmount
-            ? { amount: requestedAmount, minutes: 30, checkedAt: started }
-            : undefined,
-        refundQuery:
-          intent === 'refund' && requestedAmount
-            ? { amount: requestedAmount, checkedAt: started }
-            : undefined,
-      },
-    ]);
-    setDraft('');
-    voice.reset();
-    announce(t('Question sent.'));
-    focusComposer();
+  async function startTask(messageId: string, content: string) {
+    if (taskLock.current || !workspace.activeId) return;
+    taskLock.current = true;
+    setCreating(messageId);
+    workspace.setError('');
+    const conversationId = workspace.activeId;
+    try {
+      const task = await api.createTask(content, conversationId);
+      workspace.updateTask(task);
+      // Keep a late result scoped to its originating conversation.
+      if (chat.current?.dataset.conversation === conversationId) {
+        setSelectedTask(task.task_id);
+        setTab('tasks');
+      }
+    } catch (failure) {
+      workspace.setError(errorText(failure));
+      // Task intake has no idempotency key: reconcile, never automatically retry it.
+      try {
+        const tasks = await api.tasks();
+        tasks.forEach(workspace.updateTask);
+      } catch {}
+    } finally {
+      taskLock.current = false;
+      setCreating(null);
+    }
   }
 
-  function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    sendQuestion(draft);
-  }
-
-  function chatTicket(item: (typeof chats)[number]) {
-    const ticket = [...item.turns]
-      .reverse()
-      .find(
-        (turn) =>
-          turn.approvedAt &&
-          (turn.intent === 'payment' || turn.intent === 'bank' || turn.intent === 'refund'),
-      );
-    return ticket ? 'BM-' + ticket.id.slice(0, 8).toUpperCase() : '';
-  }
-
-  function chatName(item: (typeof chats)[number]) {
-    const title = t(item.title ?? item.turns[0]?.question ?? 'New chat');
-    const ticket = chatTicket(item);
-    return ticket ? title + ' - ' + ticket : title;
-  }
-
-  function navigateChat(id?: string) {
-    voice.reset();
-    if (id) selectChat(id);
-    else newChat();
-    setNow(Date.now());
-    setSidebarOpen(false);
-    if (chat.current) chat.current.dataset.follow = 'true';
-    focusComposer();
-  }
-
-  function replay() {
-    voice.reset();
-    setTurns([]);
-    setDraft('');
-    announce(t('Demo reset.'));
-    focusComposer();
-  }
+  if (workspace.loading)
+    return (
+      <div className="api-startup" role="status">
+        <div className="hero-mark">
+          <Icon name="store" />
+        </div>
+        <p>{t('Connecting to your workspace…')}</p>
+      </div>
+    );
+  if (!workspace.session)
+    return (
+      <div className="api-startup">
+        <div className="hero-mark">
+          <Icon name="store" />
+        </div>
+        <h1>{t('Workspace unavailable')}</h1>
+        <p role="alert">{workspace.error}</p>
+        <button className="primary" onClick={() => void workspace.bootstrap()}>
+          {t('Retry connection')}
+        </button>
+        <a href="?demo=1">{t('Sample walkthrough')}</a>
+      </div>
+    );
 
   return (
     <div
-      className="app-shell"
+      className="app-shell api-shell"
+      style={{ '--sidebar-width': `${sidebar.width}px` } as CSSProperties}
       data-resizing={sidebar.resizing}
-      style={{ '--sidebar-width': sidebar.width + 'px' } as CSSProperties}
     >
       <aside
         id="chat-history"
-        className={sidebarOpen ? 'history-panel open' : 'history-panel'}
+        className={`history-panel ${sidebarOpen ? 'open' : ''}`}
         aria-label={t('Chat history')}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setSidebarOpen(false);
-            document.getElementById('history-toggle')?.focus();
-          }
-        }}
       >
-        <div className="brand">
-          <span>
-            <span className="paytm-logo-frame">
-              <img
-                className="paytm-logo"
-                src="/brand/paytm.png"
-                alt="Paytm"
-                width="80"
-                height="25"
-              />
-            </span>
-            <span className="brand-divider" />
-            <span className="bizmate-label">
-              <Icon name="store" size={16} />
-              BizMate
-            </span>
+        <div className="sidebar-brand">
+          <img src="/brand/paytm.png" alt="Paytm" />
+          <span className="sidebar-bizmate">
+            <Icon name="store" size={17} />
+            BizMate
           </span>
         </div>
         <div className="history-heading">
           <strong>{t('Chat history')}</strong>
-          <button
-            type="button"
-            className="secondary close-history"
-            onClick={() => {
-              setSidebarOpen(false);
-              document.getElementById('history-toggle')?.focus();
-            }}
-          >
+          <button className="secondary close-history" onClick={() => setSidebarOpen(false)}>
             {t('Close')}
           </button>
         </div>
-        <button type="button" className="primary new-chat" onClick={() => navigateChat()}>
+        <button
+          className="primary new-chat"
+          disabled={!canWrite || workspace.busy || !!voice.mode}
+          onClick={() => {
+            setSidebarOpen(false);
+            void workspace.newConversation(language);
+          }}
+        >
           {t('+ New chat')}
         </button>
         <nav aria-label={t('Saved conversations')}>
-          {chats.map((item) => (
+          {[...conversations].reverse().map((conversation) => (
             <button
-              type="button"
-              key={item.id}
-              aria-current={item.id === activeId ? 'page' : undefined}
-              onClick={() => navigateChat(item.id)}
-              title={chatName(item)}
+              key={conversation.conversation_id}
+              title={conversation.title}
+              aria-current={
+                conversation.conversation_id === workspace.activeId ? 'page' : undefined
+              }
+              onClick={() => {
+                workspace.select(conversation.conversation_id);
+                setSidebarOpen(false);
+              }}
             >
               <span className="history-row">
-                <span className="history-title">{chatName(item)}</span>
-                {!!item.unread && (
-                  <span
-                    className="unread-badge"
-                    aria-label={item.unread + ' ' + t('unread messages')}
-                  >
-                    {item.unread}
-                  </span>
-                )}
+                <span className="history-title">{conversation.title}</span>
+                {conversation.conversation_id !== workspace.activeId &&
+                  !!unread[conversation.conversation_id] && (
+                    <span
+                      className="unread-badge"
+                      aria-label={`${unread[conversation.conversation_id]} ${t('unread messages')}`}
+                    >
+                      {unread[conversation.conversation_id]}
+                    </span>
+                  )}
               </span>
             </button>
           ))}
         </nav>
-        <p className="history-note">{t('Chats are saved in this browser.')}</p>
-        <LanguagePicker disabled={!!voice.mode} onSelect={voice.reset} />
+        <p className="history-note">{t('Saved on the server')}</p>
+        <LanguagePicker
+          disabled={workspace.busy || !!voice.mode || (!canWrite && !!workspace.activeId)}
+          onSelect={voice.reset}
+          onLanguageChange={(value) => void workspace.changeLanguage(value)}
+        />
         <button
-          type="button"
           className="secondary theme-toggle"
           aria-pressed={theme === 'dark'}
-          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         >
-          {theme === 'light' ? t('Dark theme') : t('Light theme')}
+          {t(theme === 'dark' ? 'Light theme' : 'Dark theme')}
         </button>
+        <a className="api-demo-link" href="?demo=1">
+          {t('Sample walkthrough')} ↗
+        </a>
         <div
           className="sidebar-resizer"
           role="separator"
-          tabIndex={0}
           aria-label={t('Resize chat history')}
           aria-orientation="vertical"
           aria-valuemin={200}
           aria-valuemax={420}
           aria-valuenow={Math.round(sidebar.width)}
+          tabIndex={0}
           onPointerDown={(event) => {
             event.preventDefault();
             event.currentTarget.focus();
@@ -637,7 +281,6 @@ function MerchantApp() {
             sidebar.setResizing(false);
           }}
           onLostPointerCapture={() => sidebar.setResizing(false)}
-          onPointerCancel={() => sidebar.setResizing(false)}
           onKeyDown={(event) => {
             if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
               event.preventDefault();
@@ -646,7 +289,7 @@ function MerchantApp() {
                   ? 200
                   : event.key === 'End'
                     ? 420
-                    : sidebar.width + (event.key === 'ArrowRight' ? 10 : -10),
+                    : sidebar.width + (event.key === 'ArrowLeft' ? -16 : 16),
               );
             }
           }}
@@ -654,7 +297,6 @@ function MerchantApp() {
       </aside>
       {sidebarOpen && (
         <button
-          type="button"
           className="history-backdrop"
           aria-label={t('Close chat history')}
           onClick={() => setSidebarOpen(false)}
@@ -665,46 +307,30 @@ function MerchantApp() {
           <div className="top-inner">
             <button
               id="history-toggle"
-              type="button"
               className="secondary history-toggle"
+              aria-label={t('Chat history')}
               aria-controls="chat-history"
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              {String.fromCharCode(9776)}
-              <span className="sr-only">{t('Chat history')}</span>
+              ☰
             </button>
-            <div className="chat-title" title={chatName(activeChat)} aria-live="polite">
-              <span className="chat-title-text">
-                {t(activeChat.title ?? turns[0]?.question ?? 'New chat')}
-              </span>
-              {chatTicket(activeChat) && (
-                <span className="chat-ticket">{chatTicket(activeChat)}</span>
-              )}
+            <div className="chat-title" aria-live="polite">
+              <span className="chat-title-text">{currentChat?.title ?? t('New chat')}</span>
+              {ticket && <span className="chat-ticket">{ticket}</span>}
             </div>
-            <div className="header-actions">
-              <span className="merchant">
-                <span className="merchant-logo" aria-hidden="true">
-                  <Icon name="store" size={20} />
-                </span>
-                <span className="merchant-name">{t('Sharma General Store')}</span>
+            <span className="merchant">
+              <span className="merchant-logo">
+                <Icon name="store" size={20} />
               </span>
-              <button
-                className="replay"
-                type="button"
-                onClick={replay}
-                aria-label={t('Replay demo')}
-                title={t('Replay demo')}
-              >
-                <Icon name="replay" size={17} />
-                <span>{t('Replay demo')}</span>
-              </button>
-            </div>
+              <span className="merchant-name">{workspace.session.merchant.display_name}</span>
+            </span>
           </div>
         </header>
         <main
-          className="chat"
           ref={chat}
+          className="chat"
+          data-conversation={workspace.activeId ?? ''}
           onScroll={(event) => {
             const panel = event.currentTarget;
             panel.dataset.follow = String(
@@ -712,134 +338,228 @@ function MerchantApp() {
             );
           }}
         >
-          <div className={turns.length ? 'chat-column conversation' : 'chat-column welcome-wrap'}>
-            {turns.length === 0 ? (
-              <section className="welcome">
-                <div className="hero-mark">
-                  <Icon name="store" size={35} />
-                </div>
-                <h1>{t('Hi! How can I help?')}</h1>
-                <p>
-                  {t('Ask about a payment, bring customers back, or get help with your account.')}
-                </p>
-                <div className="prompts">
-                  {questions.map((question, index) => (
+          <div className="chat-column api-column">
+            <div className="api-tabs" aria-label={t('Conversation')}>
+              <button
+                aria-pressed={tab === 'chat'}
+                onClick={() => {
+                  setTab('chat');
+                  setSelectedTask(null);
+                }}
+              >
+                {t('Conversation')}
+              </button>
+              <button aria-pressed={tab === 'tasks'} onClick={() => setTab('tasks')}>
+                {t('Your tasks')}
+                <span>
+                  {
+                    workspace.tasks.filter(
+                      (task) => !!workspace.activeId && task.conversation_id === workspace.activeId,
+                    ).length
+                  }
+                </span>
+              </button>
+            </div>
+            {workspace.error && (
+              <div className="api-error" role="alert">
+                <p>{workspace.error}</p>
+                {workspace.activeId && (
+                  <button
+                    className="secondary"
+                    onClick={() => void workspace.refreshChat(workspace.activeId!)}
+                  >
+                    {t('Refresh')}
+                  </button>
+                )}
+              </div>
+            )}
+            {tab === 'tasks' ? (
+              selectedTask ? (
+                <TaskWorkspace
+                  key={selectedTask}
+                  id={selectedTask}
+                  session={workspace.session}
+                  language={taskLanguage}
+                  onTask={workspace.updateTask}
+                  onClose={() => {
+                    setSelectedTask(null);
+                    setTab('chat');
+                  }}
+                />
+              ) : (
+                <section className="api-task-list">
+                  <div className="api-section-heading">
+                    <h2>{t('Your tasks')}</h2>
                     <button
-                      key={question}
-                      type="button"
-                      disabled={!!voice.mode}
-                      onClick={() => {
-                        if (question === 'Review my sales report.') {
-                          sendQuestion(t(question));
-                          return;
-                        }
-                        setDraft(t(question));
-                        focusComposer();
-                      }}
+                      className="secondary"
+                      aria-pressed={allTasks}
+                      onClick={() => setAllTasks(!allTasks)}
                     >
-                      <span className="tile">
-                        <Icon
-                          name={
-                            (['payment', 'payment', 'replay', 'sales', 'campaign'] as const)[index]
-                          }
-                        />
-                      </span>
-                      <span>{t(question)}</span>
-                      <Icon name="arrow" size={16} />
+                      {t(allTasks ? 'Tasks in this chat' : 'All tasks')}
                     </button>
-                  ))}
-                </div>
-                <details className="more-questions">
-                  <summary>{t('More questions')}</summary>
-                  <div className="prompts">
-                    {moreQuestions.map((question) => (
-                      <button
-                        type="button"
-                        key={question}
-                        disabled={!!voice.mode}
-                        onClick={() => {
-                          if (question === 'Review my sales report.') {
-                            sendQuestion(t(question));
-                          } else {
-                            setDraft(t(question));
-                            focusComposer();
-                          }
-                        }}
-                      >
-                        <span className="tile">
-                          <Icon name={question === 'Review my sales report.' ? 'sales' : 'bank'} />
-                        </span>
-                        <span>{t(question)}</span>
-                        <Icon name="arrow" size={16} />
-                      </button>
-                    ))}
                   </div>
-                </details>
-              </section>
+                  {scopedTasks.length ? (
+                    scopedTasks.map((task) => (
+                      <button
+                        className="api-task-row"
+                        key={task.task_id}
+                        onClick={() => setSelectedTask(task.task_id)}
+                      >
+                        <span>
+                          <strong>{task.goal}</strong>
+                          <small>{task.next_action}</small>
+                        </span>
+                        <span className={`api-status status-${task.status.toLowerCase()}`}>
+                          {taskLabel(task, contextLanguage)}
+                        </span>
+                        <span aria-hidden="true">↗</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p>{t('No tasks yet')}</p>
+                  )}
+                </section>
+              )
             ) : (
-              turns.map((turn) => (
-                <article className="turn" key={turn.id}>
-                  <div className="user-bubble">{turn.question}</div>
-                  <ChatReply
-                    turn={turn}
-                    onQuestion={sendQuestion}
-                    now={now}
-                    reduced={reduced}
-                    update={(change) =>
-                      setTurns((previous) =>
-                        previous.map((item) =>
-                          item.id === turn.id ? { ...item, ...change } : item,
-                        ),
-                      )
-                    }
-                  />
-                </article>
-              ))
+              <>
+                {workspace.opening ? (
+                  <p role="status">{t('Loading conversation…')}</p>
+                ) : workspace.messages.length === 0 && !pendingHere ? (
+                  <section className="welcome api-welcome">
+                    <div className="hero-mark">
+                      <Icon name="store" size={30} />
+                    </div>
+                    <h1>{t('Hi! How can I help?')}</h1>
+                    <p>
+                      {t(
+                        'Ask about a payment, bring customers back, or get help with your account.',
+                      )}
+                    </p>
+                    <div className="prompts">
+                      {[
+                        'Why is my payment short?',
+                        'Did I receive ₹480?',
+                        'Where is my ₹650 refund?',
+                        'How much did I collect today?',
+                        'Help me bring customers back.',
+                      ].map((question) => (
+                        <button
+                          key={question}
+                          disabled={!canWrite || !!voice.mode}
+                          onClick={() => {
+                            workspace.setDraft(t(question));
+                            focus();
+                          }}
+                        >
+                          <span className="tile">
+                            <Icon name={question.includes('customers') ? 'campaign' : 'payment'} />
+                          </span>
+                          <span>{t(question)}</span>
+                          <Icon name="arrow" size={16} />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : (
+                  workspace.messages.map((message) => (
+                    <article
+                      key={message.message_id}
+                      className={`api-message ${message.role}`}
+                      lang={
+                        message.role === 'assistant'
+                          ? (message.response_language ?? undefined)
+                          : (message.detected_language ?? undefined)
+                      }
+                    >
+                      {message.role === 'user' ? (
+                        <div className="user-bubble">{message.content}</div>
+                      ) : (
+                        <div className="api-assistant">
+                          <span className="reply-avatar" aria-hidden="true">
+                            <Icon name="store" size={16} />
+                          </span>
+                          <div className="api-message-content">{message.content}</div>
+                        </div>
+                      )}
+                      {message.role === 'user' && canWrite && (
+                        <details className="api-start-task">
+                          <summary>{t('Start a task from this question')}</summary>
+                          <p>
+                            {t(
+                              'This creates a separate tracked task. Chat alone does not start execution.',
+                            )}
+                          </p>
+                          <button
+                            className="secondary"
+                            disabled={!!creating}
+                            onClick={() => void startTask(message.message_id, message.content)}
+                          >
+                            {creating === message.message_id
+                              ? t('Loading task…')
+                              : t('Start a task from this question')}
+                          </button>
+                        </details>
+                      )}
+                      {message.task_id && (
+                        <button
+                          className="secondary"
+                          onClick={() => {
+                            setTab('tasks');
+                            setSelectedTask(message.task_id);
+                          }}
+                        >
+                          {t('Task details')}
+                        </button>
+                      )}
+                    </article>
+                  ))
+                )}
+                {pendingHere && (
+                  <article className="api-message user">
+                    <div className="user-bubble">{pendingHere.content}</div>
+                    {pendingHere.failed ? (
+                      <div className="api-error" role="status">
+                        <p>{t('Message not confirmed')}</p>
+                        <button
+                          className="secondary"
+                          disabled={workspace.busy}
+                          onClick={() => void workspace.send(language, true)}
+                        >
+                          {t('Retry this exact message')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="response-activity" role="status">
+                        <BarVisualizer
+                          aria-hidden="true"
+                          className="thinking"
+                          state={reduced ? undefined : 'thinking'}
+                          barCount={5}
+                          minHeight={30}
+                          maxHeight={95}
+                        />
+                        <span>{t('Sending your message…')}</span>
+                      </div>
+                    )}
+                  </article>
+                )}
+              </>
             )}
           </div>
-          {!!turns.length &&
-            (() => {
-              const last = turns[turns.length - 1];
-              if (['sales', 'counter', 'refund', 'closing'].includes(last.intent)) return null;
-              const elapsed = now - last.started;
-              const duration = responseDuration(last);
-              if (elapsed < duration) return null;
-              if (elapsed < duration + followupDelay)
-                return (
-                  <div className="chat-column followup">
-                    <ResponseActivity
-                      elapsed={elapsed - duration}
-                      duration={followupDelay}
-                      reduced={reduced}
-                      followup
-                    />
-                  </div>
-                );
-              const prompt = followup(last.intent);
-              return (
-                <section className="chat-column followup" aria-label={t('Follow-up questions')}>
-                  <h2>{t(prompt.question)}</h2>
-                  <div className="followup-options">
-                    {prompt.options.map((option) => (
-                      <button
-                        type="button"
-                        className="secondary"
-                        key={t(option)}
-                        disabled={!!voice.mode}
-                        onClick={() => sendQuestion(t(option))}
-                      >
-                        {t(option)}
-                      </button>
-                    ))}
-                  </div>
-                  <p>{t('Choose an option, or type your answer below.')}</p>
-                </section>
-              );
-            })()}
         </main>
         <footer className="composer-region">
           <div className="chat-column">
-            <form className="composer" onSubmit={send}>
+            <form
+              className="composer"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!voice.mode && !workspace.opening && canWrite) {
+                  setTab('chat');
+                  setSelectedTask(null);
+                  void workspace.send(language);
+                }
+              }}
+            >
               {voice.mode && (
                 <div className="listening">
                   <span className="listening-label" role="status">
@@ -865,12 +585,12 @@ function MerchantApp() {
                       />
                     )}
                   </div>
-                  <button type="button" className="secondary" onClick={() => voice.end(true)}>
+                  <button className="secondary" type="button" onClick={() => void voice.end(true)}>
                     {t('Cancel')}
                   </button>
                   <button
-                    type="button"
                     className="primary"
+                    type="button"
                     disabled={voice.mode !== 'mic'}
                     onClick={() => void voice.end()}
                   >
@@ -879,35 +599,52 @@ function MerchantApp() {
                 </div>
               )}
               <div className="composer-input">
-                <label className="sr-only" htmlFor="question">
+                <label htmlFor="api-question" className="sr-only">
                   {t('Type a question')}
                 </label>
                 <textarea
-                  id="question"
+                  id="api-question"
                   ref={input}
                   rows={1}
-                  maxLength={2000}
+                  maxLength={4000}
                   placeholder={t('Type a question…')}
-                  value={draft}
+                  value={workspace.draft}
+                  disabled={!canWrite}
                   readOnly={!!voice.mode}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => workspace.setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
                 />
                 <div className="composer-actions">
                   <button
-                    type="button"
                     className="secondary speak"
                     aria-label={t('Speak')}
                     title={t('Speak')}
-                    disabled={!!voice.mode}
-                    onClick={() => voice.start()}
+                    type="button"
+                    disabled={!canWrite || !!voice.mode || workspace.busy || workspace.opening}
+                    onClick={() => void voice.start()}
                   >
                     <Icon name="mic" size={16} />
                   </button>
                   <button
-                    type="submit"
                     className="primary send"
                     aria-label={t('Send')}
-                    disabled={!draft.trim() || !!voice.mode}
+                    disabled={
+                      !canWrite ||
+                      !workspace.draft.trim() ||
+                      !!voice.mode ||
+                      workspace.busy ||
+                      workspace.opening ||
+                      !!workspace.pending
+                    }
                   >
                     <Icon name="send" size={18} />
                     <span className="send-label" aria-hidden="true">
@@ -922,11 +659,8 @@ function MerchantApp() {
             </div>
             <p className="demo-note">
               <span />
-              {t('Demo mode · Sample data and simulated actions')}
+              {t('Synthetic data · Simulated actions')}
             </p>
-            <div className="sr-only" role="status">
-              {announcement}
-            </div>
           </div>
         </footer>
       </div>
