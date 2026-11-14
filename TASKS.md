@@ -42,11 +42,19 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-02 Define domain models and trusted merchant context
 
 - [ ] Complete
+- **Implementation status:** Implemented on `codex/bm-02-domain-context`; validation and merchant-isolation tests added. Awaiting Devi's review. See `docs/BM_02_CONTRACTS.md`.
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-01
 - **PRD:** 9.6, 10, 11, 12
-- **Deliver:** Validated backend models and matching frontend contracts for Merchant, Task, PlanStep, ToolExecution, Approval, Receipt, Evidence, Verification, and CapabilityGap; explicit lifecycle transitions; a server-resolved synthetic merchant session.
+- **Deliver:** Validated backend models and matching frontend contracts for Merchant, Conversation, Message, LanguageContext, Task, PlanStep, ToolExecution, Approval, Receipt, Evidence, Verification, and CapabilityGap; conversation/task relationships; explicit lifecycle transitions; a server-resolved synthetic merchant session.
+- **Build:**
+  - Define shared Conversation, Message and LanguageContext models.
+  - Add preferred_language to merchant and conversation contracts.
+  - Add detected_language and response_language metadata to message contracts.
+  - Support language codes en, te and hi.
+  - Associate tasks with an optional conversation_id.
+  - Preserve original message content, including whitespace and Unicode.
 - **Acceptance:** Tools and task APIs enforce the current merchant's scopes and ownership. A second synthetic merchant cannot read, approve, or execute another merchant's task. An identity supplied in a message or tool argument cannot override the session. Monetary fields use integer paise.
 
 ### BM-03 Add durable storage and task APIs

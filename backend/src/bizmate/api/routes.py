@@ -1,5 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
+from bizmate.api.dependencies import (
+    current_context,
+    require_task_approval,
+    require_task_read,
+    require_task_write,
+)
 from bizmate.domain.chat import (
     Conversation,
     ConversationMessage,
@@ -8,6 +14,8 @@ from bizmate.domain.chat import (
     SendConversationMessageRequest,
     UpdateConversationLanguageRequest,
 )
+from bizmate.domain.context import MerchantContext
+from bizmate.domain.lifecycle import transition_task
 from bizmate.domain.models import (
     ApprovalDecisionRequest,
     ClarificationRequest,
@@ -15,7 +23,6 @@ from bizmate.domain.models import (
     DemoPreview,
     ErrorResponse,
     HealthResponse,
-    Merchant,
     SessionResponse,
     Task,
     TaskEvent,
@@ -26,7 +33,7 @@ from bizmate.domain.models import (
 from bizmate.persistence.conversations import ConversationConflictError, ConversationRepository
 from bizmate.persistence.repository import TaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
-from bizmate.services.demo import MERCHANTS, preview
+from bizmate.services.demo import preview
 from bizmate.tools.policy import require_approval_engine
 
 router = APIRouter(
@@ -38,31 +45,26 @@ router = APIRouter(
 )
 
 
-def current_merchant(request: Request) -> Merchant:
-    # Local-only synthetic identity: NO caller-provided header/query/body override.
-    return MERCHANTS[request.app.state.settings.demo_merchant_id].model_copy(deep=True)
+def conversation_repository(request: Request) -> ConversationRepository:
+    return request.app.state.conversations
+
+
+def owned_conversation(
+    repo: ConversationRepository, context: MerchantContext, conversation_id: str
+):
+    conversation = repo.get(context, conversation_id)
+    if conversation is None or conversation.merchant_id != context.merchant_id:
+        raise HTTPException(404, "Conversation not found")
+    return conversation
 
 
 def repository(request: Request) -> TaskRepository:
     return request.app.state.tasks
 
 
-def conversation_repository(request: Request) -> ConversationRepository:
-    return request.app.state.conversations
-
-
-def owned_conversation(
-    repo: ConversationRepository, merchant: Merchant, conversation_id: str
-) -> Conversation:
-    conversation = repo.get(merchant.merchant_id, conversation_id)
-    if conversation is None:
-        raise HTTPException(404, "Conversation not found")
-    return conversation
-
-
-def owned_task(repo: TaskRepository, merchant: Merchant, task_id: str) -> Task:
-    task = repo.get_task(merchant.merchant_id, task_id)
-    if task is None:
+def owned_task(repo: TaskRepository, context: MerchantContext, task_id: str) -> Task:
+    task = repo.get_task(context, task_id)
+    if task is None or task.merchant_id != context.merchant_id:
         raise HTTPException(404, "Task not found")
     return task
 
@@ -73,20 +75,22 @@ def health(repo: TaskRepository = Depends(repository)):
 
 
 @router.get("/api/v1/session", response_model=SessionResponse, tags=["session"])
-def session(merchant: Merchant = Depends(current_merchant)):
-    return SessionResponse(merchant=merchant)
+def session(context: MerchantContext = Depends(current_context)):
+    return SessionResponse(merchant=context.public_merchant(), actor_id=context.actor_id)
 
 
 @router.get("/api/v1/tasks", response_model=list[Task], tags=["tasks"])
 def tasks(
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
     conversation_id: str | None = Query(default=None, min_length=1),
 ):
-    records = repo.list_tasks(merchant.merchant_id)
-    if conversation_id is not None:
-        records = [task for task in records if task.conversation_id == conversation_id]
-    return records
+    return [
+        task
+        for task in repo.list_tasks(context)
+        if task.merchant_id == context.merchant_id
+        and (conversation_id is None or task.conversation_id == conversation_id)
+    ]
 
 
 @router.post(
@@ -96,42 +100,44 @@ def create_task(
     body: CreateTaskRequest,
     request: Request,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
     if body.conversation_id is not None:
-        owned_conversation(request.app.state.conversations, merchant, body.conversation_id)
+        owned_conversation(request.app.state.conversations, context, body.conversation_id)
     result = request.app.state.graph.invoke({"request": body.message})
     task = Task(
-        merchant_id=merchant.merchant_id,
+        merchant_id=context.merchant_id,
         conversation_id=body.conversation_id,
-        goal=body.message[:90],
+        # Normalize only the display title, not the original request.
+        goal=body.message.strip()[:90],
         original_request=body.message,
-        status=TaskStatus(result["status"]),
-        next_action=result["next_action"],
+        next_action="Prepare the request for planning.",
         events=[
             TaskEvent(kind="request_received", message="Your request was saved."),
             TaskEvent(kind="scaffold_pending", message=result["next_action"]),
         ],
     )
-    return repo.save(task)
+    task = transition_task(task, TaskStatus.PLANNING, "Prepare the request for planning.")
+    task = transition_task(task, TaskStatus(result["status"]), result["next_action"])
+    return repo.save(context, task)
 
 
 @router.get("/api/v1/tasks/{task_id}", response_model=Task, tags=["tasks"])
 def task_detail(
     task_id: str,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return owned_task(repo, merchant, task_id)
+    return owned_task(repo, context, task_id)
 
 
 @router.get("/api/v1/tasks/{task_id}/events", response_model=list[TaskEvent], tags=["tasks"])
 def task_events(
     task_id: str,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return owned_task(repo, merchant, task_id).events
+    return owned_task(repo, context, task_id).events
 
 
 @router.post("/api/v1/tasks/{task_id}/messages", response_model=Task, tags=["tasks"])
@@ -139,12 +145,14 @@ def add_message(
     task_id: str,
     body: ClarificationRequest,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
-    task = owned_task(repo, merchant, task_id)
-    task.events.append(TaskEvent(kind="merchant_message", message=body.message))
-    task.updated_at = now()
-    return repo.save(task)
+    task = owned_task(repo, context, task_id)
+    task = task.with_updates(
+        events=(*task.events, TaskEvent(kind="merchant_message", message=body.message)),
+        updated_at=now(),
+    )
+    return repo.save(context, task)
 
 
 @router.post(
@@ -158,15 +166,15 @@ def decide_approval(
     approval_id: str,
     body: ApprovalDecisionRequest,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_approval),
 ):
-    owned_task(repo, merchant, task_id)
+    owned_task(repo, context, task_id)
     # Both approve/cancel need the real action snapshot/state engine; never report fake success.
     require_approval_engine()
 
 
 @router.get("/api/v1/demo/preview", response_model=DemoPreview, tags=["demo"])
-def demo_preview(merchant: Merchant = Depends(current_merchant)):
+def demo_preview(context: MerchantContext = Depends(require_task_read)):
     return preview()
 
 
@@ -179,17 +187,17 @@ def demo_preview(merchant: Merchant = Depends(current_merchant)):
 def create_conversation(
     body: CreateConversationRequest,
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
-    return repo.create(merchant.merchant_id, body.title, body.preferred_language)
+    return repo.create(context, body.title, body.preferred_language or context.preferred_language)
 
 
 @router.get("/api/v1/conversations", response_model=list[Conversation], tags=["conversations"])
 def conversations(
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return repo.list_conversations(merchant.merchant_id)
+    return repo.list_conversations(context)
 
 
 @router.get(
@@ -198,9 +206,9 @@ def conversations(
 def conversation_detail(
     conversation_id: str,
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return owned_conversation(repo, merchant, conversation_id)
+    return owned_conversation(repo, context, conversation_id)
 
 
 @router.patch(
@@ -210,12 +218,10 @@ def update_conversation_language(
     conversation_id: str,
     body: UpdateConversationLanguageRequest,
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
     try:
-        return repo.set_preferred_language(
-            merchant.merchant_id, conversation_id, body.preferred_language
-        )
+        return repo.set_preferred_language(context, conversation_id, body.preferred_language)
     except KeyError as exc:
         raise HTTPException(404, "Conversation not found") from exc
 
@@ -228,9 +234,9 @@ def update_conversation_language(
 def conversation_messages(
     conversation_id: str,
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    messages = repo.messages(merchant.merchant_id, conversation_id)
+    messages = repo.messages(context, conversation_id)
     if messages is None:
         raise HTTPException(404, "Conversation not found")
     return messages
@@ -247,11 +253,11 @@ def send_conversation_message(
     body: SendConversationMessageRequest,
     request: Request,
     repo: ConversationRepository = Depends(conversation_repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
-    owned_conversation(repo, merchant, conversation_id)
+    owned_conversation(repo, context, conversation_id)
     client_message_id = body.client_message_id or new_id()
-    previous = repo.get_turn(merchant.merchant_id, conversation_id, client_message_id)
+    previous = repo.get_turn(context, conversation_id, client_message_id)
     if previous is not None:
         if previous.user_message.content != body.content or (
             body.language is not None and previous.user_message.language != body.language
@@ -263,13 +269,14 @@ def send_conversation_message(
     result = request.app.state.graph.invoke({"request": body.content})
     try:
         return repo.save_turn(
-            merchant.merchant_id,
+            context,
             conversation_id,
             body.content,
             result["next_action"],
             client_message_id,
             user_language=body.language,
-            assistant_language=result.get("language", "en"),
+            assistant_language=result.get("response_language") or "en",
+            detected_language=result.get("detected_language"),
         )
     except KeyError as exc:
         raise HTTPException(404, "Conversation not found") from exc

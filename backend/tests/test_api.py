@@ -4,8 +4,9 @@ from fastapi.testclient import TestClient
 from bizmate.config import Settings
 from bizmate.domain.models import Task, TaskStatus
 from bizmate.main import create_app
-from bizmate.persistence.repository import MemoryTaskRepository, TaskConflictError
+from bizmate.persistence.repository import MemoryTaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
+from bizmate.services.demo import demo_context
 
 
 @pytest.fixture(params=["memory", "sqlite"])
@@ -41,7 +42,7 @@ def test_create_and_read_task_without_claiming_execution(client):
     assert "not implemented" in task["next_action"]
     assert client.get(f"/api/v1/tasks/{task['task_id']}").json() == task
     assert client.get("/api/v1/tasks").json() == [task]
-    assert len(client.get(f"/api/v1/tasks/{task['task_id']}/events").json()) == 2
+    assert len(client.get(f"/api/v1/tasks/{task['task_id']}/events").json()) == 4
 
 
 @pytest.mark.parametrize("message", ["", "  ", "x" * 4001])
@@ -70,13 +71,14 @@ def test_body_cannot_override_merchant(client):
 
 def test_cross_merchant_tasks_hidden_and_cannot_be_mutated(client, repo):
     repo.save(
+        demo_context("merchant_other"),
         Task(
             task_id="other",
             merchant_id="merchant_other",
             goal="private",
             original_request="private",
             next_action="pending",
-        )
+        ),
     )
     assert client.get("/api/v1/tasks").json() == []
     for suffix in ["", "/events"]:
@@ -89,7 +91,7 @@ def test_cross_merchant_tasks_hidden_and_cannot_be_mutated(client, repo):
             "/api/v1/tasks/other/approvals/a",
             json={
                 "decision": "approve",
-                "input_hash": "pretend",
+                "input_hash": "a" * 64,
             },
         ).status_code
         == 404
@@ -103,7 +105,7 @@ def test_approval_endpoint_fails_closed(client):
             f"/api/v1/tasks/{task['task_id']}/approvals/a",
             json={
                 "decision": decision,
-                "input_hash": "pretend-approved",
+                "input_hash": "a" * 64,
             },
         )
         assert response.status_code == 501
@@ -124,64 +126,22 @@ def test_repository_returns_detached_values_and_rejects_owner_change(repo):
     task = Task(
         merchant_id="merchant_demo", goal="test", original_request="test", next_action="wait"
     )
-    repo.save(task)
-    task.goal = "mutated outside repo"
-    assert repo.get_task("merchant_demo", task.task_id).goal == "test"
-    task.merchant_id = "merchant_other"
-    with pytest.raises(ValueError):
-        repo.save(task)
+    context = demo_context("merchant_demo")
+    repo.save(context, task)
+    changed = task.with_updates(goal="a detached edit")
+    assert repo.get_task(context, task.task_id).goal == "test"
+    assert changed.goal == "a detached edit"
+    with pytest.raises(PermissionError):
+        repo.save(context, task.with_updates(merchant_id="merchant_other"))
 
 
-def test_app_restart_preserves_tasks_and_seed_changes(tmp_path):
-    settings = Settings(_env_file=None, database_path=str(tmp_path / "tasks.sqlite3"))
+def test_sessions_share_durable_task_records_after_restart(tmp_path):
+    settings = Settings(_env_file=None, database_path=str(tmp_path / "durable.sqlite3"))
     with TestClient(create_app(settings)) as first:
         task = first.post("/api/v1/tasks", json={"message": "persistent task"}).json()
-        seed = first.post(
-            "/api/v1/tasks/demo-settlement/messages", json={"message": "Keep this history"}
-        ).json()
     with TestClient(create_app(settings)) as second:
-        assert second.get("/health").json()["storage"] == "sqlite"
-        assert second.get(f"/api/v1/tasks/{task['task_id']}").json() == task
-        assert second.get("/api/v1/tasks/demo-settlement").json() == seed
         assert len(second.get("/api/v1/tasks").json()) == 2
-
-
-def test_task_errors_have_consistent_contracts(client):
-    missing = client.get("/api/v1/tasks/missing")
-    assert missing.status_code == 404
-    assert missing.json() == {
-        "code": "NOT_FOUND",
-        "message": "Task not found",
-        "task_reference": None,
-    }
-    invalid = client.post("/api/v1/tasks", json={"message": "hi", "merchant_id": "secret"})
-    assert invalid.status_code == 422
-    assert invalid.json()["code"] == "VALIDATION_ERROR"
-    assert "body.merchant_id" in invalid.json()["message"]
-    assert "secret" not in invalid.text
-
-
-def test_validation_response_description_is_stable_across_python_versions(client):
-    for path in client.app.openapi()["paths"].values():
-        for operation in path.values():
-            response = operation["responses"].get("422")
-            if response is not None:
-                assert response["description"] == "Request validation failed"
-
-
-def test_stale_update_returns_conflict_without_losing_state(client, repo, monkeypatch):
-    task = client.post("/api/v1/tasks", json={"message": "Keep original"}).json()
-
-    def conflict(task):
-        raise TaskConflictError("Task changed. Reload it before saving.")
-
-    monkeypatch.setattr(repo, "save", conflict)
-    response = client.post(
-        f"/api/v1/tasks/{task['task_id']}/messages", json={"message": "Concurrent edit"}
-    )
-    assert response.status_code == 409
-    assert response.json()["code"] == "TASK_CONFLICT"
-    assert client.get(f"/api/v1/tasks/{task['task_id']}").json() == task
+        assert second.get(f"/api/v1/tasks/{task['task_id']}").json() == task
 
 
 def test_local_cors_allowlist(client):

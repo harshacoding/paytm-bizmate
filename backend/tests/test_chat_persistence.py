@@ -7,15 +7,18 @@ from threading import Barrier
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
+from bizmate.api.dependencies import current_context
 from bizmate.config import Settings
-from bizmate.domain.models import Task, TaskStatus
+from bizmate.domain.models import Scope, Task, TaskStatus
 from bizmate.main import create_app
 from bizmate.persistence.conversations import (
     ConversationConflictError,
     SQLiteConversationRepository,
 )
 from bizmate.persistence.sqlite import SQLiteTaskRepository
+from bizmate.services.demo import demo_context
 
 
 @pytest.fixture
@@ -159,14 +162,14 @@ def test_history_and_stable_ids_survive_app_restart(settings, client):
 def test_concurrent_turns_have_contiguous_sequences_and_retries_are_atomic(tmp_path):
     path = tmp_path / "concurrency.sqlite3"
     repo = SQLiteConversationRepository(path)
-    conversation = repo.create("merchant_demo", "Concurrent chat")
+    conversation = repo.create(demo_context("merchant_demo"), "Concurrent chat")
     barrier = Barrier(4)
 
     def write(index):
         worker = SQLiteConversationRepository(path)
         barrier.wait(timeout=5)
         return worker.save_turn(
-            "merchant_demo",
+            demo_context("merchant_demo"),
             conversation.conversation_id,
             f"Question {index}",
             f"Answer {index}",
@@ -175,14 +178,14 @@ def test_concurrent_turns_have_contiguous_sequences_and_retries_are_atomic(tmp_p
 
     with ThreadPoolExecutor(max_workers=4) as workers:
         turns = list(workers.map(write, range(4)))
-    history = repo.messages("merchant_demo", conversation.conversation_id)
+    history = repo.messages(demo_context("merchant_demo"), conversation.conversation_id)
     assert [message.sequence for message in history] == list(range(1, 9))
     assert [message.role for message in history] == ["user", "assistant"] * 4
     for turn in turns:
         assert turn.assistant_message.sequence == turn.user_message.sequence + 1
         assert (
             repo.save_turn(
-                "merchant_demo",
+                demo_context("merchant_demo"),
                 conversation.conversation_id,
                 turn.user_message.content,
                 "A regenerated answer",
@@ -190,20 +193,20 @@ def test_concurrent_turns_have_contiguous_sequences_and_retries_are_atomic(tmp_p
             )
             == turn
         )
-    assert len(repo.messages("merchant_demo", conversation.conversation_id)) == 8
+    assert len(repo.messages(demo_context("merchant_demo"), conversation.conversation_id)) == 8
 
 
 def test_parallel_retries_with_same_client_id_store_one_turn(tmp_path):
     path = tmp_path / "retry.sqlite3"
     repo = SQLiteConversationRepository(path)
-    conversation = repo.create("merchant_demo", "Retry test")
+    conversation = repo.create(demo_context("merchant_demo"), "Retry test")
     barrier = Barrier(2)
 
     def write(index):
         worker = SQLiteConversationRepository(path)
         barrier.wait(timeout=5)
         return worker.save_turn(
-            "merchant_demo",
+            demo_context("merchant_demo"),
             conversation.conversation_id,
             "Same question",
             f"Answer {index}",
@@ -213,32 +216,48 @@ def test_parallel_retries_with_same_client_id_store_one_turn(tmp_path):
     with ThreadPoolExecutor(max_workers=2) as workers:
         turns = list(workers.map(write, range(2)))
     assert turns[0] == turns[1]
-    assert len(repo.messages("merchant_demo", conversation.conversation_id)) == 2
+    assert len(repo.messages(demo_context("merchant_demo"), conversation.conversation_id)) == 2
     with pytest.raises(ConversationConflictError):
         repo.save_turn(
-            "merchant_demo", conversation.conversation_id, "Changed question", "Answer", "same-id"
+            demo_context("merchant_demo"),
+            conversation.conversation_id,
+            "Changed question",
+            "Answer",
+            "same-id",
         )
 
 
 def test_failed_assistant_insert_rolls_back_user_message_and_conversation_update(tmp_path):
     repo = SQLiteConversationRepository(tmp_path / "rollback.sqlite3")
-    conversation = repo.create("merchant_demo", "Atomic turns")
-    with pytest.raises(sqlite3.IntegrityError):
+    conversation = repo.create(demo_context("merchant_demo"), "Atomic turns")
+    with pytest.raises(ValidationError):
         repo.save_turn(
-            "merchant_demo", conversation.conversation_id, "A valid question", "", "turn"
+            demo_context("merchant_demo"),
+            conversation.conversation_id,
+            "A valid question",
+            "",
+            "turn",
         )
-    assert repo.messages("merchant_demo", conversation.conversation_id) == []
-    assert repo.get("merchant_demo", conversation.conversation_id) == conversation
+    assert repo.messages(demo_context("merchant_demo"), conversation.conversation_id) == []
+    assert repo.get(demo_context("merchant_demo"), conversation.conversation_id) == conversation
 
 
 def test_repository_blocks_cross_merchant_mutations_and_foreign_keys(tmp_path):
     repo = SQLiteConversationRepository(tmp_path / "ownership.sqlite3")
-    conversation = repo.create("merchant_demo", "Private")
-    assert repo.get("merchant_other", conversation.conversation_id) is None
-    assert repo.messages("merchant_other", conversation.conversation_id) is None
-    assert repo.get_turn("merchant_other", conversation.conversation_id, "turn") is None
+    conversation = repo.create(demo_context("merchant_demo"), "Private")
+    assert repo.get(demo_context("merchant_other"), conversation.conversation_id) is None
+    assert repo.messages(demo_context("merchant_other"), conversation.conversation_id) is None
+    assert (
+        repo.get_turn(demo_context("merchant_other"), conversation.conversation_id, "turn") is None
+    )
     with pytest.raises(KeyError):
-        repo.save_turn("merchant_other", conversation.conversation_id, "Question", "Answer", "turn")
+        repo.save_turn(
+            demo_context("merchant_other"),
+            conversation.conversation_id,
+            "Question",
+            "Answer",
+            "turn",
+        )
     with sqlite3.connect(repo.database_path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         with pytest.raises(sqlite3.IntegrityError):
@@ -263,6 +282,7 @@ def test_chat_lifetime_does_not_change_task_status_due_time_or_checkpoint(settin
     repo = SQLiteTaskRepository(settings.database_file)
     conversation_id = client.post("/api/v1/conversations", json={}).json()["conversation_id"]
     task = repo.save(
+        demo_context("merchant_demo"),
         Task(
             merchant_id="merchant_demo",
             goal="Continue independently",
@@ -272,7 +292,7 @@ def test_chat_lifetime_does_not_change_task_status_due_time_or_checkpoint(settin
             checkpoint_id="durable-task-checkpoint",
             conversation_id=conversation_id,
             next_run_at="2026-11-15T09:00:00Z",
-        )
+        ),
     )
     client.post(f"/api/v1/conversations/{conversation_id}/messages", json={"content": "Hello"})
     with sqlite3.connect(settings.database_file) as connection:
@@ -299,6 +319,7 @@ import sys
 from fastapi.testclient import TestClient
 from bizmate.config import Settings
 from bizmate.main import create_app
+from bizmate.services.demo import demo_context
 with TestClient(create_app(Settings(_env_file=None, database_path=sys.argv[1]))) as client:
     if sys.argv[2] == "create":
         response = client.post("/api/v1/conversations", json={"title": "Restart test"})
@@ -363,9 +384,9 @@ def test_language_preferences_and_original_content_survive_restart(settings, cli
     )
     assert conflict.status_code == 409
     override = client.post(
-        path + "/messages", json={"content": "English question", "language": "en-IN"}
+        path + "/messages", json={"content": "English question", "language": "en"}
     ).json()
-    assert override["user_message"]["language"] == "en-IN"
+    assert override["user_message"]["language"] == "en"
     inherited = client.post(path + "/messages", json={"content": "मेरे प्रश्न का जवाब दें"}).json()
     assert inherited["user_message"]["language"] == "hi"
     history = client.get(path + "/messages").json()
@@ -487,8 +508,8 @@ def test_existing_chat_tables_gain_language_fields_without_losing_messages(tmp_p
                 ),
             )
     repo = SQLiteConversationRepository(path)
-    assert repo.get("merchant_demo", "legacy-chat").preferred_language == "en"
-    history = repo.messages("merchant_demo", "legacy-chat")
+    assert repo.get(demo_context("merchant_demo"), "legacy-chat").preferred_language == "en"
+    history = repo.messages(demo_context("merchant_demo"), "legacy-chat")
     assert [message.content for message in history] == [
         "Original user message",
         "Original assistant message",
@@ -496,7 +517,7 @@ def test_existing_chat_tables_gain_language_fields_without_losing_messages(tmp_p
     assert [message.language for message in history] == ["und", "und"]
     assert (
         repo.save_turn(
-            "merchant_demo", "legacy-chat", "Next question", "Next answer", "next"
+            demo_context("merchant_demo"), "legacy-chat", "Next question", "Next answer", "next"
         ).user_message.sequence
         == 3
     )
@@ -524,8 +545,49 @@ def test_task_schema_migration_preserves_old_task_payloads(tmp_path):
         )
         connection.execute("PRAGMA user_version = 1")
     repo = SQLiteTaskRepository(path)
-    restored = repo.get_task(task.merchant_id, task.task_id)
+    restored = repo.get_task(demo_context(task.merchant_id), task.task_id)
     assert restored == task
     assert restored.conversation_id is None
-    restored.next_action = "Updated after migration"
-    assert repo.save(restored).revision == 2
+    restored = restored.with_updates(next_action="Updated after migration")
+    assert repo.save(demo_context("merchant_demo"), restored).revision == 2
+
+
+def test_backend_language_metadata_is_distinct_from_declared_preference(
+    settings, client, monkeypatch
+):
+    conversation_id = client.post(
+        "/api/v1/conversations", json={"preferred_language": "en"}
+    ).json()["conversation_id"]
+    path = f"/api/v1/conversations/{conversation_id}"
+    monkeypatch.setattr(
+        client.app.state.graph,
+        "invoke",
+        lambda inputs: {
+            "next_action": "మీ అభ్యర్థన భద్రపరచబడింది.",
+            "detected_language": "te",
+            "response_language": "te",
+        },
+    )
+    response = client.post(
+        path + "/messages", json={"content": "నా ప్రశ్నను భద్రపరచండి", "language": "en"}
+    )
+    assert response.status_code == 201
+    turn = response.json()
+    assert turn["user_message"]["detected_language"] == "te"
+    assert turn["assistant_message"]["response_language"] == "te"
+    assert client.get(path).json()["preferred_language"] == "en"
+    with TestClient(create_app(settings)) as restarted:
+        history = restarted.get(path + "/messages").json()
+        assert history == [turn["user_message"], turn["assistant_message"]]
+
+
+def test_read_only_context_can_read_chat_but_cannot_create_update_or_send(client):
+    conversation_id = client.post("/api/v1/conversations", json={}).json()["conversation_id"]
+    read_only = demo_context("merchant_demo").with_updates(scopes=[Scope.TASKS_READ])
+    client.app.dependency_overrides[current_context] = lambda: read_only
+    path = f"/api/v1/conversations/{conversation_id}"
+    assert client.get(path).status_code == 200
+    assert client.get(path + "/messages").status_code == 200
+    assert client.post("/api/v1/conversations", json={}).status_code == 403
+    assert client.patch(path, json={"preferred_language": "te"}).status_code == 403
+    assert client.post(path + "/messages", json={"content": "Blocked"}).status_code == 403

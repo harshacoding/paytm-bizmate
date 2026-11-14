@@ -8,8 +8,9 @@ from starlette.exceptions import HTTPException
 
 from bizmate.agents.graph import build_graph
 from bizmate.api.routes import router
+from bizmate.api.schema import install_domain_schemas
 from bizmate.config import Settings
-from bizmate.domain.errors import FeaturePending
+from bizmate.domain.errors import AccessDenied, FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
 from bizmate.persistence.conversations import (
     ConversationConflictError,
@@ -18,7 +19,7 @@ from bizmate.persistence.conversations import (
 )
 from bizmate.persistence.repository import TaskConflictError, TaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
-from bizmate.services.demo import MERCHANTS
+from bizmate.services.demo import MERCHANTS, demo_context
 
 
 def create_app(
@@ -36,9 +37,10 @@ def create_app(
             app.state.conversations = SQLiteConversationRepository(settings.database_file)
         if repo is None:
             app.state.tasks = SQLiteTaskRepository(settings.database_file)
-            if app.state.tasks.get_task("merchant_demo", "demo-settlement") is None:
+            if app.state.tasks.get_task(demo_context("merchant_demo"), "demo-settlement") is None:
                 try:
                     app.state.tasks.save(
+                        demo_context("merchant_demo"),
                         Task(
                             task_id="demo-settlement",
                             merchant_id="merchant_demo",
@@ -53,7 +55,7 @@ def create_app(
                                     message="Synthetic example; no investigation has run.",
                                 )
                             ],
-                        )
+                        ),
                     )
                 except TaskConflictError:
                     # Another worker seeded the same task while this worker was starting.
@@ -62,11 +64,12 @@ def create_app(
 
     app = FastAPI(
         title="Paytm BizMate API",
-        version="0.1.0",
+        version="0.4.0",
         description="Local prototype with durable SQLite tasks and synthetic fixtures.",
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.merchant_context = demo_context(settings.demo_merchant_id)
     if repo is not None:
         app.state.tasks = repo
     if chat_repo is not None:
@@ -126,7 +129,15 @@ def create_app(
             content=ErrorResponse(code="VALIDATION_ERROR", message=message).model_dump(),
         )
 
+    @app.exception_handler(AccessDenied)
+    async def access_denied_handler(request: Request, exc: AccessDenied):
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(code="ACCESS_DENIED", message=str(exc)).model_dump(),
+        )
+
     app.include_router(router)
+    install_domain_schemas(app)
     return app
 
 

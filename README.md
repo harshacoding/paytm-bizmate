@@ -67,12 +67,12 @@ curl -sS -X POST http://127.0.0.1:8000/api/v1/tasks \
 curl -sS "http://127.0.0.1:8000/api/v1/tasks?conversation_id=$conversation_id"
 ```
 
-Repeating a request with the same `client_message_id` and content returns the stored turn. Restart the API and retrieve history again to verify persistence. Original user/assistant text, timestamps and message languages remain available. Preferred language defaults to `en`; a user message inherits it when `language` is omitted. The current scaffold assistant responds in English and records `en` for its reply. Language metadata and preference storage work independently of BM-07 multilingual generation. Existing message records gain `und` for unknown historical language during migration.
+Repeating a request with the same `client_message_id` and content returns the stored turn. Restart the API and retrieve history again to verify persistence. Original user/assistant text, timestamps and message languages remain available. Preferred language defaults to `en`; a user message inherits it when `language` is omitted. Messages also expose the shared `detected_language` and `response_language` fields. Detection stays null until supplied by BM-07. The current scaffold assistant responds in English and records response language `en`. The legacy `language` field retains declared hints for compatibility. Language metadata and preference storage work independently of BM-07 multilingual generation. Existing message records gain `und` for unknown historical language during migration.
 
 Task creation accepts an optional `conversation_id` belonging to the current merchant. Tasks created before this addition keep a null association. Task state, due times and checkpoint references have their own lifecycle. Test history persistence locally with the existing scaffold; full graph execution recovery depends on Harsha's BM-07 checkpointer integration. Harsha reviews BM-03 acceptance.
 
 ```sh
-uv run --project backend pytest backend/tests/test_conversations.py -q
+uv run --project backend pytest backend/tests/test_chat_persistence.py -q
 sqlite3 backend/.data/bizmate.sqlite3 '.schema conversations'
 sqlite3 backend/.data/bizmate.sqlite3 '.schema messages'
 sqlite3 -header -column backend/.data/bizmate.sqlite3 \

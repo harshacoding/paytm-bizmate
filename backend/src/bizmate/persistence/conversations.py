@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Protocol
 
 from bizmate.domain.chat import Conversation, ConversationMessage, ConversationTurn
-from bizmate.domain.models import new_id, now
+from bizmate.domain.context import MerchantContext, require_context
+from bizmate.domain.models import Scope, new_id, now
 
 
 class ConversationConflictError(Exception):
@@ -13,28 +14,29 @@ class ConversationConflictError(Exception):
 
 class ConversationRepository(Protocol):
     def create(
-        self, merchant_id: str, title: str, preferred_language: str = "en"
+        self, context: MerchantContext, title: str, preferred_language: str | None = None
     ) -> Conversation: ...
-    def list_conversations(self, merchant_id: str) -> list[Conversation]: ...
-    def get(self, merchant_id: str, conversation_id: str) -> Conversation | None: ...
+    def list_conversations(self, context: MerchantContext) -> list[Conversation]: ...
+    def get(self, context: MerchantContext, conversation_id: str) -> Conversation | None: ...
     def set_preferred_language(
-        self, merchant_id: str, conversation_id: str, language: str
+        self, context: MerchantContext, conversation_id: str, language: str
     ) -> Conversation: ...
     def messages(
-        self, merchant_id: str, conversation_id: str
+        self, context: MerchantContext, conversation_id: str
     ) -> list[ConversationMessage] | None: ...
     def get_turn(
-        self, merchant_id: str, conversation_id: str, client_message_id: str
+        self, context: MerchantContext, conversation_id: str, client_message_id: str
     ) -> ConversationTurn | None: ...
     def save_turn(
         self,
-        merchant_id: str,
+        context: MerchantContext,
         conversation_id: str,
         content: str,
         assistant_content: str,
         client_message_id: str,
         user_language: str | None = None,
         assistant_language: str = "en",
+        detected_language: str | None = None,
     ) -> ConversationTurn: ...
 
 
@@ -100,6 +102,13 @@ class SQLiteConversationRepository:
                 connection.execute(
                     "ALTER TABLE messages ADD COLUMN language TEXT NOT NULL DEFAULT 'und'"
                 )
+            for column in ["detected_language", "response_language", "task_id"]:
+                if column not in message_columns:
+                    connection.execute(f"ALTER TABLE messages ADD COLUMN {column} TEXT")
+            connection.execute(
+                """UPDATE messages SET response_language = language WHERE role = 'assistant'
+                   AND response_language IS NULL AND language IN ('en', 'te', 'hi')"""
+            )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=5)
@@ -117,13 +126,18 @@ class SQLiteConversationRepository:
             {field: row[field] for field in ConversationMessage.model_fields}
         )
 
-    def create(self, merchant_id: str, title: str, preferred_language: str = "en") -> Conversation:
+    def create(
+        self, context: MerchantContext, title: str, preferred_language: str | None = None
+    ) -> Conversation:
+        require_context(context)
+        context.require(Scope.TASKS_WRITE)
+        merchant_id = context.merchant_id
         timestamp = now()
         conversation = Conversation(
             conversation_id=new_id(),
             merchant_id=merchant_id,
             title=title,
-            preferred_language=preferred_language,
+            preferred_language=preferred_language or context.preferred_language,
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -143,7 +157,10 @@ class SQLiteConversationRepository:
             )
         return conversation
 
-    def list_conversations(self, merchant_id: str) -> list[Conversation]:
+    def list_conversations(self, context: MerchantContext) -> list[Conversation]:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection:
             rows = connection.execute(
                 """SELECT * FROM conversations WHERE merchant_id = ?
@@ -152,7 +169,10 @@ class SQLiteConversationRepository:
             ).fetchall()
         return [self._conversation(row) for row in rows]
 
-    def get(self, merchant_id: str, conversation_id: str) -> Conversation | None:
+    def get(self, context: MerchantContext, conversation_id: str) -> Conversation | None:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT * FROM conversations WHERE merchant_id = ? AND conversation_id = ?",
@@ -161,8 +181,11 @@ class SQLiteConversationRepository:
         return self._conversation(row) if row else None
 
     def set_preferred_language(
-        self, merchant_id: str, conversation_id: str, language: str
+        self, context: MerchantContext, conversation_id: str, language: str
     ) -> Conversation:
+        require_context(context)
+        context.require(Scope.TASKS_WRITE)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
@@ -174,7 +197,7 @@ class SQLiteConversationRepository:
             conversation = Conversation.model_validate(
                 {**dict(row), "preferred_language": language}
             )
-            conversation.updated_at = now()
+            conversation = conversation.with_updates(updated_at=max(now(), conversation.updated_at))
             connection.execute(
                 """UPDATE conversations SET preferred_language = ?, updated_at = ?
                    WHERE merchant_id = ? AND conversation_id = ?""",
@@ -187,7 +210,12 @@ class SQLiteConversationRepository:
             )
         return conversation
 
-    def messages(self, merchant_id: str, conversation_id: str) -> list[ConversationMessage] | None:
+    def messages(
+        self, context: MerchantContext, conversation_id: str
+    ) -> list[ConversationMessage] | None:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection:
             # Both checks share a read transaction, including when another worker deletes chat data.
             connection.execute("BEGIN")
@@ -225,21 +253,28 @@ class SQLiteConversationRepository:
         )
 
     def get_turn(
-        self, merchant_id: str, conversation_id: str, client_message_id: str
+        self, context: MerchantContext, conversation_id: str, client_message_id: str
     ) -> ConversationTurn | None:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection:
             return self._turn(connection, merchant_id, conversation_id, client_message_id)
 
     def save_turn(
         self,
-        merchant_id: str,
+        context: MerchantContext,
         conversation_id: str,
         content: str,
         assistant_content: str,
         client_message_id: str,
         user_language: str | None = None,
         assistant_language: str = "en",
+        detected_language: str | None = None,
     ) -> ConversationTurn:
+        require_context(context)
+        context.require(Scope.TASKS_WRITE)
+        merchant_id = context.merchant_id
         with closing(self._connect()) as connection, connection:
             connection.execute("BEGIN IMMEDIATE")
             exists = connection.execute(
@@ -273,16 +308,20 @@ class SQLiteConversationRepository:
                 message = ConversationMessage(
                     message_id=new_id(),
                     conversation_id=conversation_id,
+                    merchant_id=merchant_id,
                     role=role,
                     content=text,
                     language=language,
+                    detected_language=detected_language if role == "user" else None,
+                    response_language=assistant_language if role == "assistant" else None,
                     sequence=last_sequence + offset,
                     created_at=timestamp,
                 )
                 connection.execute(
                     """INSERT INTO messages (message_id, conversation_id, merchant_id,
-                       client_message_id, role, content, sequence, created_at, language)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       client_message_id, role, content, sequence, created_at, language,
+                       detected_language, response_language, task_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         message.message_id,
                         conversation_id,
@@ -293,6 +332,9 @@ class SQLiteConversationRepository:
                         last_sequence + offset,
                         timestamp,
                         message.language,
+                        message.detected_language,
+                        message.response_language,
+                        message.task_id,
                     ),
                 )
             connection.execute(

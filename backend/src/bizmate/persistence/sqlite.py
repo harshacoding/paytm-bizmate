@@ -1,11 +1,55 @@
+import hashlib
 import json
+import re
 import sqlite3
 from contextlib import closing
 from datetime import UTC
 from pathlib import Path
 
-from bizmate.domain.models import Task, now
-from bizmate.persistence.repository import TaskConflictError, task_snapshot
+from bizmate.domain.context import MerchantContext, require_context
+from bizmate.domain.models import Scope, Task
+from bizmate.persistence.repository import task_snapshot
+
+
+def load_task(payload: str) -> Task:
+    data = json.loads(payload)
+    legacy_executions = data.pop("executions", None)
+    if legacy_executions is not None:
+        data.setdefault("tool_executions", legacy_executions)
+        legacy_hashes = {}
+        for field in [
+            "plan",
+            "evidence",
+            "approvals",
+            "receipts",
+            "verifications",
+            "tool_executions",
+        ]:
+            for record in data.get(field, []):
+                record.setdefault("task_id", data["task_id"])
+                record.setdefault("merchant_id", data["merchant_id"])
+                digest = record.get("input_hash")
+                if digest is not None and not re.fullmatch(r"[0-9a-f]{64}", digest):
+                    legacy_hashes[digest] = hashlib.sha256(digest.encode()).hexdigest()
+                    record["input_hash"] = legacy_hashes[digest]
+        for execution in data["tool_executions"]:
+            execution["outcome"] = {"error": "failed", "success": "succeeded"}.get(
+                execution["outcome"], execution["outcome"]
+            )
+        for receipt in data.get("receipts", []):
+            approval = next(
+                (
+                    item
+                    for item in data.get("approvals", [])
+                    if item["input_hash"] == receipt["input_hash"]
+                ),
+                None,
+            )
+            receipt.setdefault("action", approval["action"] if approval else "legacy_action")
+            receipt.setdefault("idempotency_key", receipt["receipt_id"])
+        if legacy_hashes:
+            data.setdefault("workflow_data", {})["legacy_input_hashes"] = legacy_hashes
+    return Task.model_validate(data)
 
 
 class SQLiteTaskRepository:
@@ -58,40 +102,41 @@ class SQLiteTaskRepository:
         # Connections belong to one operation, so FastAPI workers never share a connection.
         return sqlite3.connect(self.database_path, timeout=5)
 
-    def list_tasks(self, merchant_id: str) -> list[Task]:
+    def list_tasks(self, context: MerchantContext) -> list[Task]:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
         with closing(self._connect()) as connection:
             rows = connection.execute(
                 """SELECT payload FROM tasks WHERE merchant_id = ?
                    ORDER BY created_at DESC, task_id DESC""",
-                (merchant_id,),
+                (context.merchant_id,),
             ).fetchall()
-        return [Task.model_validate_json(row[0]) for row in rows]
+        return [load_task(row[0]) for row in rows]
 
-    def get_task(self, merchant_id: str, task_id: str) -> Task | None:
+    def get_task(self, context: MerchantContext, task_id: str) -> Task | None:
+        require_context(context)
+        context.require(Scope.TASKS_READ)
         with closing(self._connect()) as connection:
             row = connection.execute(
                 "SELECT payload FROM tasks WHERE merchant_id = ? AND task_id = ?",
-                (merchant_id, task_id),
+                (context.merchant_id, task_id),
             ).fetchone()
-        return Task.model_validate_json(row[0]) if row else None
+        return load_task(row[0]) if row else None
 
-    def save(self, task: Task) -> Task:
-        snapshot = task_snapshot(task)
+    def save(self, context: MerchantContext, task: Task) -> Task:
+        require_context(context)
+        context.require(Scope.TASKS_WRITE)
+        context.require_owner(task.merchant_id)
         with closing(self._connect()) as connection, connection:
             # Acquire the write lock before checking ownership and the expected revision.
             connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute(
-                "SELECT merchant_id, revision FROM tasks WHERE task_id = ?",
-                (snapshot.task_id,),
+                "SELECT merchant_id, payload FROM tasks WHERE task_id = ?",
+                (task.task_id,),
             ).fetchone()
-            if existing and existing[0] != snapshot.merchant_id:
-                raise ValueError("Task ownership cannot change")
-            revision = existing[1] if existing else 0
-            if snapshot.revision != revision:
-                raise TaskConflictError("Task changed. Reload it before saving.")
-            snapshot.revision += 1
-            snapshot.updated_at = now()
-            created_at = snapshot.created_at.replace(tzinfo=snapshot.created_at.tzinfo or UTC)
+            if existing:
+                context.require_owner(existing[0])
+            snapshot = task_snapshot(context, task, load_task(existing[1]) if existing else None)
             connection.execute(
                 """INSERT INTO tasks
                    (task_id, merchant_id, created_at, revision, payload, conversation_id)
@@ -104,7 +149,7 @@ class SQLiteTaskRepository:
                 (
                     snapshot.task_id,
                     snapshot.merchant_id,
-                    created_at.astimezone(UTC).isoformat(),
+                    snapshot.created_at.astimezone(UTC).isoformat(),
                     snapshot.revision,
                     snapshot.model_dump_json(),
                     snapshot.conversation_id,
