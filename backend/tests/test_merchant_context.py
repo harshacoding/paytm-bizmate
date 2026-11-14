@@ -151,7 +151,7 @@ def test_repository_revalidates_unsafe_copies_and_preserves_nested_snapshots():
     repo = MemoryTaskRepository()
     context = demo_context("merchant_demo")
     task = make_task(plan=records()["plan"])
-    repo.save(context, task)
+    task = repo.save(context, task)
     returned = repo.get_task(context, task.task_id)
     returned.plan[0].inputs["injected"] = "untrusted edit"
     assert repo.get_task(context, task.task_id).plan[0].inputs == {}

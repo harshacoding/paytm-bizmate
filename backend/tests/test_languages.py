@@ -1,5 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
 from pydantic import TypeAdapter, ValidationError
 from test_conversations import conversation, message
 from test_domain_models import make_task
@@ -106,8 +105,8 @@ def test_length_limit_applies_to_original_content_before_any_normalization():
         TypeAdapter(MessageText).validate_python(content + " ")
 
 
-def test_task_intake_and_follow_up_preserve_original_content_and_fixed_identity():
-    client = TestClient(create_app())
+def test_task_intake_and_follow_up_preserve_original_content_and_fixed_identity(persistent_client):
+    client = persistent_client
     content = "  తెలుగు / हिन्दी / English\n\t"
     response = client.post(
         "/api/v1/tasks?preferred_language=hi&merchant_id=merchant_other", json={"message": content}
@@ -130,8 +129,8 @@ def test_task_intake_and_follow_up_preserve_original_content_and_fixed_identity(
 
 
 @pytest.mark.parametrize("content", [" " * 100 + "Explain my settlement", " " * 3999 + "అ"])
-def test_valid_leading_whitespace_cannot_create_an_empty_task_title(content):
-    client = TestClient(create_app())
+def test_valid_leading_whitespace_cannot_create_an_empty_task_title(content, persistent_client):
+    client = persistent_client
     response = client.post("/api/v1/tasks", json={"message": content})
     assert response.status_code == 201
     assert response.json()["goal"] == content.strip()[:90]

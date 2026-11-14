@@ -3,11 +3,37 @@ from typing import Protocol
 
 from bizmate.domain.context import MerchantContext, require_context
 from bizmate.domain.lifecycle import require_transition
-from bizmate.domain.models import Scope, Task
+from bizmate.domain.models import Scope, Task, now
+
+
+class TaskConflictError(Exception):
+    """The saved task changed after the caller read its snapshot."""
+
+
+def task_snapshot(context: MerchantContext, task: Task, existing: Task | None) -> Task:
+    require_context(context)
+    context.require(Scope.TASKS_WRITE)
+    context.require_owner(task.merchant_id)
+    task = Task.model_validate(task.model_dump(warnings=False))
+    if existing is not None:
+        context.require_owner(existing.merchant_id)
+    revision = existing.revision if existing is not None else 0
+    if task.revision != revision:
+        raise TaskConflictError("Task changed. Reload it before saving.")
+    if existing is not None:
+        if task.created_at != existing.created_at or task.updated_at < existing.updated_at:
+            raise ValueError("Task creation time is immutable; updates cannot go backwards")
+        if task.status != existing.status:
+            require_transition(existing.status, task.status)
+    return task.with_updates(
+        revision=revision + 1,
+        updated_at=max(now(), task.updated_at),
+        events=tuple(sorted(task.events, key=lambda event: event.occurred_at)),
+    )
 
 
 class TaskRepository(Protocol):
-    """BM-03: SQLite adapter must preserve merchant scoping and detached snapshots."""
+    """Context-scoped snapshots. Save returns the next revision or raises a conflict."""
 
     def list_tasks(self, context: MerchantContext) -> list[Task]: ...
     def get_task(self, context: MerchantContext, task_id: str) -> Task | None: ...
@@ -29,7 +55,7 @@ class MemoryTaskRepository:
                     for t in self._tasks.values()
                     if t.merchant_id == context.merchant_id
                 ],
-                key=lambda t: t.created_at,
+                key=lambda t: (t.created_at, t.task_id),
                 reverse=True,
             )
 
@@ -46,15 +72,8 @@ class MemoryTaskRepository:
         require_context(context)
         context.require(Scope.TASKS_WRITE)
         context.require_owner(task.merchant_id)
-        # Revalidate even internal model_copy/model_construct input before storage.
-        task = Task.model_validate(task.model_dump())
         with self._lock:
             existing = self._tasks.get(task.task_id)
-            if existing:
-                context.require_owner(existing.merchant_id)
-                if task.status != existing.status:
-                    require_transition(existing.status, task.status)
-                if task.created_at != existing.created_at or task.updated_at < existing.updated_at:
-                    raise ValueError("Task creation time is immutable; updates cannot go backwards")
-            self._tasks[task.task_id] = task.model_copy(deep=True)
-            return task.model_copy(deep=True)
+            snapshot = task_snapshot(context, task, existing)
+            self._tasks[task.task_id] = snapshot
+            return snapshot.model_copy(deep=True)

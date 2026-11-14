@@ -12,6 +12,7 @@ export const session: Session = {
 };
 export const task: Task = {
   task_id: 'task-one',
+  revision: 1,
   conversation_id: null,
   merchant_id: 'merchant_demo',
   goal: 'Investigate a short settlement',
@@ -25,6 +26,7 @@ export const task: Task = {
   verifications: [],
   tool_executions: [],
   capability_gaps: [],
+  workflow_data: {},
   next_action: 'Workflow execution is not implemented (BM-07).',
   next_run_at: null,
   checkpoint_id: null,

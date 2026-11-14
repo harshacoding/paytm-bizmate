@@ -5,24 +5,29 @@ from bizmate.config import Settings
 from bizmate.domain.models import Task, TaskStatus
 from bizmate.main import create_app
 from bizmate.persistence.repository import MemoryTaskRepository
+from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import demo_context
 
 
-@pytest.fixture
-def repo():
+@pytest.fixture(params=["memory", "sqlite"])
+def repo(request, tmp_path):
+    if request.param == "sqlite":
+        return SQLiteTaskRepository(tmp_path / "tasks.sqlite3")
     return MemoryTaskRepository()
 
 
 @pytest.fixture
-def client(repo):
-    return TestClient(create_app(Settings(_env_file=None), repo))
+def client(repo, tmp_path):
+    settings = Settings(_env_file=None, database_path=str(tmp_path / "chat.sqlite3"))
+    with TestClient(create_app(settings, repo)) as client:
+        yield client
 
 
-def test_health_is_honest_about_scaffold(client):
+def test_health_is_honest_about_scaffold(client, repo):
     assert client.get("/health").json() == {
         "status": "ok",
         "mode": "scaffold",
-        "storage": "memory",
+        "storage": "sqlite" if isinstance(repo, SQLiteTaskRepository) else "memory",
         "workflows_implemented": False,
     }
 
@@ -130,12 +135,13 @@ def test_repository_returns_detached_values_and_rejects_owner_change(repo):
         repo.save(context, task.with_updates(merchant_id="merchant_other"))
 
 
-def test_sessions_have_separate_process_local_stores():
-    first = TestClient(create_app(Settings(_env_file=None)))
-    first.post("/api/v1/tasks", json={"message": "transient task"})
-    second = TestClient(create_app(Settings(_env_file=None)))
-    assert len(first.get("/api/v1/tasks").json()) == 2
-    assert len(second.get("/api/v1/tasks").json()) == 1  # BM-03 not implemented yet.
+def test_sessions_share_durable_task_records_after_restart(tmp_path):
+    settings = Settings(_env_file=None, database_path=str(tmp_path / "durable.sqlite3"))
+    with TestClient(create_app(settings)) as first:
+        task = first.post("/api/v1/tasks", json={"message": "persistent task"}).json()
+    with TestClient(create_app(settings)) as second:
+        assert len(second.get("/api/v1/tasks").json()) == 2
+        assert second.get(f"/api/v1/tasks/{task['task_id']}").json() == task
 
 
 def test_local_cors_allowlist(client):

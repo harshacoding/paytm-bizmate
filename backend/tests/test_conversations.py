@@ -170,11 +170,11 @@ def test_shared_conversation_schemas_are_served_and_all_references_resolve():
 
     check_references(schema)
     assert app.openapi() is app.openapi()  # Normal OpenAPI cache behaviour is preserved.
-    assert not any("conversation" in path for path in schema["paths"])
+    assert "/api/v1/conversations" in schema["paths"]
 
 
-def test_intake_stays_standalone_and_merchant_resolution_is_still_fixed():
-    client = TestClient(create_app())
+def test_intake_stays_standalone_and_merchant_resolution_is_still_fixed(persistent_client):
+    client = persistent_client
     task = client.post(
         "/api/v1/tasks?merchant_id=merchant_other",
         headers={

@@ -194,6 +194,7 @@ class CapabilityGap(TaskEntity):
 
 class Task(TaskEntity):
     task_id: Identifier = Field(default_factory=new_id)
+    revision: int = Field(default=0, strict=True, ge=0)
     conversation_id: Identifier | None = None
     goal: ShortText
     original_request: MessageText
@@ -207,6 +208,7 @@ class Task(TaskEntity):
     verifications: tuple[Verification, ...] = ()
     tool_executions: tuple[ToolExecution, ...] = ()
     capability_gaps: tuple[CapabilityGap, ...] = ()
+    workflow_data: dict[str, JsonValue] = Field(default_factory=dict)
     next_action: Text
     next_run_at: AwareDatetime | None = None
     checkpoint_id: Identifier | None = None
@@ -337,6 +339,7 @@ class ConversationThread(Model):
 
 class CreateTaskRequest(Model):
     message: MessageText
+    conversation_id: Identifier | None = None
 
 
 class ApprovalDecisionRequest(Model):
@@ -357,7 +360,7 @@ class ErrorResponse(Model):
 class HealthResponse(Model):
     status: Literal["ok"] = "ok"
     mode: Literal["scaffold"] = "scaffold"
-    storage: Literal["memory"] = "memory"
+    storage: Literal["memory", "sqlite"] = "memory"
     workflows_implemented: bool = False
 
 
