@@ -1,0 +1,9 @@
+.local-artifacts/
+.frontend-slides/
+node_modules/
+frontend/dist/
+backend/.venv/
+contracts/openapi.json
+frontend/src/api/schema.d.ts
+package-lock.json
+backend/uv.lock
