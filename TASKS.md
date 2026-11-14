@@ -69,7 +69,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 
 ### BM-04 Seed synthetic data and stateful mock services
 
-- [ ] Complete
+- [x] Complete
 - **Owner:** Devi
 - **Reviewer:** Harsha
 - **Depends on:** BM-02

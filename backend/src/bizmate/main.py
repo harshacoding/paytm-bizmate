@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from bizmate.agents.graph import build_graph
+from bizmate.api.mock_routes import router as mock_router
 from bizmate.api.routes import router
 from bizmate.api.schema import install_domain_schemas
 from bizmate.config import Settings
@@ -20,6 +21,10 @@ from bizmate.persistence.conversations import (
 from bizmate.persistence.repository import TaskConflictError, TaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS, demo_context
+from bizmate.services.mock_store import MockTimeout, SQLiteMockStore
+from bizmate.services.mocks import MockServices
+from bizmate.tools.mock_tools import register_mock_tools
+from bizmate.tools.registry import ToolRegistry
 
 
 def create_app(
@@ -60,6 +65,13 @@ def create_app(
                 except TaskConflictError:
                     # Another worker seeded the same task while this worker was starting.
                     pass
+        app.state.mock_services = MockServices(
+            SQLiteMockStore(settings.database_file),
+            app.state.tasks,
+            controls_enabled=settings.demo_controls_enabled,
+        )
+        app.state.tools = ToolRegistry()
+        register_mock_tools(app.state.tools, app.state.mock_services)
         yield
 
     app = FastAPI(
@@ -136,7 +148,15 @@ def create_app(
             content=ErrorResponse(code="ACCESS_DENIED", message=str(exc)).model_dump(),
         )
 
+    @app.exception_handler(MockTimeout)
+    async def mock_timeout_handler(request: Request, exc: MockTimeout):
+        return JSONResponse(
+            status_code=503,
+            content=ErrorResponse(code="MOCK_TIMEOUT", message=str(exc)).model_dump(),
+        )
+
     app.include_router(router)
+    app.include_router(mock_router)
     install_domain_schemas(app)
     return app
 
