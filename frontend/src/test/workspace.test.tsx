@@ -223,7 +223,20 @@ const showTask = (customSession = session, language: 'en' | 'hi' | 'te' = 'en') 
     />,
   );
 
-it('loads merchant identity and server conversations, and never sends chat into task intake automatically', async () => {
+it('shows server-started work in chat without asking the merchant to create a task', async () => {
+  vi.mocked(api.sendMessage).mockImplementationOnce(async (id, content, clientId) => ({
+    client_message_id: clientId,
+    user_message: {
+      ...message('user-linked', content, 'user', 1),
+      conversation_id: id,
+      task_id: snapshot.task_id,
+    },
+    assistant_message: {
+      ...message('assistant-linked', 'Saved server reply.', 'assistant', 2),
+      conversation_id: id,
+      task_id: snapshot.task_id,
+    },
+  }));
   render(<App />);
   await screen.findByRole('heading', { name: 'Hi! How can I help?' });
   expect(screen.getByText('Sharma General Store')).toBeInTheDocument();
@@ -238,10 +251,51 @@ it('loads merchant identity and server conversations, and never sends chat into 
     expect.stringMatching(/^ui-/),
   );
   expect(api.createTask).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByText('Start a task from this question', { selector: 'summary' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Start a task from this question' }));
   await screen.findByRole('textbox', { name: 'Add clarification' });
-  expect(api.createTask).toHaveBeenCalledWith('  Why is my payment short?  ', 'chat-2');
+  expect(screen.queryByText('Start a task from this question')).toBeNull();
+  expect(api.createTask).not.toHaveBeenCalled();
+  expect(api.execute).not.toHaveBeenCalled();
+  expect(api.resume).not.toHaveBeenCalled();
+});
+
+it('keeps ordinary chat as a direct reply without a workflow panel or task prompt', async () => {
+  render(<App />);
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Type a question' }), {
+    target: { value: 'Hello' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await screen.findByText('Saved server reply.');
+  expect(screen.queryByText('Start a task from this question')).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Task details' })).toBeNull();
+  expect(api.createTask).not.toHaveBeenCalled();
+  expect(api.task).not.toHaveBeenCalled();
+});
+
+it('does not mark a saved message unconfirmed when refreshing its task fails', async () => {
+  vi.mocked(api.sendMessage).mockImplementationOnce(async (id, content, clientId) => ({
+    client_message_id: clientId,
+    user_message: {
+      ...message('saved-user', content, 'user', 1),
+      conversation_id: id,
+      task_id: snapshot.task_id,
+    },
+    assistant_message: {
+      ...message('saved-assistant', 'Confirmed workflow reply.', 'assistant', 2),
+      conversation_id: id,
+      task_id: snapshot.task_id,
+    },
+  }));
+  vi.mocked(api.task).mockRejectedValue(new ApiError(503, 'UNAVAILABLE', 'Refresh unavailable'));
+  render(<App />);
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Type a question' }), {
+    target: { value: 'Investigate settlement' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await screen.findByText('Confirmed workflow reply.');
+  await waitFor(() => expect(api.task).toHaveBeenCalled());
+  expect(screen.queryByText('Message not confirmed')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry this exact message' })).toBeNull();
+  expect(api.sendMessage).toHaveBeenCalledOnce();
 });
 
 it('persists the language preference but preserves original saved assistant content and its returned language', async () => {

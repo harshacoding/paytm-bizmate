@@ -139,18 +139,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.api-start-task {
-  text-align: right;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.api-start-task p {
-  margin-block: 8px;
-}
-.api-start-task button {
-  font-size: 12px;
-}
 .api-task {
   margin-bottom: 16px;
   overflow: visible;
@@ -329,8 +317,7 @@
   font-size: 12px;
   color: var(--muted);
 }
-.api-task summary,
-.api-start-task summary {
+.api-task summary {
   cursor: pointer;
   min-height: 32px;
   padding-block: 7px;
@@ -528,9 +515,6 @@
   }
   .api-task .api-actions > button {
     flex: 1;
-  }
-  .api-start-task {
-    font-size: 11px;
   }
 }
 * {

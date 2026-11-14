@@ -2,10 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import DemoApp, { Icon } from './DemoApp';
 import { LanguageProvider, useLanguage } from './i18n';
-import { useWorkspace, errorText } from './useWorkspace';
+import { useWorkspace } from './useWorkspace';
 import { useSidebarWidth } from './useSidebarWidth';
 import { useDictation } from './useDictation';
-import { api } from './api/client';
 import { LanguagePicker } from './components/LanguagePicker';
 import { TaskWorkspace, taskLabel } from './components/TaskWorkspace';
 import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
@@ -42,9 +41,8 @@ function ConnectedApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tab, setTab] = useState<'chat' | 'tasks'>('chat');
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [collapsedMessage, setCollapsedMessage] = useState<string | null>(null);
   const [allTasks, setAllTasks] = useState(false);
-  const [creating, setCreating] = useState<string | null>(null);
-  const taskLock = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const chat = useRef<HTMLElement>(null);
   const focus = () => window.requestAnimationFrame(() => input.current?.focus());
@@ -87,6 +85,9 @@ function ConnectedApp() {
   );
   const pendingHere =
     workspace.pending?.conversationId === workspace.activeId ? workspace.pending : null;
+  const latestTaskMessage = [...workspace.messages]
+    .reverse()
+    .find((message) => message.role === 'assistant' && message.task_id);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -107,6 +108,7 @@ function ConnectedApp() {
   }, [workspace.draft, language]);
   useEffect(() => {
     setSelectedTask(null);
+    setCollapsedMessage(null);
     setTab('chat');
     voice.reset();
     // A recording belongs to the conversation where it started.
@@ -126,33 +128,6 @@ function ConnectedApp() {
     document.addEventListener('keydown', close);
     return () => document.removeEventListener('keydown', close);
   }, [sidebarOpen]);
-
-  async function startTask(messageId: string, content: string) {
-    if (taskLock.current || !workspace.activeId) return;
-    taskLock.current = true;
-    setCreating(messageId);
-    workspace.setError('');
-    const conversationId = workspace.activeId;
-    try {
-      const task = await api.createTask(content, conversationId);
-      workspace.updateTask(task);
-      // Keep a late result scoped to its originating conversation.
-      if (chat.current?.dataset.conversation === conversationId) {
-        setSelectedTask(task.task_id);
-        setTab('tasks');
-      }
-    } catch (failure) {
-      workspace.setError(errorText(failure));
-      // Task intake has no idempotency key: reconcile, never automatically retry it.
-      try {
-        const tasks = await api.tasks();
-        tasks.forEach(workspace.updateTask);
-      } catch {}
-    } finally {
-      taskLock.current = false;
-      setCreating(null);
-    }
-  }
 
   if (workspace.loading)
     return (
@@ -178,6 +153,7 @@ function ConnectedApp() {
       </div>
     );
 
+  const session = workspace.session;
   return (
     <div
       className="app-shell api-shell"
@@ -378,7 +354,7 @@ function ConnectedApp() {
                 <TaskWorkspace
                   key={selectedTask}
                   id={selectedTask}
-                  session={workspace.session}
+                  session={session}
                   language={taskLanguage}
                   onTask={workspace.updateTask}
                   onClose={() => {
@@ -481,25 +457,19 @@ function ConnectedApp() {
                           <div className="api-message-content">{message.content}</div>
                         </div>
                       )}
-                      {message.role === 'user' && canWrite && (
-                        <details className="api-start-task">
-                          <summary>{t('Start a task from this question')}</summary>
-                          <p>
-                            {t(
-                              'This creates a separate tracked task. Chat alone does not start execution.',
-                            )}
-                          </p>
-                          <button
-                            className="secondary"
-                            disabled={!!creating}
-                            onClick={() => void startTask(message.message_id, message.content)}
-                          >
-                            {creating === message.message_id
-                              ? t('Loading task…')
-                              : t('Start a task from this question')}
-                          </button>
-                        </details>
-                      )}
+                      {message.message_id === latestTaskMessage?.message_id &&
+                        message.message_id !== collapsedMessage &&
+                        message.task_id && (
+                          <TaskWorkspace
+                            key={message.task_id}
+                            id={message.task_id}
+                            session={session}
+                            language={message.response_language ?? contextLanguage}
+                            onTask={workspace.updateTask}
+                            onClose={() => setCollapsedMessage(message.message_id)}
+                            embedded
+                          />
+                        )}
                       {message.task_id && (
                         <button
                           className="secondary"
