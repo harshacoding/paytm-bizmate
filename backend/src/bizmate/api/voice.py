@@ -1,9 +1,9 @@
-import asyncio
 import base64
 import contextlib
 import json
 from urllib.parse import urlencode
 
+import anyio
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from websockets.asyncio.client import connect
@@ -46,7 +46,6 @@ async def voice_stream(client: WebSocket):
         },
         doseq=True,
     )
-    tasks = []
     try:
         async with connect(
             "wss://api.elevenlabs.io/v1/speech-to-text/realtime?" + query,
@@ -89,18 +88,25 @@ async def voice_stream(client: WebSocket):
                     elif "error" in kind:
                         raise RuntimeError("Speech provider unavailable")
 
-            tasks = [asyncio.create_task(send_audio()), asyncio.create_task(receive_transcripts())]
-            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                task.result()
+            # Join both relays before closing the provider. ASGI cancellation must
+            # stay in its AnyIO scope rather than escape through an asyncio gather.
+            async with anyio.create_task_group() as relays:
+
+                async def relay(operation):
+                    try:
+                        await operation()
+                    except WebSocketDisconnect:
+                        pass
+                    finally:
+                        relays.cancel_scope.cancel()
+
+                relays.start_soon(relay, send_audio, name="bizmate.voice.audio")
+                relays.start_soon(relay, receive_transcripts, name="bizmate.voice.transcripts")
     except WebSocketDisconnect:
         pass
     except Exception:
         with contextlib.suppress(RuntimeError, WebSocketDisconnect):
             await client.send_json({"message_type": "error", "code": "voice_unavailable"})
     finally:
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
         with contextlib.suppress(RuntimeError, WebSocketDisconnect):
             await client.close()
