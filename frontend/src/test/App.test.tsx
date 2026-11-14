@@ -1,12 +1,13 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from '../App';
-import { translate } from '../i18n';
+import { languages, translate } from '../i18n';
 import type { Language } from '../i18n';
 import { detectIntent } from '../demo';
 import { merchantToday, sampleSales, validPeriod } from '../components/SalesReport';
 import { prepareVoiceInput, openVoiceStream } from '../voiceEngine';
 import { captureVoice } from '../voiceCapture';
+const translateLanguage = (language: Language) => languages[language];
 vi.mock('../voiceEngine', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../voiceEngine')>()),
   prepareVoiceInput: vi.fn(),
@@ -245,11 +246,37 @@ it('aggregates inclusive sales periods exactly and rejects future or invalid dat
   expect(validPeriod({ start: '2026-11-15', end: '2026-11-15' }, '2026-11-14')).toBe(false);
 });
 
+it('opens the language picker upward and supports keyboard selection and dismissal', () => {
+  render(<App />);
+  const trigger = screen.getByRole('button', { name: 'Language: English' });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: 'ArrowUp' });
+  expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  const english = screen.getByRole('menuitemradio', { name: 'English' });
+  expect(english).toHaveFocus();
+  fireEvent.keyDown(english, { key: 'End' });
+  const telugu = screen.getByRole('menuitemradio', { name: /Telugu/ });
+  expect(telugu).toHaveFocus();
+  fireEvent.keyDown(telugu, { key: 'Escape' });
+  expect(trigger).toHaveFocus();
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(trigger);
+  fireEvent.click(screen.getByRole('menuitemradio', { name: /Hindi/ }));
+  expect(localStorage.getItem('bizmate-language')).toBe('hi');
+  expect(trigger).toHaveFocus();
+  fireEvent.click(trigger);
+  fireEvent.pointerDown(document.body);
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+});
+
 it.each(['en', 'hi', 'te'] as Language[])(
   'keeps replies in %s regardless of the spoken language',
   async (language) => {
     const view = render(<App />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: language } });
+    fireEvent.click(screen.getByRole('button', { name: /^Language:/ }));
+    fireEvent.click(
+      screen.getByRole('menuitemradio', { name: new RegExp(translateLanguage(language)) }),
+    );
     const t = (text: string) => translate(text, language);
     const inputLanguage = language === 'en' ? 'hi' : language === 'hi' ? 'te' : 'en';
     const spoken = translate('Why is my payment short?', inputLanguage);
@@ -258,7 +285,9 @@ it.each(['en', 'hi', 'te'] as Language[])(
     await flush();
     act(() => samples(new Float32Array(16000).fill(0.1)));
     await flush(3000);
-    expect(screen.getByRole('combobox')).toHaveValue(language);
+    expect(
+      screen.getByRole('button', { name: `${t('Language')}: ${translateLanguage(language)}` }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: t('Type a question') })).toHaveValue(spoken);
     fireEvent.click(screen.getByRole('button', { name: t('Done') }));
     await flush();
@@ -271,7 +300,9 @@ it.each(['en', 'hi', 'te'] as Language[])(
     expect(screen.getByText(t('Pending with support.'))).toBeInTheDocument();
     view.unmount();
     render(<App />);
-    expect(screen.getByRole('combobox')).toHaveValue(language);
+    expect(
+      screen.getByRole('button', { name: `${t('Language')}: ${translateLanguage(language)}` }),
+    ).toBeInTheDocument();
   },
 );
 
@@ -279,7 +310,10 @@ it.each(['en', 'hi', 'te'] as Language[])(
   'preserves the draft after a transcription failure in %s',
   async (language) => {
     render(<App />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: language } });
+    fireEvent.click(screen.getByRole('button', { name: /^Language:/ }));
+    fireEvent.click(
+      screen.getByRole('menuitemradio', { name: new RegExp(translateLanguage(language)) }),
+    );
     const t = (text: string) => translate(text, language);
     const draft = screen.getByRole('textbox', { name: t('Type a question') });
     fireEvent.change(draft, { target: { value: 'Existing draft' } });

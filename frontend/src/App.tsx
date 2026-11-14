@@ -28,8 +28,8 @@ import type { Turn } from './demo';
 import { useDictation } from './useDictation';
 import { useChats } from './useChats';
 import { useSidebarWidth } from './useSidebarWidth';
-import { LanguageProvider, useLanguage, languages, canonical } from './i18n';
-import type { Language } from './i18n';
+import { LanguageProvider, useLanguage, canonical } from './i18n';
+import { LanguagePicker } from './components/LanguagePicker';
 import { followup, answerFollowup } from './followup';
 import { SalesReport } from './components/SalesReport';
 import { CounterPayment, RefundFollowup, DailyClosing } from './components/MerchantChecks';
@@ -380,7 +380,7 @@ export default function App() {
 }
 
 function MerchantApp() {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, t } = useLanguage();
   const { chats, activeId, turns, draft, setTurns, setDraft, newChat, selectChat } = useChats();
   const activeChat = chats.find((item) => item.id === activeId)!;
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -603,25 +603,7 @@ function MerchantApp() {
           ))}
         </nav>
         <p className="history-note">{t('Chats are saved in this browser.')}</p>
-        <label className="language-label" htmlFor="language">
-          {t('Language')}
-        </label>
-        <select
-          id="language"
-          className="language-select"
-          value={language}
-          disabled={!!voice.mode}
-          onChange={(event) => {
-            voice.reset();
-            setLanguage(event.target.value as Language);
-          }}
-        >
-          {Object.entries(languages).map(([code, label]) => (
-            <option value={code} key={code} lang={code}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <LanguagePicker disabled={!!voice.mode} onSelect={voice.reset} />
         <button
           type="button"
           className="secondary theme-toggle"
