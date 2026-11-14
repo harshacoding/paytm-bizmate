@@ -17,16 +17,21 @@ from bizmate.domain.chat import (
 from bizmate.domain.context import MerchantContext
 from bizmate.domain.lifecycle import transition_task
 from bizmate.domain.models import (
+    Approval,
     ApprovalDecisionRequest,
+    ApprovalRequest,
     ClarificationRequest,
     CreateTaskRequest,
     DemoPreview,
     ErrorResponse,
+    ExecuteActionRequest,
     HealthResponse,
+    Receipt,
     SessionResponse,
     Task,
     TaskEvent,
     TaskStatus,
+    Verification,
     new_id,
     now,
 )
@@ -34,7 +39,7 @@ from bizmate.persistence.conversations import ConversationConflictError, Convers
 from bizmate.persistence.repository import TaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import preview
-from bizmate.tools.policy import require_approval_engine
+from bizmate.tools.policy import ApprovalEngine
 
 router = APIRouter(
     responses={
@@ -60,6 +65,10 @@ def owned_conversation(
 
 def repository(request: Request) -> TaskRepository:
     return request.app.state.tasks
+
+
+def approval_engine(request: Request) -> ApprovalEngine:
+    return ApprovalEngine(request.app.state.tasks, request.app.state.tools)
 
 
 def owned_task(repo: TaskRepository, context: MerchantContext, task_id: str) -> Task:
@@ -157,8 +166,7 @@ def add_message(
 
 @router.post(
     "/api/v1/tasks/{task_id}/approvals/{approval_id}",
-    response_model=ErrorResponse,
-    responses={501: {"model": ErrorResponse}},
+    response_model=Approval,
     tags=["approvals"],
 )
 def decide_approval(
@@ -167,10 +175,54 @@ def decide_approval(
     body: ApprovalDecisionRequest,
     repo: TaskRepository = Depends(repository),
     context: MerchantContext = Depends(require_task_approval),
+    engine: ApprovalEngine = Depends(approval_engine),
 ):
     owned_task(repo, context, task_id)
-    # Both approve/cancel need the real action snapshot/state engine; never report fake success.
-    require_approval_engine()
+    return engine.decide(context, task_id, approval_id, body.decision, body.input_hash)
+
+
+@router.post(
+    "/api/v1/tasks/{task_id}/approvals",
+    response_model=Approval,
+    status_code=201,
+    tags=["approvals"],
+)
+def request_approval(
+    task_id: str,
+    body: ApprovalRequest,
+    engine: ApprovalEngine = Depends(approval_engine),
+    context: MerchantContext = Depends(require_task_write),
+):
+    return engine.request(context, task_id, body.action, body.inputs)
+
+
+@router.post(
+    "/api/v1/tasks/{task_id}/approvals/{approval_id}/execute",
+    response_model=Receipt,
+    tags=["approvals"],
+)
+def execute_action(
+    task_id: str,
+    approval_id: str,
+    body: ExecuteActionRequest,
+    engine: ApprovalEngine = Depends(approval_engine),
+    context: MerchantContext = Depends(require_task_write),
+):
+    return engine.execute(context, task_id, approval_id, body.inputs)
+
+
+@router.post(
+    "/api/v1/tasks/{task_id}/receipts/{receipt_id}/verify",
+    response_model=Verification,
+    tags=["approvals"],
+)
+def verify_action(
+    task_id: str,
+    receipt_id: str,
+    engine: ApprovalEngine = Depends(approval_engine),
+    context: MerchantContext = Depends(require_task_write),
+):
+    return engine.verify(context, task_id, receipt_id)
 
 
 @router.get("/api/v1/demo/preview", response_model=DemoPreview, tags=["demo"])

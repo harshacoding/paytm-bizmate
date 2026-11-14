@@ -93,6 +93,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-06 Implement approvals, receipts, verification, and idempotency
 
 - [ ] Complete
+- **Implementation status:** Engine and HTTP contracts implemented on `codex/bm-06-approval-engine`, rebased onto updated BM-05 with BM-04 adapter integration. Durable claims, exact-input decisions, receipts and independent verification have focused and mock-provider integration tests. BM-07 workflow integration and Devi's review remain pending. See `docs/BM_06_APPROVAL_ENGINE.md`.
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-03, BM-05

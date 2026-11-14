@@ -21,6 +21,25 @@ def task_snapshot(context: MerchantContext, task: Task, existing: Task | None) -
     if task.revision != revision:
         raise TaskConflictError("Task changed. Reload it before saving.")
     if existing is not None:
+        for field in ("receipts", "verifications", "tool_executions"):
+            if any(record not in getattr(task, field) for record in getattr(existing, field)):
+                raise ValueError("Execution and verification records are append-only")
+        approvals = {a.approval_id: a for a in task.approvals}
+        for old in existing.approvals:
+            current = approvals.get(old.approval_id)
+            if current is None or any(
+                getattr(current, field) != getattr(old, field)
+                for field in ("action", "approved_inputs", "input_hash")
+            ):
+                raise ValueError("Approval snapshots are immutable")
+            if current != old:
+                if old.decision == "cancelled" or (
+                    old.decision == "approved" and current.decision != "cancelled"
+                ):
+                    raise ValueError("Approval decision cannot be rewritten")
+                if any(e.input_hash == old.input_hash for e in task.tool_executions):
+                    raise ValueError("An executing approval cannot be changed")
+    if existing is not None:
         if task.created_at != existing.created_at or task.updated_at < existing.updated_at:
             raise ValueError("Task creation time is immutable; updates cannot go backwards")
         if task.status != existing.status:

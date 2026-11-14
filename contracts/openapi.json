@@ -109,6 +109,29 @@
         "title": "ApprovalDecisionRequest",
         "type": "object"
       },
+      "ApprovalRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Action",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Inputs",
+            "type": "object"
+          }
+        },
+        "required": [
+          "action",
+          "inputs"
+        ],
+        "title": "ApprovalRequest",
+        "type": "object"
+      },
       "CampaignPreview": {
         "additionalProperties": false,
         "properties": {
@@ -813,6 +836,23 @@
           "captured_at"
         ],
         "title": "Evidence",
+        "type": "object"
+      },
+      "ExecuteActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "inputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Inputs",
+            "type": "object"
+          }
+        },
+        "required": [
+          "inputs"
+        ],
+        "title": "ExecuteActionRequest",
         "type": "object"
       },
       "FailureControl-Input": {
@@ -3322,6 +3362,78 @@
         ]
       }
     },
+    "/api/v1/tasks/{task_id}/approvals": {
+      "post": {
+        "operationId": "request_approval_api_v1_tasks__task_id__approvals_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Approval"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Request Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
     "/api/v1/tasks/{task_id}/approvals/{approval_id}": {
       "post": {
         "operationId": "decide_approval_api_v1_tasks__task_id__approvals__approval_id__post",
@@ -3360,7 +3472,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Approval"
                 }
               }
             },
@@ -3395,8 +3507,59 @@
               }
             },
             "description": "Request validation failed"
+          }
+        },
+        "summary": "Decide Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/approvals/{approval_id}/execute": {
+      "post": {
+        "operationId": "execute_action_api_v1_tasks__task_id__approvals__approval_id__execute_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
           },
-          "501": {
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3404,10 +3567,30 @@
                 }
               }
             },
-            "description": "Not Implemented"
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
           }
         },
-        "summary": "Decide Approval",
+        "summary": "Execute Action",
         "tags": [
           "approvals"
         ]
@@ -3548,6 +3731,77 @@
         "summary": "Add Message",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/receipts/{receipt_id}/verify": {
+      "post": {
+        "operationId": "verify_action_api_v1_tasks__task_id__receipts__receipt_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Verification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Verify Action",
+        "tags": [
+          "approvals"
         ]
       }
     },

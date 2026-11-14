@@ -11,7 +11,7 @@ TRANSITIONS = MappingProxyType(
         S.CREATED: frozenset({S.PLANNING, S.ESCALATED, S.FAILED}),
         S.PLANNING: frozenset({S.READY, S.AWAITING_INPUT, S.ESCALATED, S.FAILED}),
         S.READY: frozenset(
-            {S.RUNNING, S.AWAITING_INPUT, S.AWAITING_APPROVAL, S.ESCALATED, S.FAILED}
+            {S.PLANNING, S.RUNNING, S.AWAITING_INPUT, S.AWAITING_APPROVAL, S.ESCALATED, S.FAILED}
         ),
         S.RUNNING: frozenset(
             {

@@ -280,6 +280,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Approval */
+        post: operations["request_approval_api_v1_tasks__task_id__approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/approvals/{approval_id}": {
         parameters: {
             query?: never;
@@ -291,6 +308,23 @@ export interface paths {
         put?: never;
         /** Decide Approval */
         post: operations["decide_approval_api_v1_tasks__task_id__approvals__approval_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/approvals/{approval_id}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute Action */
+        post: operations["execute_action_api_v1_tasks__task_id__approvals__approval_id__execute_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -325,6 +359,23 @@ export interface paths {
         put?: never;
         /** Add Message */
         post: operations["add_message_api_v1_tasks__task_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/receipts/{receipt_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Action */
+        post: operations["verify_action_api_v1_tasks__task_id__receipts__receipt_id__verify_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -388,6 +439,15 @@ export interface components {
             decision: "approve" | "cancel";
             /** Input Hash */
             input_hash: string;
+        };
+        /** ApprovalRequest */
+        ApprovalRequest: {
+            /** Action */
+            action: string;
+            /** Inputs */
+            inputs: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
         };
         /** CampaignPreview */
         CampaignPreview: {
@@ -642,6 +702,13 @@ export interface components {
             source_reference: string;
             /** Task Id */
             task_id: string;
+        };
+        /** ExecuteActionRequest */
+        ExecuteActionRequest: {
+            /** Inputs */
+            inputs: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
         };
         /** FailureControl */
         "FailureControl-Input": {
@@ -2191,29 +2258,28 @@ export interface operations {
             };
         };
     };
-    decide_approval_api_v1_tasks__task_id__approvals__approval_id__post: {
+    request_approval_api_v1_tasks__task_id__approvals_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 task_id: string;
-                approval_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+                "application/json": components["schemas"]["ApprovalRequest"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/json": components["schemas"]["Approval"];
                 };
             };
             /** @description Not Found */
@@ -2243,8 +2309,107 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Not Implemented */
-            501: {
+        };
+    };
+    decide_approval_api_v1_tasks__task_id__approvals__approval_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Approval"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    execute_action_api_v1_tasks__task_id__approvals__approval_id__execute_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExecuteActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2325,6 +2490,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Task"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verify_action_api_v1_tasks__task_id__receipts__receipt_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+                receipt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Verification"];
                 };
             };
             /** @description Not Found */

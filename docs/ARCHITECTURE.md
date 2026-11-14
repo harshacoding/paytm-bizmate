@@ -35,7 +35,7 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 | Capability | Extension point | Owner / task |
 | --- | --- | --- |
 | Stateful mock integrations and fixtures | `services/ports.py`, `services/demo.py` | Devi BM-04 |
-| Product tool registration and approved execution | BM-04 adapters bind through `tools/registry.py`; `tools/policy.py` awaits the approval engine | Devi BM-04 / Harsha BM-06 |
+| Product tool registration and workflow integration | BM-04 adapters bind through `tools/registry.py` and the [BM-06 approval engine](BM_06_APPROVAL_ENGINE.md) | Devi BM-04 / Harsha BM-07 |
 | LLM intent, plans, checkpoint/resume and recovery | `agents/graph.py` | Harsha BM-07/08 |
 | Settlement investigation workflow | `workflows/settlement.py` | Harsha BM-11 |
 | Scheduler and new-credit verification | `services/scheduler.py` | Devi BM-12 |
