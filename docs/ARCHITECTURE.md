@@ -23,7 +23,7 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 - Dedicated merchant-scoped conversations and ordered user/assistant messages in SQLite.
 - Request intake through a minimal LangGraph node; saved request history and task timeline.
 - Static PRD fixtures for independent frontend component work, explicitly separate from real task evidence.
-- Policy/registry boundaries that reject consequential execution while it is unfinished.
+- Typed registry metadata, intent/scope discovery, strict dispatch and backend preconditions; consequential execution remains blocked. See [BM-05 adapter and planner contracts](BM_05_TOOL_REGISTRY.md).
 - Backend and UI tests, CI, ownership documentation and task-sized PR template.
 
 ## Deliberately unfinished
@@ -31,7 +31,7 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 | Capability | Extension point | Owner / task |
 | --- | --- | --- |
 | Stateful mock integrations and fixtures | `services/ports.py`, `services/demo.py` | Devi BM-04 |
-| Full tool metadata and approved execution | `tools/registry.py`, `tools/policy.py` | Harsha BM-05/06 |
+| Product tool registration and approved execution | BM-04 adapters bind through `tools/registry.py`; `tools/policy.py` awaits the approval engine | Devi BM-04 / Harsha BM-06 |
 | LLM intent, plans, checkpoint/resume and recovery | `agents/graph.py` | Harsha BM-07/08 |
 | Deterministic reconciliation and settlement workflow | `workflows/settlement.py` | Harsha BM-10/11 |
 | Scheduler and new-credit verification | `services/scheduler.py` | Devi BM-12 |

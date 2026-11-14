@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from bizmate.config import Settings
 from bizmate.domain.errors import AccessDenied, FeaturePending
-from bizmate.domain.models import Task
+from bizmate.domain.models import Intent, Task
 from bizmate.main import create_app
 from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS, demo_context
@@ -209,7 +209,7 @@ def test_registry_exposes_typed_mock_tools_and_preserves_approval_gate(providers
     services, context, task = providers
     registry = ToolRegistry()
     register_mock_tools(registry, services)
-    assert len(registry.execute("get_transactions", context, {})) == 200
+    assert len(registry.execute("get_transactions", context, {}).records) == 200
     assert registry.execute("get_settlement_report", context, {"task_id": task.task_id})
     with pytest.raises(FeaturePending):
         registry.execute(
@@ -223,7 +223,8 @@ def test_registry_exposes_typed_mock_tools_and_preserves_approval_gate(providers
         )
     assert services.lookup(context, "create_support_ticket", "blocked") is None
     assert all(
-        tool.name != "send_campaign" for tool in registry.discover(demo_context("merchant_other"))
+        tool.metadata.name != "send_campaign"
+        for tool in registry.discover(demo_context("merchant_other"), intent=Intent.WIN_BACK)
     )
 
 
@@ -239,6 +240,30 @@ def test_demo_controls_are_disabled_without_affecting_read_services(providers):
     ]:
         with pytest.raises(AccessDenied):
             call()
+
+
+def test_registry_typed_reads_use_stored_mock_state(providers):
+    services, context, task = providers
+    registry = ToolRegistry()
+    register_mock_tools(registry, services)
+    assert len(registry.execute("get_refunds_and_chargebacks", context, {}).records) == 4
+    assert len(registry.execute("get_customers_and_orders", context, {}).customers) == 200
+    ticket = services.create(context, task.task_id, "Independent read", "registry-ticket")
+    assert (
+        registry.execute(
+            "get_ticket_status", context, {"reference": ticket.external_reference}
+        ).status
+        == "open"
+    )
+    digest = prepare_campaign(services, context, task)
+    campaign = services.send(context, task.task_id, digest, "registry-campaign")
+    result = registry.execute(
+        "get_campaign_delivery_status", context, {"reference": campaign.external_reference}
+    )
+    assert result.delivered == 118 and result.failed == 2
+    tools = registry.discover(context, intent=Intent.HANDOFF)
+    assert {tool.metadata.name for tool in tools} == {"get_ticket_status", "create_support_ticket"}
+    assert all(tool.input_schema and tool.output_schema for tool in tools)
 
 
 def test_demo_api_reports_failures_and_rejects_disabled_controls(tmp_path):

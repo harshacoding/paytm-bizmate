@@ -25,6 +25,7 @@ No API key is required. Optional settings: copy `backend/.env.example` to `backe
 - React/TypeScript workspace with task navigation, request intake, timeline, loading/error/retry states, and labelled settlement/campaign component previews.
 - FastAPI task create/list/detail/events/messages, synthetic session and health endpoints, plus a minimal LangGraph entry point.
 - Merchant-scoped SQLite task storage, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
+- Typed tool registry with intent/scope discovery, strict input/output validation and executable preconditions. BM-04 adapters are registered; planner integration remains pending. See [BM-05 integration contract](docs/BM_05_TOOL_REGISTRY.md).
 
 **Pending implementation:** LLM intent, workflow execution, durable graph checkpoints, approval execution, tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. Requests remain awaiting implementation. Approval decisions return HTTP 501; the send button is disabled. Static previews are separate from task evidence.
 
