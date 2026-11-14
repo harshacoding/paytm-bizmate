@@ -499,12 +499,15 @@ export default function App() {
               <span className="sr-only">Chat history</span>
             </button>
             <div className="brand">
-              <span className="brand-mark">
-                <Icon name="sparkle" size={20} />
-              </span>
               <span>
-                <span className="paytm">
-                  pay<span>tm</span>
+                <span className="paytm-logo-frame">
+                  <img
+                    className="paytm-logo"
+                    src="/brand/paytm.png"
+                    alt="Paytm"
+                    width="80"
+                    height="25"
+                  />
                 </span>
                 <span className="brand-divider" />
                 BizMate
@@ -512,7 +515,10 @@ export default function App() {
             </div>
             <div className="header-actions">
               <span className="merchant">
-                <Icon name="store" size={17} /> Sharma General Store
+                <span className="merchant-logo" role="img" aria-label="Sharma General Store avatar">
+                  SG
+                </span>
+                <span className="merchant-name">Sharma General Store</span>
               </span>
               <button
                 className="replay"

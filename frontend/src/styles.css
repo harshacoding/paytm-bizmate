@@ -879,3 +879,53 @@ summary span {
     padding-left: 31px;
   }
 }
+
+.paytm-logo-frame {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 4px;
+  background: #fff;
+  flex: none;
+}
+.paytm-logo {
+  display: block;
+  width: 80px;
+  height: 25px;
+  object-fit: cover;
+}
+.merchant-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--pale);
+  color: var(--accent);
+  font-family: Manrope, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 600px) {
+  .paytm-logo {
+    width: 64px;
+    height: 20px;
+  }
+  .merchant-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 10px;
+  }
+  .merchant-name {
+    max-width: 83px;
+  }
+}
+@media (max-width: 380px) {
+  .merchant-name {
+    display: none;
+  }
+}
