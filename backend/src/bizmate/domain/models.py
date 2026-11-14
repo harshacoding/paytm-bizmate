@@ -17,7 +17,7 @@ from bizmate.domain.types import (
     Count,
     Identifier,
     InputHash,
-    Message,
+    MessageText,
     Money,
     Paise,
     ShortText,
@@ -76,6 +76,11 @@ class Intent(StrEnum):
     WIN_BACK = "win_back"
     HANDOFF = "handoff"
     UNKNOWN = "unknown"
+
+
+class MessageRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
 
 
 class Merchant(Model):
@@ -176,8 +181,9 @@ class CapabilityGap(TaskEntity):
 
 class Task(TaskEntity):
     task_id: Identifier = Field(default_factory=new_id)
+    conversation_id: Identifier | None = None
     goal: ShortText
-    original_request: Message
+    original_request: MessageText
     intent: Intent = Intent.UNKNOWN
     status: TaskStatus = TaskStatus.CREATED
     plan: tuple[PlanStep, ...] = ()
@@ -260,8 +266,61 @@ class Task(TaskEntity):
         return self
 
 
+class Conversation(Model):
+    conversation_id: Identifier = Field(default_factory=new_id)
+    merchant_id: Identifier
+    title: ShortText
+    created_at: AwareDatetime = Field(default_factory=now)
+    updated_at: AwareDatetime = Field(default_factory=now)
+
+    @model_validator(mode="after")
+    def valid_timestamps(self) -> Self:
+        if self.updated_at < self.created_at:
+            raise ValueError("Conversation updated_at cannot precede created_at")
+        return self
+
+
+class Message(Model):
+    message_id: Identifier = Field(default_factory=new_id)
+    conversation_id: Identifier
+    merchant_id: Identifier
+    role: MessageRole
+    content: MessageText
+    task_id: Identifier | None = None
+    created_at: AwareDatetime = Field(default_factory=now)
+
+
+class ConversationThread(Model):
+    """Complete conversation snapshot, including all tasks needed to resolve message links."""
+
+    conversation: Conversation
+    messages: tuple[Message, ...] = ()
+    tasks: tuple[Task, ...] = ()
+
+    @model_validator(mode="after")
+    def valid_relationships(self) -> Self:
+        for records in [self.messages, self.tasks]:
+            if any(
+                record.merchant_id != self.conversation.merchant_id
+                or record.conversation_id != self.conversation.conversation_id
+                for record in records
+            ):
+                raise ValueError("Conversation records must share its merchant and conversation ID")
+        if len({message.message_id for message in self.messages}) != len(self.messages):
+            raise ValueError("Duplicate message_id in conversation")
+        task_ids = {task.task_id for task in self.tasks}
+        if len(task_ids) != len(self.tasks):
+            raise ValueError("Duplicate task_id in conversation")
+        if any(
+            message.task_id is not None and message.task_id not in task_ids
+            for message in self.messages
+        ):
+            raise ValueError("Message references a task not attached to this conversation")
+        return self
+
+
 class CreateTaskRequest(Model):
-    message: Message
+    message: MessageText
 
 
 class ApprovalDecisionRequest(Model):
@@ -270,7 +329,7 @@ class ApprovalDecisionRequest(Model):
 
 
 class ClarificationRequest(Model):
-    message: Message
+    message: MessageText
 
 
 class ErrorResponse(Model):

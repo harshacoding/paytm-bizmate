@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from bizmate.agents.graph import build_graph
 from bizmate.api.routes import router
+from bizmate.api.schema import install_domain_schemas
 from bizmate.config import Settings
 from bizmate.domain.errors import AccessDenied, FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
@@ -17,7 +18,7 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         raise ValueError("Unknown synthetic merchant; choose merchant_demo or merchant_other")
     app = FastAPI(
         title="Paytm BizMate API",
-        version="0.2.0",
+        version="0.3.0",
         description="Local scaffold. Memory storage, synthetic fixtures, no live actions or LLM.",
     )
     app.state.settings = settings
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         )
 
     app.include_router(router)
+    install_domain_schemas(app)
 
     @app.exception_handler(AccessDenied)
     async def access_denied_handler(request: Request, exc: AccessDenied):

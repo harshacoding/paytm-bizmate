@@ -1,10 +1,23 @@
 # BM-02 domain and merchant-context contract
 
-Contract version 0.2.0 defines validated entities, explicit task transitions and a trusted server-side synthetic session. Persistence, LLM planning and actual approval execution remain separate work in BM-03/BM-06/BM-07.
+Contract version 0.3.0 defines validated entities, conversations/messages, explicit task transitions and a trusted server-side synthetic session. Persistence, LLM planning and actual approval execution remain separate work in BM-03/BM-06/BM-07.
 
 ## Shared types
 
 `backend/src/bizmate/domain/models.py` is authoritative. `contracts/openapi.json` and `frontend/src/api/schema.d.ts` are generated from it. Frontend aliases for Merchant, Task, TaskStatus, PlanStep, ToolExecution, Approval, Receipt, Evidence, Verification and CapabilityGap live in `frontend/src/api/types.ts`.
+
+## Conversations and messages
+
+- `Conversation` is a merchant-owned header with an ID, title and aware creation/update times.
+- `Message` has its own ID, required merchant/conversation IDs, role (`user` or `assistant`), nonempty content up to 4,000 characters, creation time, and an optional task ID. Message role is display data and never grants identity, scopes or approval.
+- `Task.conversation_id` is an optional foreign key: a conversation can have many tasks; a task can belong to at most one conversation. Null means standalone proactive/scheduled work. Repositories must resolve conversation IDs under the server's merchant context when BM-03 adds persistence.
+- `ConversationThread` is a complete read snapshot, not a second source of ownership: it groups the header, messages and tasks, rejects duplicate IDs and foreign merchant/conversation records, and resolves every message task reference against its included tasks. Partial/paginated responses must not use this full-snapshot DTO without loading referenced tasks.
+- The text primitive is now `domain.types.MessageText`, so `domain.models.Message` unambiguously means the entity. Existing task-intake/clarification `message` fields remain plain strings.
+- Conversation, Message, MessageRole and ConversationThread are included as reusable OpenAPI components and generated TypeScript aliases. No conversation storage, routes or UI behaviour is added in this domain-contract change. Current intake continues to create standalone tasks; BM-03/BM-09 will wire persisted conversations.
+
+Fixed demo merchant resolution is unchanged: the server captures context at app creation; conversation/message IDs or roles cannot select a merchant. The existing scope and ownership boundaries still apply.
+
+## Validation rules
 
 - IDs use 1-128 letters, digits, underscores or hyphens, beginning with a letter or digit. Human text is trimmed and nonempty; input messages are limited to 4,000 characters.
 - Extra request fields are rejected. Callers cannot provide merchant identity, actor identity, scopes or a task status through task-intake/message/approval endpoints.

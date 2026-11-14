@@ -217,6 +217,42 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** Conversation */
+        Conversation: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConversationThread
+         * @description Complete conversation snapshot, including all tasks needed to resolve message links.
+         */
+        ConversationThread: {
+            conversation: components["schemas"]["Conversation"];
+            /**
+             * Messages
+             * @default []
+             */
+            messages: components["schemas"]["Message"][];
+            /**
+             * Tasks
+             * @default []
+             */
+            tasks: components["schemas"]["Task"][];
+        };
         /** CreateTaskRequest */
         CreateTaskRequest: {
             /** Message */
@@ -312,6 +348,30 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["Scope"][];
         };
+        /** Message */
+        Message: {
+            /** Content */
+            content: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Message Id */
+            message_id: string;
+            role: components["schemas"]["MessageRole"];
+            /** Task Id */
+            task_id: string | null;
+        };
+        /**
+         * MessageRole
+         * @enum {string}
+         */
+        MessageRole: "user" | "assistant";
         /** PlanStep */
         PlanStep: {
             /**
@@ -412,6 +472,8 @@ export interface components {
             capability_gaps: components["schemas"]["CapabilityGap"][];
             /** Checkpoint Id */
             checkpoint_id: string | null;
+            /** Conversation Id */
+            conversation_id: string | null;
             /**
              * Created At
              * Format: date-time

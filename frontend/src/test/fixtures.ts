@@ -1,4 +1,4 @@
-import type { DemoPreview, Session, Task } from '../api/types';
+import type { ConversationThread, DemoPreview, Session, Task } from '../api/types';
 
 export const session: Session = {
   actor_id: 'demo_actor_merchant_demo',
@@ -7,6 +7,7 @@ export const session: Session = {
 };
 export const task: Task = {
   task_id: 'task-one',
+  conversation_id: null,
   merchant_id: 'merchant_demo',
   goal: 'Investigate a short settlement',
   original_request: 'Why is my settlement short?',
@@ -56,4 +57,30 @@ export const preview: DemoPreview = {
     delivered_count: 118,
     failed_count: 2,
   },
+};
+
+// Compile-time example for the future conversation UI; not a persisted API conversation.
+export const conversationThread: ConversationThread = {
+  conversation: {
+    conversation_id: 'conversation-one',
+    merchant_id: 'merchant_demo',
+    title: 'Business support',
+    created_at: '2026-11-14T04:00:00Z',
+    updated_at: '2026-11-14T04:00:00Z',
+  },
+  messages: [
+    {
+      message_id: 'message-one',
+      conversation_id: 'conversation-one',
+      merchant_id: 'merchant_demo',
+      role: 'user',
+      content: 'Why is my settlement short?',
+      task_id: task.task_id,
+      created_at: '2026-11-14T04:00:00Z',
+    },
+  ],
+  tasks: [
+    { ...task, conversation_id: 'conversation-one' },
+    { ...task, task_id: 'task-two', conversation_id: 'conversation-one', goal: 'Prepare an offer' },
+  ],
 };

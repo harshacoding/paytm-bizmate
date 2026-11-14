@@ -13,3 +13,7 @@ export type Receipt = components['schemas']['Receipt'];
 export type Evidence = components['schemas']['Evidence'];
 export type Verification = components['schemas']['Verification'];
 export type CapabilityGap = components['schemas']['CapabilityGap'];
+export type Conversation = components['schemas']['Conversation'];
+export type Message = components['schemas']['Message'];
+export type MessageRole = components['schemas']['MessageRole'];
+export type ConversationThread = components['schemas']['ConversationThread'];
