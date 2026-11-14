@@ -23,7 +23,7 @@ router = APIRouter(
     responses={
         404: {"model": ErrorResponse},
         409: {"model": ErrorResponse},
-        422: {"model": ErrorResponse},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
     }
 )
 

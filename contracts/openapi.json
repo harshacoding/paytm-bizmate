@@ -862,7 +862,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Demo Preview",
@@ -913,7 +913,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Session",
@@ -968,7 +968,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Tasks",
@@ -1027,7 +1027,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Create Task",
@@ -1089,7 +1089,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Task Detail",
@@ -1170,7 +1170,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           },
           "501": {
             "content": {
@@ -1246,7 +1246,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Task Events",
@@ -1318,7 +1318,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Add Message",
@@ -1369,7 +1369,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Request validation failed"
           }
         },
         "summary": "Health",

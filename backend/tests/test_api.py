@@ -160,6 +160,14 @@ def test_task_errors_have_consistent_contracts(client):
     assert "secret" not in invalid.text
 
 
+def test_validation_response_description_is_stable_across_python_versions(client):
+    for path in client.app.openapi()["paths"].values():
+        for operation in path.values():
+            response = operation["responses"].get("422")
+            if response is not None:
+                assert response["description"] == "Request validation failed"
+
+
 def test_stale_update_returns_conflict_without_losing_state(client, repo, monkeypatch):
     task = client.post("/api/v1/tasks", json={"message": "Keep original"}).json()
 

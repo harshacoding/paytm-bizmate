@@ -510,7 +510,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -557,7 +557,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -604,7 +604,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -655,7 +655,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -704,7 +704,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -758,7 +758,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -816,7 +816,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -869,7 +869,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -916,7 +916,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Unprocessable Content */
+            /** @description Request validation failed */
             422: {
                 headers: {
                     [name: string]: unknown;
