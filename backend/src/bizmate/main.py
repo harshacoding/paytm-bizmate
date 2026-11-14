@@ -11,6 +11,7 @@ from bizmate.api.campaign_routes import router as campaign_router
 from bizmate.api.mock_routes import router as mock_router
 from bizmate.api.routes import router
 from bizmate.api.schema import install_domain_schemas
+from bizmate.api.settlement_routes import router as settlement_router
 from bizmate.config import Settings
 from bizmate.domain.errors import AccessDenied, FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
@@ -27,6 +28,7 @@ from bizmate.services.mocks import MockServices
 from bizmate.tools.campaign_tools import register_campaign_tools
 from bizmate.tools.mock_tools import register_mock_tools
 from bizmate.tools.registry import ToolRegistry
+from bizmate.tools.settlement_tools import register_settlement_tools
 
 
 def create_app(
@@ -75,6 +77,7 @@ def create_app(
         app.state.tools = ToolRegistry()
         register_mock_tools(app.state.tools, app.state.mock_services)
         register_campaign_tools(app.state.tools, app.state.mock_services)
+        register_settlement_tools(app.state.tools, app.state.mock_services)
         yield
 
     app = FastAPI(
@@ -161,6 +164,7 @@ def create_app(
     app.include_router(router)
     app.include_router(mock_router)
     app.include_router(campaign_router)
+    app.include_router(settlement_router)
     install_domain_schemas(app)
     return app
 

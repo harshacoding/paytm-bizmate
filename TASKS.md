@@ -134,7 +134,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 
 ### BM-10 Implement reconciliation and the source-linked proof card
 
-- [ ] Complete
+- [x] Complete
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-04, BM-05; UI uses BM-09

@@ -16,6 +16,8 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 
 ## Implemented now
 
+- BM-10 deterministic source-linked settlement proof, unknown evidence handling, typed registry tool and reconciliation API.
+
 - BM-13 deterministic consent-aware customer segmentation, typed tool registration and campaign-cost API.
 
 - Vite/React/TypeScript workspace and FastAPI package, root commands and locked dependencies.
@@ -35,7 +37,7 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 | Stateful mock integrations and fixtures | `services/ports.py`, `services/demo.py` | Devi BM-04 |
 | Product tool registration and approved execution | BM-04 adapters bind through `tools/registry.py`; `tools/policy.py` awaits the approval engine | Devi BM-04 / Harsha BM-06 |
 | LLM intent, plans, checkpoint/resume and recovery | `agents/graph.py` | Harsha BM-07/08 |
-| Deterministic reconciliation and settlement workflow | `workflows/settlement.py` | Harsha BM-10/11 |
+| Settlement investigation workflow | `workflows/settlement.py` | Harsha BM-11 |
 | Scheduler and new-credit verification | `services/scheduler.py` | Devi BM-12 |
 | Approved campaign simulation | `workflows/campaign.py` | Devi BM-14 |
 | Confirmed human handoff | `workflows/handoff.py` | Devi BM-15 |
