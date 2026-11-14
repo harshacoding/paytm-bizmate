@@ -119,10 +119,10 @@ def test_task_intake_and_follow_up_preserve_original_content_and_fixed_identity(
     updated = client.post(
         f"/api/v1/tasks/{task['task_id']}/messages", json={"message": follow_up}
     ).json()
-    assert updated["events"][-1]["message"] == follow_up
+    assert any(e["message"] == follow_up for e in updated["events"])
     saved = client.get(f"/api/v1/tasks/{task['task_id']}").json()
     assert saved["original_request"] == content
-    assert saved["events"][-1]["message"] == follow_up
+    assert any(e["message"] == follow_up for e in saved["events"])
     session = client.get("/api/v1/session").json()
     assert session["merchant"]["preferred_language"] == "en"
     assert session["merchant"]["merchant_id"] == "merchant_demo"

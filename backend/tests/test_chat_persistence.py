@@ -54,7 +54,7 @@ def test_create_list_detail_and_both_message_roles(client):
     assert turn["user_message"]["role"] == "user"
     assert turn["user_message"]["content"] == "  Why is my settlement short?  "
     assert turn["assistant_message"]["role"] == "assistant"
-    assert "not implemented" in turn["assistant_message"]["content"]
+    assert "Request understood" in turn["assistant_message"]["content"]
     assert turn["user_message"]["sequence"] == 1
     assert turn["assistant_message"]["sequence"] == 2
     history = client.get(f"/api/v1/conversations/{conversation_id}/messages").json()
@@ -365,7 +365,7 @@ def test_language_preferences_and_original_content_survive_restart(settings, cli
     ).json()
     assert turn["user_message"]["content"] == original
     assert turn["user_message"]["language"] == "te"
-    assert turn["assistant_message"]["language"] == "en"
+    assert turn["assistant_message"]["language"] == "te"
     assert turn["user_message"]["created_at"]
     assert turn["assistant_message"]["created_at"]
     changed = client.patch(path, json={"preferred_language": "hi"})

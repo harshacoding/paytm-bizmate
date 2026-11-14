@@ -20,16 +20,16 @@ On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`; chang
 
 No API key is required. Optional settings: copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`. Keep secrets on the backend; frontend `VITE_` configuration is public. Both development servers bind to loopback. Synthetic merchant selection is a local development convenience, not authentication.
 
-## Scaffold capabilities
+## Implemented capabilities
 
 - React/TypeScript workspace with task navigation, request intake, timeline, loading/error/retry states, and labelled settlement/campaign component previews.
-- FastAPI task create/list/detail/events/messages, synthetic session and health endpoints, plus a minimal LangGraph entry point.
+- FastAPI task create/list/detail/events/messages, synthetic session and health endpoints, plus durable LangGraph execution and a task resume endpoint.
 - Merchant-scoped SQLite task storage, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
-- Typed tool registry with intent/scope discovery, strict input/output validation and executable preconditions. BM-04 adapters are registered; planner integration remains pending. See [BM-05 integration contract](docs/BM_05_TOOL_REGISTRY.md).
+- Typed tool registry with intent/scope discovery, strict input/output validation and executable preconditions. BM-04 adapters are registered and connected through validated backend plan templates. See [BM-05 integration contract](docs/BM_05_TOOL_REGISTRY.md).
 
-The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning and UI approval/send controls remain unfinished. Unknown approvals return HTTP 404.
+The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning is connected. Rich UI approval/send controls remain frontend work. Unknown approvals return HTTP 404.
 
-**Pending implementation:** LLM intent, workflow execution, durable graph checkpoints, product tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. New chat/task requests still use the scaffold graph. Static previews are separate from task evidence.
+**BM-07/08 implemented:** structured intent extraction, multilingual clarification and summaries, validated workflow steps, durable checkpoints, approval/input pause and resume, bounded reads, source fallback and uncertain-write inspection. See [BM-07/BM-08 implementation and testing](docs/BM07_BM08_TESTING.md) for commands, model configuration and remaining integration. Default intent extraction uses an offline demo parser, with optional OpenAI structured extraction. Scheduling, fresh-credit closure and rich approval UI remain separate tasks. Static previews remain separate from task evidence.
 
 Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 
@@ -76,9 +76,9 @@ curl -sS -X POST http://127.0.0.1:8000/api/v1/tasks \
 curl -sS "http://127.0.0.1:8000/api/v1/tasks?conversation_id=$conversation_id"
 ```
 
-Repeating a request with the same `client_message_id` and content returns the stored turn. Restart the API and retrieve history again to verify persistence. Original user/assistant text, timestamps and message languages remain available. Preferred language defaults to `en`; a user message inherits it when `language` is omitted. Messages also expose the shared `detected_language` and `response_language` fields. Detection stays null until supplied by BM-07. The current scaffold assistant responds in English and records response language `en`. The legacy `language` field retains declared hints for compatibility. Language metadata and preference storage work independently of BM-07 multilingual generation. Existing message records gain `und` for unknown historical language during migration.
+Repeating a request with the same `client_message_id` and content returns the stored turn. Restart the API and retrieve history again to verify persistence. Original user/assistant text, timestamps and message languages remain available. Preferred language defaults to `en`; a user message inherits it when `language` is omitted. Messages also expose the shared `detected_language` and `response_language` fields. BM-07 detects the actual input language and generates an English, Telugu or Hindi reply, using preference when detection is uncertain. The legacy `language` field retains declared hints for compatibility. Language metadata and preferences persist alongside multilingual generation. Existing message records gain `und` for unknown historical language during migration.
 
-Task creation accepts an optional `conversation_id` belonging to the current merchant. Tasks created before this addition keep a null association. Task state, due times and checkpoint references have their own lifecycle. Test history persistence locally with the existing scaffold; full graph execution recovery depends on Harsha's BM-07 checkpointer integration. Harsha reviews BM-03 acceptance.
+Task creation accepts an optional `conversation_id` belonging to the current merchant. Tasks created before this addition keep a null association. Task state, due times and checkpoint references have their own lifecycle. Task execution and checkpoint recovery persist independently of the conversation lifetime. Harsha reviews BM-03 acceptance.
 
 ```sh
 uv run --project backend pytest backend/tests/test_chat_persistence.py -q

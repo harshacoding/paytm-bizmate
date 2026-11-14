@@ -67,6 +67,7 @@ class ClockAdvance(Model):
 class FailureControl(Model):
     operation: Literal[
         "get_transactions",
+        "get_bank_credits",
         "get_settlement_report",
         "get_refunds_and_chargebacks",
         "fresh_credits",

@@ -134,8 +134,8 @@ export default function App() {
           <div className="notice">
             <span>ⓘ</span>
             <p>
-              <strong>Development scaffold</strong> · Synthetic demo data.
-              Requests can be saved; investigations, approvals and sends are still being built.
+              <strong>Synthetic workflows</strong> · Synthetic demo data.
+              Requests prepare evidence and pause for your approval. Use the API to approve and resume.
             </p>
           </div>
           {loading && (
@@ -165,7 +165,7 @@ export default function App() {
                 onChange={(event) => setMessage(event.target.value)}
               />
               <div className="composer-bottom">
-                <span>No live actions · demo intake only</span>
+                <span>Synthetic data · approval required for actions</span>
                 <button
                   className="button primary"
                   type="submit"

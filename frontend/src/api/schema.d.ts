@@ -382,6 +382,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Task
+         * @description Resume persisted input/approval checkpoints. Supply approval via its dedicated API first.
+         */
+        post: operations["resume_task_api_v1_tasks__task_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -721,7 +741,7 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "get_transactions" | "get_settlement_report" | "get_refunds_and_chargebacks" | "fresh_credits" | "get_customers_and_orders" | "get_ticket_status" | "get_campaign_delivery_status" | "ticket_after_write" | "campaign_after_write";
+            operation: "get_transactions" | "get_bank_credits" | "get_settlement_report" | "get_refunds_and_chargebacks" | "fresh_credits" | "get_customers_and_orders" | "get_ticket_status" | "get_campaign_delivery_status" | "ticket_after_write" | "campaign_after_write";
         };
         /** FailureControl */
         "FailureControl-Output": {
@@ -734,16 +754,16 @@ export interface components {
              * Operation
              * @enum {string}
              */
-            operation: "get_transactions" | "get_settlement_report" | "get_refunds_and_chargebacks" | "fresh_credits" | "get_customers_and_orders" | "get_ticket_status" | "get_campaign_delivery_status" | "ticket_after_write" | "campaign_after_write";
+            operation: "get_transactions" | "get_bank_credits" | "get_settlement_report" | "get_refunds_and_chargebacks" | "fresh_credits" | "get_customers_and_orders" | "get_ticket_status" | "get_campaign_delivery_status" | "ticket_after_write" | "campaign_after_write";
         };
         /** HealthResponse */
         HealthResponse: {
             /**
              * Mode
-             * @default scaffold
+             * @default synthetic_workflows
              * @constant
              */
-            mode: "scaffold";
+            mode: "synthetic_workflows";
             /**
              * Status
              * @default ok
@@ -758,7 +778,7 @@ export interface components {
             storage: "memory" | "sqlite";
             /**
              * Workflows Implemented
-             * @default false
+             * @default true
              */
             workflows_implemented: boolean;
         };
@@ -2540,6 +2560,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Verification"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resume_task_api_v1_tasks__task_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
                 };
             };
             /** @description Not Found */

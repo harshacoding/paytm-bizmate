@@ -121,6 +121,13 @@ class MockServices:
             if record.kind in {"commission", "gst", "refund", "chargeback"}
         )
 
+    def bank_credits(self, context: MerchantContext) -> tuple[PaymentRecord, ...]:
+        return tuple(
+            record
+            for record in self._payments(context, "get_bank_credits")
+            if record.kind == "credit"
+        )
+
     def report(self, context: MerchantContext) -> SettlementReport:
         return SettlementReport(
             records=self._payments(context, "get_settlement_report"),

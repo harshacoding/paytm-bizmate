@@ -249,5 +249,6 @@ with TestClient(create_app(Settings(_env_file=None, database_path=sys.argv[1])))
         timeout=30,
     )
     assert json.loads(second.stdout) == saved
-    assert saved["task"]["revision"] == 2
-    assert saved["task"]["events"][-1]["message"] == "Keep my clarification"
+    assert saved["task"]["revision"] >= 2
+    assert saved["task"]["checkpoint_id"]
+    assert any(e["message"] == "Keep my clarification" for e in saved["task"]["events"])

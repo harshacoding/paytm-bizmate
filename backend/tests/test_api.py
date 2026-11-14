@@ -23,12 +23,12 @@ def client(repo, tmp_path):
         yield client
 
 
-def test_health_is_honest_about_scaffold(client, repo):
+def test_health_reports_synthetic_workflows(client, repo):
     assert client.get("/health").json() == {
         "status": "ok",
-        "mode": "scaffold",
+        "mode": "synthetic_workflows",
         "storage": "sqlite" if isinstance(repo, SQLiteTaskRepository) else "memory",
-        "workflows_implemented": False,
+        "workflows_implemented": True,
     }
 
 
@@ -36,13 +36,14 @@ def test_create_and_read_task_without_claiming_execution(client):
     response = client.post("/api/v1/tasks", json={"message": "Why is my settlement short?"})
     assert response.status_code == 201
     task = response.json()
-    assert task["status"] == TaskStatus.AWAITING_INPUT
+    assert task["status"] == TaskStatus.AWAITING_APPROVAL
     assert task["merchant_id"] == "merchant_demo"
     assert task["receipts"] == [] and task["verifications"] == []
-    assert "not implemented" in task["next_action"]
+    assert "166.80" in task["next_action"]
+    assert len(task["approvals"]) == 1 and task["checkpoint_id"]
     assert client.get(f"/api/v1/tasks/{task['task_id']}").json() == task
     assert client.get("/api/v1/tasks").json() == [task]
-    assert len(client.get(f"/api/v1/tasks/{task['task_id']}/events").json()) == 4
+    assert client.get(f"/api/v1/tasks/{task['task_id']}/events").json() == task["events"]
 
 
 @pytest.mark.parametrize("message", ["", "  ", "x" * 4001])
@@ -117,7 +118,7 @@ def test_approval_endpoint_fails_closed(client):
 def test_messages_append_without_executing(client):
     task = client.post("/api/v1/tasks", json={"message": "Hello"}).json()
     response = client.post(f"/api/v1/tasks/{task['task_id']}/messages", json={"message": "Approve"})
-    assert response.json()["events"][-1]["message"] == "Approve"
+    assert any(e["message"] == "Approve" for e in response.json()["events"])
     assert response.json()["approvals"] == []
     assert response.json()["status"] == "AWAITING_INPUT"
 

@@ -393,9 +393,9 @@ class ErrorResponse(Model):
 
 class HealthResponse(Model):
     status: Literal["ok"] = "ok"
-    mode: Literal["scaffold"] = "scaffold"
+    mode: Literal["synthetic_workflows"] = "synthetic_workflows"
     storage: Literal["memory", "sqlite"] = "memory"
-    workflows_implemented: bool = False
+    workflows_implemented: bool = True
 
 
 class SessionResponse(Model):
