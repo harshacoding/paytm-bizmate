@@ -45,10 +45,16 @@ export type Turn = {
   replyText?: string;
 };
 export function detectIntent(question: string): Intent {
-  if (/bank account|account details|ifsc/i.test(question)) return 'bank';
-  if (/customer|win.back|offer|campaign|come back|promot/i.test(question)) return 'campaign';
+  if (/bank account|account details|ifsc|बैंक खाता|बैंक अकाउंट|బ్యాంకు|బ్యాంక్/i.test(question))
+    return 'bank';
   if (
-    /settle|payment|short|credited|credit|refund|transaction|received|payout|deposit|18[, ]?400/i.test(
+    /customer|win.back|offer|campaign|come back|promot|ग्राहक|ऑफर|छूट|కస్టమర్|వినియోగదార|ఆఫర్|ఆఫర|తగ్గింపు/i.test(
+      question,
+    )
+  )
+    return 'campaign';
+  if (
+    /settle|payment|short|credited|credit|refund|transaction|received|payout|deposit|18[, ]?400|भुगतान|पैसे|पैसा|रिफंड|लेनदेन|चెల్లింపు|చెల్లింప|డబ్బు|జమ|రిఫండ్/i.test(
       question,
     )
   )

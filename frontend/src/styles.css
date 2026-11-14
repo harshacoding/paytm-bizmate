@@ -929,3 +929,46 @@ summary span {
     display: none;
   }
 }
+
+.language-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  padding-inline: 8px;
+}
+.language-select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+.language-select:focus-visible {
+  outline: 3px solid #007ca8;
+  outline-offset: 3px;
+}
+:lang(hi),
+:lang(te) {
+  line-height: 1.6;
+}
+:lang(hi) h1,
+:lang(te) h1 {
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+.composer-actions {
+  flex-wrap: wrap;
+}
+:lang(hi) .steps li,
+:lang(te) .steps li {
+  align-items: flex-start;
+}
+:lang(hi) .primary,
+:lang(te) .primary,
+:lang(hi) .secondary,
+:lang(te) .secondary {
+  white-space: normal;
+}

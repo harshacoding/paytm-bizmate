@@ -23,6 +23,8 @@ import {
 import type { Turn } from './demo';
 import { useDictation } from './useDictation';
 import { useChats } from './useChats';
+import { LanguageProvider, useLanguage, languages, canonical } from './i18n';
+import type { Language } from './i18n';
 import { followup, answerFollowup } from './followup';
 
 const symbols = {
@@ -57,6 +59,7 @@ function Icon({ name, size = 19 }: { name: keyof typeof symbols; size?: number }
 }
 
 function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boolean }) {
+  const { t } = useLanguage();
   const index = stages.filter((stage) => elapsed >= stage.at).length - 1;
   const stage = stages[index];
   const finished = stage.progress === 100;
@@ -66,7 +69,7 @@ function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boole
         <span className="tile">
           <Icon name="payment" />
         </span>
-        <h2>{finished ? 'Payment check finished' : 'I’m checking your payment.'}</h2>
+        <h2>{finished ? t('Payment check finished') : t('I’m checking your payment.')}</h2>
       </div>
       <div className="progress-status">
         <div role="status" className="progress-copy">
@@ -80,16 +83,16 @@ function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boole
               centerAlign
             />
           )}
-          {stage.label}
+          {t(stage.label)}
         </div>
         <strong>{stage.progress}%</strong>
       </div>
       <div
         className="track"
         role="progressbar"
-        aria-label="Payment check"
+        aria-label={t('Payment check')}
         aria-valuenow={stage.progress}
-        aria-valuetext={stage.label}
+        aria-valuetext={t(stage.label)}
       >
         <div
           className={finished ? 'fill' : 'fill moving'}
@@ -98,14 +101,14 @@ function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boole
       </div>
       {index === 1 && elapsed >= 3500 && (
         <p className="delay" role="status">
-          The payment report is taking longer than usual.
+          {t('The payment report is taking longer than usual.')}
         </p>
       )}
       <ol className="steps">
         {stages.slice(0, 3).map((step, i) => (
           <li key={step.at} data-current={i === index}>
-            <span>{step.label}</span>
-            <span>{i < index ? 'Done' : i === index ? 'Checking' : 'Next'}</span>
+            <span>{t(step.label)}</span>
+            <span>{i < index ? t('Done') : i === index ? t('Checking') : t('Next')}</span>
           </li>
         ))}
       </ol>
@@ -124,6 +127,7 @@ function ChatReply({
   reduced: boolean;
   update: (change: Partial<Turn>) => void;
 }) {
+  const { t } = useLanguage();
   const elapsed = Math.max(0, now - turn.started);
   const payment = turn.intent === 'payment' && !turn.replyText;
   const campaign = turn.intent === 'campaign' && !turn.replyText;
@@ -145,7 +149,7 @@ function ChatReply({
         <div className="reply-name">BizMate</div>
         {turn.replyText && (
           <section className="card">
-            <p>{turn.replyText}</p>
+            <p>{t(turn.replyText)}</p>
           </section>
         )}
         {payment && (
@@ -153,27 +157,32 @@ function ChatReply({
             <PaymentProgress elapsed={elapsed} reduced={reduced} />
             {elapsed >= stages[3].at && (
               <section className="card">
-                <h2>{money(missing)} is still missing</h2>
-                <p>I compared your sales and deductions with the amount your bank received.</p>
+                <h2>
+                  {money(missing)} {t('is still missing')}
+                </h2>
+                <p>
+                  {t('I compared your sales and deductions with the amount your bank received.')}
+                </p>
                 <dl className="totals">
                   <div>
-                    <dt>Expected</dt>
+                    <dt>{t('Expected')}</dt>
                     <dd>{money(expected)}</dd>
                   </div>
                   <div>
-                    <dt>Received</dt>
+                    <dt>{t('Received')}</dt>
                     <dd>{money(received)}</dd>
                   </div>
                 </dl>
                 <details>
                   <summary>
-                    View details <span>· Payment breakdown</span>
+                    {t('View details')}
+                    <span>{t('· Payment breakdown')}</span>
                   </summary>
                   <dl className="breakdown">
                     {breakdown.map((row) => (
-                      <div key={row.label}>
+                      <div key={t(row.label)}>
                         <dt>
-                          {row.label}
+                          {t(row.label)}
                           <small>{row.source}</small>
                         </dt>
                         <dd>{money(row.paise)}</dd>
@@ -184,7 +193,7 @@ function ChatReply({
                 </details>
                 {!turn.action && (
                   <button type="button" className="primary" onClick={ask}>
-                    Ask support
+                    {t('Ask support')}
                   </button>
                 )}
               </section>
@@ -193,13 +202,16 @@ function ChatReply({
         )}
         {campaign && (
           <section className="card">
-            <h2>Bring customers back</h2>
+            <h2>{t('Bring customers back')}</h2>
             <p>
-              <strong>{audience.length} customers who agreed to receive offers</strong> haven’t
-              visited in 30 days or more. The estimated cost is <strong>{offerCost}</strong>.
+              <strong>
+                {audience.length} {t('customers who agreed to receive offers')}
+              </strong>{' '}
+              {t('haven’t visited in 30 days or more. The estimated cost is')}{' '}
+              <strong>{offerCost}</strong>.
             </p>
             <label className="offer-label" htmlFor={reference}>
-              Offer message
+              {t('Offer message')}
             </label>
             <textarea
               id={reference}
@@ -210,21 +222,22 @@ function ChatReply({
             />
             {!turn.action && (
               <button type="button" className="primary" disabled={!turn.offer.trim()} onClick={ask}>
-                Review simulated send
+                {t('Review simulated send')}
               </button>
             )}
           </section>
         )}
         {turn.intent === 'bank' && !turn.replyText && (
           <section className="card">
-            <h2>Change your bank account</h2>
+            <h2>{t('Change your bank account')}</h2>
             <p>
-              Merchant support can help you change the bank account where you receive payments. I
-              can prepare a support request for you.
+              {t(
+                'Merchant support can help you change the bank account where you receive payments. I can prepare a support request for you.',
+              )}
             </p>
             {!turn.action && (
               <button type="button" className="primary" onClick={ask}>
-                Ask support
+                {t('Ask support')}
               </button>
             )}
           </section>
@@ -232,45 +245,48 @@ function ChatReply({
         {turn.intent === 'other' && (
           <section className="card">
             <p>
-              I can check a short payment, prepare a customer offer, or put you in touch with
-              support for a bank account change. Which would you like help with?
+              {t(
+                'I can check a short payment, prepare a customer offer, or put you in touch with support for a bank account change. Which would you like help with?',
+              )}
             </p>
           </section>
         )}
         {turn.action === 'confirm' && (
           <section className="card confirmation">
-            <h2>{campaign ? 'Send this offer?' : 'Create a support request?'}</h2>
+            <h2>{campaign ? t('Send this offer?') : t('Create a support request?')}</h2>
             <p>
               {campaign
-                ? 'Simulate sending the offer above to ' +
+                ? t('Simulate sending the offer above to ') +
                   audience.length +
-                  ' customers at an estimated cost of ' +
+                  t(' customers at an estimated cost of ') +
                   offerCost +
                   '.'
                 : payment
-                  ? 'Share the payment breakdown and missing amount with simulated merchant support.'
-                  : 'Ask simulated merchant support to help change your bank account.'}
+                  ? t(
+                      'Share the payment breakdown and missing amount with simulated merchant support.',
+                    )
+                  : t('Ask simulated merchant support to help change your bank account.')}
             </p>
             <div className="actions">
               <button type="button" className="primary" onClick={approve}>
-                {campaign ? 'Confirm simulated send' : 'Confirm support request'}
+                {campaign ? t('Confirm simulated send') : t('Confirm support request')}
               </button>
               <button
                 type="button"
                 className="secondary"
                 onClick={() => update({ action: undefined })}
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </section>
         )}
         {turn.approvedAt && campaign && delivery && (
           <section className="card outcome">
-            <h2>Simulated delivery checked</h2>
+            <h2>{t('Simulated delivery checked')}</h2>
             <p role="status">
               <strong>
-                {delivery.delivered} delivered, {delivery.failed} failed
+                {delivery.delivered} {t('delivered,')} {delivery.failed} {t('failed')}
               </strong>
             </p>
           </section>
@@ -278,16 +294,18 @@ function ChatReply({
         {turn.approvedAt && !campaign && (
           <section className="card outcome">
             <h2>
-              {turn.action === 'verified' ? 'Missing credit verified' : 'Support request created'}
+              {turn.action === 'verified'
+                ? t('Missing credit verified')
+                : t('Support request created')}
             </h2>
             <p role="status">
               {turn.action === 'verified'
-                ? money(missing) + ' arrived in a fresh sample bank record. The issue is closed.'
-                : 'Pending with support.'}
+                ? money(missing) + t(' arrived in a fresh sample bank record. The issue is closed.')
+                : t('Pending with support.')}
             </p>
             {payment && turn.action === 'pending' && (
               <>
-                <p className="fine">Follow-up scheduled for tomorrow in the demo.</p>
+                <p className="fine">{t('Follow-up scheduled for tomorrow in the demo.')}</p>
                 <button
                   type="button"
                   className="secondary"
@@ -295,16 +313,18 @@ function ChatReply({
                     if (readFollowup(turn)) update({ action: 'verified' });
                   }}
                 >
-                  Run simulated follow-up
+                  {t('Run simulated follow-up')}
                 </button>
               </>
             )}
             <details>
               <summary>
-                View details <span>· Ticket reference</span>
+                {t('View details')}
+                <span>{t('· Ticket reference')}</span>
               </summary>
               <p>
-                Simulated ticket <strong>{reference}</strong>
+                {t('Simulated ticket')}
+                <strong>{reference}</strong>
               </p>
               {turn.action === 'verified' && <p>Follow-up bank record · BANK-FOLLOWUP-012</p>}
             </details>
@@ -316,6 +336,15 @@ function ChatReply({
 }
 
 export default function App() {
+  return (
+    <LanguageProvider>
+      <MerchantApp />
+    </LanguageProvider>
+  );
+}
+
+function MerchantApp() {
+  const { language, setLanguage, t } = useLanguage();
   const { chats, activeId, turns, draft, setTurns, setDraft, newChat, selectChat } = useChats();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -339,7 +368,7 @@ export default function App() {
   const input = useRef<HTMLTextAreaElement>(null);
   const chat = useRef<HTMLElement>(null);
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
-  const voice = useDictation(draft, setDraft, focusComposer);
+  const voice = useDictation(draft, setDraft, focusComposer, language);
   const working = turns.some(
     (turn) => turn.intent === 'payment' && !turn.replyText && now - turn.started < stages[3].at,
   );
@@ -372,13 +401,13 @@ export default function App() {
     if (chat.current) chat.current.dataset.follow = 'true';
     setNow(started);
     const previousTurn = turns[turns.length - 1];
-    const detected = detectIntent(question);
+    const detected = detectIntent(canonical(question));
     const contextual =
       previousTurn &&
       previousTurn.intent !== 'other' &&
-      (detected === 'other' || followup(previousTurn.intent).options.includes(question));
+      (detected === 'other' || followup(previousTurn.intent).options.includes(canonical(question)));
     const intent = contextual ? previousTurn.intent : detected;
-    const replyText = contextual ? answerFollowup(intent, question) : undefined;
+    const replyText = contextual ? answerFollowup(intent, canonical(question)) : undefined;
     setTurns((previous) => [
       ...previous,
       {
@@ -387,12 +416,12 @@ export default function App() {
         started,
         intent,
         replyText,
-        offer: initialOffer,
+        offer: t(initialOffer),
       },
     ]);
     setDraft('');
     voice.reset();
-    announce('Question sent.');
+    announce(t('Question sent.'));
     focusComposer();
   }
 
@@ -415,7 +444,7 @@ export default function App() {
     voice.reset();
     setTurns([]);
     setDraft('');
-    announce('Demo reset.');
+    announce(t('Demo reset.'));
     focusComposer();
   }
 
@@ -424,7 +453,7 @@ export default function App() {
       <aside
         id="chat-history"
         className={sidebarOpen ? 'history-panel open' : 'history-panel'}
-        aria-label="Chat history"
+        aria-label={t('Chat history')}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             setSidebarOpen(false);
@@ -433,7 +462,7 @@ export default function App() {
         }}
       >
         <div className="history-heading">
-          <strong>Chat history</strong>
+          <strong>{t('Chat history')}</strong>
           <button
             type="button"
             className="secondary close-history"
@@ -442,45 +471,64 @@ export default function App() {
               document.getElementById('history-toggle')?.focus();
             }}
           >
-            Close
+            {t('Close')}
           </button>
         </div>
         <button type="button" className="primary new-chat" onClick={() => navigateChat()}>
-          + New chat
+          {t('+ New chat')}
         </button>
-        <nav aria-label="Saved conversations">
+        <nav aria-label={t('Saved conversations')}>
           {chats.map((item) => (
             <button
               type="button"
               key={item.id}
               aria-current={item.id === activeId ? 'page' : undefined}
               onClick={() => navigateChat(item.id)}
-              title={item.turns[0]?.question ?? 'New chat'}
+              title={item.turns[0]?.question ?? t('New chat')}
             >
-              <span>{item.turns[0]?.question ?? 'New chat'}</span>
+              <span>{item.turns[0]?.question ?? t('New chat')}</span>
               <small>
                 {item.turns.length
-                  ? item.turns.length + (item.turns.length === 1 ? ' message' : ' messages')
-                  : 'Start a conversation'}
+                  ? item.turns.length + (item.turns.length === 1 ? t(' message') : t(' messages'))
+                  : t('Start a conversation')}
               </small>
             </button>
           ))}
         </nav>
-        <p className="history-note">Chats are saved in this browser.</p>
+        <p className="history-note">{t('Chats are saved in this browser.')}</p>
+        <label className="language-label" htmlFor="language">
+          {t('Language')}
+        </label>
+        <select
+          id="language"
+          className="language-select"
+          value={language}
+          disabled={!!voice.mode}
+          onChange={(event) => {
+            voice.reset();
+            setLanguage(event.target.value as Language);
+          }}
+        >
+          {Object.entries(languages).map(([code, label]) => (
+            <option value={code} key={code} lang={code}>
+              {label}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           className="secondary theme-toggle"
           aria-pressed={theme === 'dark'}
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         >
-          {theme === 'light' ? 'Dark theme' : 'Light theme'}
+          {theme === 'light' ? t('Dark theme') : t('Light theme')}
         </button>
       </aside>
       {sidebarOpen && (
         <button
           type="button"
           className="history-backdrop"
-          aria-label="Close chat history"
+          aria-label={t('Close chat history')}
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -496,7 +544,7 @@ export default function App() {
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               {String.fromCharCode(9776)}
-              <span className="sr-only">Chat history</span>
+              <span className="sr-only">{t('Chat history')}</span>
             </button>
             <div className="brand">
               <span>
@@ -515,20 +563,24 @@ export default function App() {
             </div>
             <div className="header-actions">
               <span className="merchant">
-                <span className="merchant-logo" role="img" aria-label="Sharma General Store avatar">
+                <span
+                  className="merchant-logo"
+                  role="img"
+                  aria-label={t('Sharma General Store avatar')}
+                >
                   SG
                 </span>
-                <span className="merchant-name">Sharma General Store</span>
+                <span className="merchant-name">{t('Sharma General Store')}</span>
               </span>
               <button
                 className="replay"
                 type="button"
                 onClick={replay}
-                aria-label="Replay demo"
-                title="Replay demo"
+                aria-label={t('Replay demo')}
+                title={t('Replay demo')}
               >
                 <Icon name="replay" size={17} />
-                <span>Replay demo</span>
+                <span>{t('Replay demo')}</span>
               </button>
             </div>
           </div>
@@ -550,8 +602,10 @@ export default function App() {
                   <Icon name="sparkle" size={35} />
                   <span>✦</span>
                 </div>
-                <h1>Hi! How can I help?</h1>
-                <p>Ask about a payment, bring customers back, or get help with your account.</p>
+                <h1>{t('Hi! How can I help?')}</h1>
+                <p>
+                  {t('Ask about a payment, bring customers back, or get help with your account.')}
+                </p>
                 <div className="prompts">
                   {questions.map((question, index) => (
                     <button
@@ -559,14 +613,14 @@ export default function App() {
                       type="button"
                       disabled={!!voice.mode}
                       onClick={() => {
-                        setDraft(question);
+                        setDraft(t(question));
                         focusComposer();
                       }}
                     >
                       <span className="tile">
                         <Icon name={(['payment', 'campaign', 'bank'] as const)[index]} />
                       </span>
-                      <span>{question}</span>
+                      <span>{t(question)}</span>
                       <Icon name="arrow" size={16} />
                     </button>
                   ))}
@@ -599,22 +653,22 @@ export default function App() {
                 return null;
               const prompt = followup(last.intent);
               return (
-                <section className="chat-column followup" aria-label="Follow-up questions">
-                  <h2>{prompt.question}</h2>
+                <section className="chat-column followup" aria-label={t('Follow-up questions')}>
+                  <h2>{t(prompt.question)}</h2>
                   <div className="followup-options">
                     {prompt.options.map((option) => (
                       <button
                         type="button"
                         className="secondary"
-                        key={option}
+                        key={t(option)}
                         disabled={!!voice.mode}
-                        onClick={() => sendQuestion(option)}
+                        onClick={() => sendQuestion(t(option))}
                       >
-                        {option}
+                        {t(option)}
                       </button>
                     ))}
                   </div>
-                  <p>Choose an option, or type your answer below.</p>
+                  <p>{t('Choose an option, or type your answer below.')}</p>
                 </section>
               );
             })()}
@@ -625,7 +679,8 @@ export default function App() {
               {voice.mode && (
                 <div className="listening">
                   <span className="listening-label" role="status">
-                    Listening…{voice.mode === 'simulation' && <small>Simulated dictation</small>}
+                    {t('Listening…')}
+                    {voice.mode === 'simulation' && <small>{t('Simulated dictation')}</small>}
                   </span>
                   <div className="wave" aria-hidden="true">
                     {reduced ? (
@@ -643,22 +698,22 @@ export default function App() {
                     )}
                   </div>
                   <button type="button" className="secondary" onClick={() => voice.end(true)}>
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button type="button" className="primary" onClick={() => voice.end()}>
-                    Done
+                    {t('Done')}
                   </button>
                 </div>
               )}
               <label className="sr-only" htmlFor="question">
-                Type a question
+                {t('Type a question')}
               </label>
               <textarea
                 id="question"
                 ref={input}
                 rows={2}
                 maxLength={2000}
-                placeholder="Type a question…"
+                placeholder={t('Type a question…')}
                 value={draft}
                 readOnly={!!voice.mode}
                 onChange={(event) => setDraft(event.target.value)}
@@ -670,7 +725,8 @@ export default function App() {
                   disabled={!!voice.mode}
                   onClick={() => voice.start(false)}
                 >
-                  <Icon name="mic" size={16} /> Speak
+                  <Icon name="mic" size={16} />
+                  {t('Speak')}
                 </button>
                 <button
                   type="button"
@@ -678,14 +734,15 @@ export default function App() {
                   disabled={!!voice.mode}
                   onClick={() => voice.start(true)}
                 >
-                  Simulate dictation
+                  {t('Simulate dictation')}
                 </button>
                 <button
                   type="submit"
                   className="primary send"
                   disabled={!draft.trim() || !!voice.mode}
                 >
-                  Send <Icon name="send" size={16} />
+                  {t('Send')}
+                  <Icon name="send" size={16} />
                 </button>
               </div>
             </form>
@@ -693,7 +750,8 @@ export default function App() {
               {voice.notice}
             </div>
             <p className="demo-note">
-              <span /> Demo mode · Sample data and simulated actions
+              <span />
+              {t('Demo mode · Sample data and simulated actions')}
             </p>
             <div className="sr-only" role="status">
               {announcement}

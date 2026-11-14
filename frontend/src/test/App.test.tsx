@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from '../App';
+import { speechLocales, translate } from '../i18n';
+import type { Language } from '../i18n';
 
 beforeEach(() => {
   localStorage.clear();
@@ -128,3 +130,61 @@ it('accepts suggested and typed follow-up replies in context', () => {
   expect(screen.getByText(/The demo uses one sample payment period/)).toBeInTheDocument();
   expect(screen.getAllByRole('progressbar')).toHaveLength(1);
 });
+
+it.each(['en', 'hi', 'te'] as Language[])(
+  'runs editable simulated dictation and support approval in %s',
+  (language) => {
+    const view = render(<App />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: language } });
+    const t = (text: string) => translate(text, language);
+    expect(document.documentElement.lang).toBe(language);
+    fireEvent.click(screen.getByRole('button', { name: t('Simulate dictation') }));
+    tick(6000);
+    expect(screen.getByRole('combobox')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: t('Done') }));
+    expect(screen.getByRole('textbox', { name: t('Type a question') })).toHaveValue(
+      t('Why is my payment short?'),
+    );
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t('Send') }));
+    tick(7000);
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+    fireEvent.click(screen.getByRole('button', { name: t('Ask support') }));
+    fireEvent.click(screen.getByRole('button', { name: t('Confirm support request') }));
+    expect(screen.getByText(t('Pending with support.'))).toBeInTheDocument();
+    view.unmount();
+    render(<App />);
+    expect(screen.getByRole('combobox')).toHaveValue(language);
+  },
+);
+
+it.each(['en', 'hi', 'te'] as Language[])(
+  'configures browser speech recognition and keeps failed drafts in %s',
+  (language) => {
+    let recognition: MockRecognition;
+    class MockRecognition {
+      lang = '';
+      onresult?: (event: { results: { transcript: string }[][] }) => void;
+      onerror?: () => void;
+      start() {
+        recognition = this;
+      }
+      abort() {}
+    }
+    vi.stubGlobal('SpeechRecognition', MockRecognition);
+    render(<App />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: language } });
+    const t = (text: string) => translate(text, language);
+    const draft = screen.getByRole('textbox', { name: t('Type a question') });
+    fireEvent.change(draft, { target: { value: 'Existing draft' } });
+    fireEvent.click(screen.getByRole('button', { name: t('Speak') }));
+    expect(recognition!.lang).toBe(speechLocales[language]);
+    act(() =>
+      recognition!.onresult?.({ results: [[{ transcript: t('Why is my payment short?') }]] }),
+    );
+    expect(draft).toHaveValue('Existing draft ' + t('Why is my payment short?'));
+    act(() => recognition!.onerror?.());
+    expect(draft).toHaveValue('Existing draft');
+    expect(screen.getByText(t('You can still type your question.'))).toBeInTheDocument();
+  },
+);

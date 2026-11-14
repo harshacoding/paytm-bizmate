@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { questions } from './demo';
+import { speechLocales, useLanguage } from './i18n';
+import type { Language } from './i18n';
 
 type Result = { [index: number]: { transcript: string } };
 type Recognition = {
@@ -19,7 +21,13 @@ type Session = {
 };
 const fallback = 'You can still type your question.';
 
-export function useDictation(draft: string, setDraft: (value: string) => void, focus: () => void) {
+export function useDictation(
+  draft: string,
+  setDraft: (value: string) => void,
+  focus: () => void,
+  language: Language = 'en',
+) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState<'mic' | 'simulation' | null>(null);
   const [notice, setNotice] = useState('');
   const current = useRef<Session | null>(null);
@@ -47,7 +55,7 @@ export function useDictation(draft: string, setDraft: (value: string) => void, f
     if (!session) return;
     if (cancel) setDraft(session.original);
     setMode(null);
-    setNotice(cancel ? 'Dictation cancelled.' : 'Review your draft, then choose Send.');
+    setNotice(t(cancel ? 'Dictation cancelled.' : 'Review your draft, then choose Send.'));
     focus();
   }
 
@@ -62,7 +70,7 @@ export function useDictation(draft: string, setDraft: (value: string) => void, f
     setNotice('');
     if (simulate) {
       setMode('simulation');
-      const words = questions[0].split(' ');
+      const words = t(questions[0]).split(' ');
       session.timers = words.map((_, index) =>
         window.setTimeout(() => apply(words.slice(0, index + 1).join(' ')), (index + 1) * 310),
       );
@@ -78,7 +86,7 @@ export function useDictation(draft: string, setDraft: (value: string) => void, f
       release();
       setDraft(session.original);
       setMode(null);
-      setNotice(fallback);
+      setNotice(t(fallback));
       focus();
     };
     if (!SpeechRecognition) {
@@ -88,7 +96,7 @@ export function useDictation(draft: string, setDraft: (value: string) => void, f
     try {
       const recognition = new SpeechRecognition();
       session.recognition = recognition;
-      recognition.lang = 'en-IN';
+      recognition.lang = speechLocales[language];
       recognition.interimResults = true;
       recognition.continuous = true;
       recognition.onresult = (event) =>
