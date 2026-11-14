@@ -35,6 +35,8 @@ Task records and their timelines survive backend restart/reload in `backend/.dat
 
 ## Conversation API
 
+Source-linked settlement reconciliation is available through `POST /api/v1/settlements/reconcile`. See [BM-10 testing](docs/BM10_TESTING.md) for expected proof amounts and commands.
+
 Synthetic service APIs, fixture commands and the demo clock are documented in [BM-04 testing](docs/BM04_TESTING.md).
 
 Customer segmentation and campaign cost are available through `POST /api/v1/campaigns/segment`. See [BM-13 testing](docs/BM13_TESTING.md) for expected results and commands.

@@ -1282,6 +1282,54 @@
         "title": "PlanStep",
         "type": "object"
       },
+      "ProofLine": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_paise": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": -9007199254740991.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Paise"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "source_references": {
+            "default": [],
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "title": "Source References",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "known",
+              "missing",
+              "conflicting"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount_paise",
+          "source_references",
+          "status",
+          "explanation"
+        ],
+        "title": "ProofLine",
+        "type": "object"
+      },
       "Receipt": {
         "additionalProperties": false,
         "properties": {
@@ -1338,6 +1386,19 @@
           "created_at"
         ],
         "title": "Receipt",
+        "type": "object"
+      },
+      "ReconciliationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "settlement_reference": {
+            "default": "settlement-001",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          }
+        },
+        "title": "ReconciliationRequest",
         "type": "object"
       },
       "Scope": {
@@ -1506,6 +1567,98 @@
           "source_references"
         ],
         "title": "SettlementPreview",
+        "type": "object"
+      },
+      "SettlementProof": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "chargeback": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "commission": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "credit": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "gst": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "refunds": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "residual": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "sales": {
+            "$ref": "#/components/schemas/ProofLine"
+          },
+          "settlement_reference": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentRecord"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "complete",
+              "incomplete",
+              "conflicting"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "merchant_id",
+          "settlement_reference",
+          "captured_at",
+          "sales",
+          "commission",
+          "gst",
+          "refunds",
+          "chargeback",
+          "expected",
+          "credit",
+          "residual",
+          "sources",
+          "status",
+          "warnings",
+          "simulated"
+        ],
+        "title": "SettlementProof",
         "type": "object"
       },
       "SettlementReport": {
@@ -2950,6 +3103,67 @@
         "summary": "Session",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/v1/settlements/reconcile": {
+      "post": {
+        "operationId": "reconcile_api_v1_settlements_reconcile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconciliationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementProof"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Reconcile",
+        "tags": [
+          "settlements"
         ]
       }
     },

@@ -228,6 +228,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settlements/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile */
+        post: operations["reconcile_api_v1_settlements_reconcile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks": {
         parameters: {
             query?: never;
@@ -865,6 +882,23 @@ export interface components {
             /** Tool Name */
             tool_name: string;
         };
+        /** ProofLine */
+        ProofLine: {
+            /** Amount Paise */
+            amount_paise: number | null;
+            /** Explanation */
+            explanation: string;
+            /**
+             * Source References
+             * @default []
+             */
+            source_references: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "known" | "missing" | "conflicting";
+        };
         /** Receipt */
         Receipt: {
             /** Action */
@@ -886,6 +920,14 @@ export interface components {
             receipt_id: string;
             /** Task Id */
             task_id: string;
+        };
+        /** ReconciliationRequest */
+        ReconciliationRequest: {
+            /**
+             * Settlement Reference
+             * @default settlement-001
+             */
+            settlement_reference: string;
         };
         /**
          * Scope
@@ -940,6 +982,41 @@ export interface components {
             sales_paise: number;
             /** Source References */
             source_references: string[];
+        };
+        /** SettlementProof */
+        SettlementProof: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            chargeback: components["schemas"]["ProofLine"];
+            commission: components["schemas"]["ProofLine"];
+            credit: components["schemas"]["ProofLine"];
+            expected: components["schemas"]["ProofLine"];
+            gst: components["schemas"]["ProofLine"];
+            /** Merchant Id */
+            merchant_id: string;
+            refunds: components["schemas"]["ProofLine"];
+            residual: components["schemas"]["ProofLine"];
+            sales: components["schemas"]["ProofLine"];
+            /** Settlement Reference */
+            settlement_reference: string;
+            /**
+             * Simulated
+             * @default true
+             * @constant
+             */
+            simulated: true;
+            /** Sources */
+            sources: components["schemas"]["PaymentRecord"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "incomplete" | "conflicting";
+            /** Warnings */
+            warnings: string[];
         };
         /** SettlementReport */
         SettlementReport: {
@@ -1972,6 +2049,57 @@ export interface operations {
             };
             /** @description Request validation failed */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reconcile_api_v1_settlements_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementProof"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
