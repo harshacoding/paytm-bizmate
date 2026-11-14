@@ -5,6 +5,10 @@ export type Language = 'en' | 'hi' | 'te';
 export const languages = { en: 'English', hi: 'हिन्दी', te: 'తెలుగు' };
 export const speechLocales = { en: 'en-IN', hi: 'hi-IN', te: 'te-IN' };
 const rows = [
+  ['Connecting…', 'कनेक्ट हो रहा है…', 'కనెక్ట్ అవుతోంది…'],
+  ['Thinking…', 'सोच रहा हूँ…', 'ఆలోచిస్తున్నాను…'],
+  ['Preparing your reply…', 'आपका जवाब तैयार कर रहा हूँ…', 'మీ సమాధానం సిద్ధం చేస్తున్నాను…'],
+  ['Preparing a follow-up question…', 'अगला सवाल तैयार कर रहा हूँ…', 'తదుపరి ప్రశ్న సిద్ధం చేస్తున్నాను…'],
   ['Language', 'भाषा', 'భాష'],
   ['Hi! How can I help?', 'नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?', 'నమస్కారం! మీకు ఎలా సహాయం చేయగలను?'],
   [

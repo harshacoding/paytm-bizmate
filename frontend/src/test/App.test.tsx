@@ -35,6 +35,7 @@ function tick(ms: number) {
 function choose(name: string) {
   fireEvent.click(screen.getByRole('button', { name }));
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  tick(3400);
 }
 
 it('reviews simulated speech before sending, then verifies the credit after approval', () => {
@@ -120,15 +121,39 @@ it('keeps separate chat drafts, restores history and persists the theme', () => 
 it('accepts suggested and typed follow-up replies in context', () => {
   render(<App />);
   choose('Why is my payment short?');
-  tick(7000);
+  tick(8200);
   fireEvent.click(screen.getByRole('button', { name: 'Explain the deductions' }));
+  expect(screen.getByText(/Connecting/)).toBeInTheDocument();
+  tick(2200);
   expect(screen.getByText(/In this sample, sales of/)).toBeInTheDocument();
   fireEvent.change(screen.getByRole('textbox', { name: 'Type a question' }), {
     target: { value: 'when can I check?' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  tick(2200);
   expect(screen.getByText(/The demo uses one sample payment period/)).toBeInTheDocument();
   expect(screen.getAllByRole('progressbar')).toHaveLength(1);
+});
+
+it('shows response activity before answers and before follow-up questions', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Help me bring customers back.' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(screen.getByText('Connecting…')).toBeInTheDocument();
+  expect(screen.queryByRole('textbox', { name: 'Offer message' })).toBeNull();
+  tick(500);
+  expect(screen.getByText('Thinking…')).toBeInTheDocument();
+  tick(1200);
+  expect(screen.getByText('Preparing your reply…')).toBeInTheDocument();
+  tick(500);
+  expect(screen.getByRole('textbox', { name: 'Offer message' })).toBeInTheDocument();
+  expect(screen.queryByText('What kind of offer would suit your customers?')).toBeNull();
+  expect(screen.getByText('Connecting…')).toBeInTheDocument();
+  tick(1000);
+  expect(screen.getByText('Preparing a follow-up question…')).toBeInTheDocument();
+  tick(200);
+  expect(screen.getByText('What kind of offer would suit your customers?')).toBeInTheDocument();
+  expect(screen.queryByText('Thinking…')).toBeNull();
 });
 
 it.each(['en', 'hi', 'te'] as Language[])(

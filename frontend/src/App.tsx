@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
 import {
+  ResponseActivity,
+  activityState,
+  responseDuration,
+  replyDelay,
+  followupDelay,
+} from './components/ResponseActivity';
+import {
   MicrophoneWaveform,
   ScrollingWaveform,
   StaticWaveform,
@@ -77,7 +84,8 @@ function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boole
             <BarVisualizer
               aria-hidden="true"
               className="thinking"
-              state={reduced ? undefined : 'thinking'}
+              state={reduced ? undefined : activityState(elapsed, stages[3].at)}
+              demo={!reduced && activityState(elapsed, stages[3].at) === 'speaking'}
               barCount={5}
               minHeight={32}
               centerAlign
@@ -140,6 +148,19 @@ function ChatReply({
   }).format(audience.length * 2);
   const ask = () => update({ action: 'confirm' });
   const approve = () => update({ action: 'pending', approvedAt: Date.now() });
+  if (!payment && elapsed < replyDelay) {
+    return (
+      <div className="reply">
+        <span className="reply-avatar">
+          <Icon name="sparkle" size={15} />
+        </span>
+        <div className="reply-content">
+          <div className="reply-name">BizMate</div>
+          <ResponseActivity elapsed={elapsed} duration={replyDelay} reduced={reduced} />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="reply">
       <span className="reply-avatar">
@@ -369,9 +390,7 @@ function MerchantApp() {
   const chat = useRef<HTMLElement>(null);
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
   const voice = useDictation(draft, setDraft, focusComposer, language);
-  const working = turns.some(
-    (turn) => turn.intent === 'payment' && !turn.replyText && now - turn.started < stages[3].at,
-  );
+  const working = turns.some((turn) => now - turn.started < responseDuration(turn) + followupDelay);
 
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -645,8 +664,20 @@ function MerchantApp() {
           {!!turns.length &&
             (() => {
               const last = turns[turns.length - 1];
-              if (last.intent === 'payment' && !last.replyText && now - last.started < stages[3].at)
-                return null;
+              const elapsed = now - last.started;
+              const duration = responseDuration(last);
+              if (elapsed < duration) return null;
+              if (elapsed < duration + followupDelay)
+                return (
+                  <div className="chat-column followup">
+                    <ResponseActivity
+                      elapsed={elapsed - duration}
+                      duration={followupDelay}
+                      reduced={reduced}
+                      followup
+                    />
+                  </div>
+                );
               const prompt = followup(last.intent);
               return (
                 <section className="chat-column followup" aria-label={t('Follow-up questions')}>
@@ -701,20 +732,30 @@ function MerchantApp() {
                   </button>
                 </div>
               )}
-              <label className="sr-only" htmlFor="question">
-                {t('Type a question')}
-              </label>
-              <textarea
-                id="question"
-                ref={input}
-                rows={2}
-                maxLength={2000}
-                placeholder={t('Type a question…')}
-                value={draft}
-                readOnly={!!voice.mode}
-                onChange={(event) => setDraft(event.target.value)}
-              />
+              <div className="composer-input">
+                <label className="sr-only" htmlFor="question">
+                  {t('Type a question')}
+                </label>
+                <textarea
+                  id="question"
+                  ref={input}
+                  rows={2}
+                  maxLength={2000}
+                  placeholder={t('Type a question…')}
+                  value={draft}
+                  readOnly={!!voice.mode}
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+              </div>
               <div className="composer-actions">
+                <button
+                  type="button"
+                  className="simulate"
+                  disabled={!!voice.mode}
+                  onClick={() => voice.start(true)}
+                >
+                  {t('Simulate dictation')}
+                </button>
                 <button
                   type="button"
                   className="secondary speak"
@@ -723,14 +764,6 @@ function MerchantApp() {
                 >
                   <Icon name="mic" size={16} />
                   {t('Speak')}
-                </button>
-                <button
-                  type="button"
-                  className="simulate"
-                  disabled={!!voice.mode}
-                  onClick={() => voice.start(true)}
-                >
-                  {t('Simulate dictation')}
                 </button>
                 <button
                   type="submit"

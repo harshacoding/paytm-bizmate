@@ -1270,3 +1270,53 @@ html:lang(te) {
     min-height: 32px;
   }
 }
+
+.response-activity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+}
+.thinking[data-state='speaking'] > div {
+  background: var(--accent);
+  transition: height 0.1s linear;
+}
+.composer-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.composer-actions {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+.composer-actions .speak {
+  grid-column: 2;
+  grid-row: 1;
+  margin-left: 0;
+}
+.composer-actions .simulate {
+  grid-column: 1;
+}
+.composer-actions .send {
+  grid-column: 3;
+  margin-left: 0;
+}
+@media (max-width: 600px) {
+  .composer-input {
+    gap: 4px;
+  }
+  .composer-actions .simulate {
+    font-size: 12px;
+  }
+}
+@media (max-width: 380px) {
+  .composer-actions .simulate {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
