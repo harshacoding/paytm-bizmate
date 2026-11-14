@@ -1,9 +1,9 @@
 import type { DemoPreview, Health, Session, Task } from './types';
 
-const base = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+export const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${base}${path}`, {
+  const response = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });

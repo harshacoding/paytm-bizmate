@@ -27,3 +27,4 @@ class Settings(BaseSettings):
     def database_file(self) -> Path:
         path = Path(self.database_path).expanduser()
         return path if path.is_absolute() else BACKEND_ROOT / path
+    elevenlabs_api_key: SecretStr | None = None

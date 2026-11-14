@@ -1,9 +1,11 @@
 export const questions = [
   'Why is my payment short?',
+  'Did I receive ₹480?',
+  'Where is my ₹650 refund?',
+  'How much did I collect today?',
   'Help me bring customers back.',
-  'How do I change my bank account?',
-  'Review my sales report.',
 ];
+export const moreQuestions = ['How do I change my bank account?', 'Review my sales report.'];
 export const stages = [
   { at: 0, progress: 20, label: 'Fetching your payment records' },
   { at: 1800, progress: 60, label: 'Analysing your transactions' },
@@ -33,7 +35,8 @@ export const audience = Array.from({ length: 200 }, (_, index) => ({
 })).filter((customer) => customer.daysSinceVisit >= 30 && customer.consent);
 export const initialOffer =
   'We miss you at Sharma General Store! Show this message on your next visit for 10% off your purchase this week.';
-export type Intent = 'payment' | 'campaign' | 'bank' | 'sales' | 'other';
+export type Intent =
+  'payment' | 'campaign' | 'bank' | 'sales' | 'counter' | 'refund' | 'closing' | 'other';
 export type Action = 'confirm' | 'pending' | 'verified';
 export type Turn = {
   id: string;
@@ -47,8 +50,25 @@ export type Turn = {
   salesPeriod?: { start: string; end: string };
   salesMode?: 'today' | 'date' | 'month' | 'range';
   reportRequestedAt?: number;
+  counterQuery?: { amount: number; minutes: number; checkedAt: number };
+  counterSettled?: boolean;
+  soundboxHelp?: boolean;
+  refundQuery?: { amount: number; checkedAt: number };
 };
 export function detectIntent(question: string): Intent {
+  if (
+    /soundbox|counter|did i (?:get|receive)|customer.*(?:paid|payment)|साउंडबॉक्स|साउंडबॉक्स|సౌండ్‌బాక్స్|సౌండ్ బాక్స్/i.test(
+      question,
+    )
+  )
+    return 'counter';
+  if (/refund(?:ed)?|रिफंड|रिफ़ंड|రిఫండ్/i.test(question)) return 'refund';
+  if (
+    /daily clos|clos.*(?:day|collect)|collect.*today|today.*collect|आज.*(?:कलेक्शन|कितना)|ఈ రోజు.*(?:వసూలు|సేకర)/i.test(
+      question,
+    )
+  )
+    return 'closing';
   if (/sales|statement|revenue|बिक्री|रिपोर्ट|అమ్మక|నివేదిక/i.test(question)) return 'sales';
   if (/bank account|account details|ifsc|बैंक खाता|बैंक अकाउंट|బ్యాంకు|బ్యాంక్/i.test(question))
     return 'bank';

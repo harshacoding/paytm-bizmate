@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
 import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
 import {
   ResponseActivity,
@@ -8,7 +8,7 @@ import {
   replyDelay,
   followupDelay,
 } from './components/ResponseActivity';
-import { MicrophoneWaveform, StaticWaveform } from './components/elevenlabs/waveform';
+import { Waveform, StaticWaveform } from './components/elevenlabs/waveform';
 import {
   audience,
   breakdown,
@@ -18,6 +18,7 @@ import {
   missing,
   money,
   questions,
+  moreQuestions,
   readDelivery,
   readFollowup,
   received,
@@ -26,13 +27,15 @@ import {
 import type { Turn } from './demo';
 import { useDictation } from './useDictation';
 import { useChats } from './useChats';
+import { useSidebarWidth } from './useSidebarWidth';
 import { LanguageProvider, useLanguage, languages, canonical } from './i18n';
 import type { Language } from './i18n';
 import { followup, answerFollowup } from './followup';
 import { SalesReport } from './components/SalesReport';
+import { CounterPayment, RefundFollowup, DailyClosing } from './components/MerchantChecks';
+import { amountFromQuestion } from './paymentDemo';
 
 const symbols = {
-  sparkle: 'M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z',
   store:
     'M3 9l2-5h14l2 5v3a3 3 0 0 1-4 2.8A3 3 0 0 1 12 14a3 3 0 0 1-5 .8A3 3 0 0 1 3 12V9zm2 6v5h14v-5M3 9h18',
   mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-4 6v1a7 7 0 0 0 14 0v-1m-7 8v3m-3 0h6',
@@ -52,7 +55,7 @@ function Icon({ name, size = 19 }: { name: keyof typeof symbols; size?: number }
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={name === 'sparkle' ? 'currentColor' : 'none'}
+      fill="none"
       stroke="currentColor"
       strokeWidth="1.65"
       strokeLinecap="round"
@@ -127,11 +130,13 @@ function ChatReply({
   now,
   reduced,
   update,
+  onQuestion,
 }: {
   turn: Turn;
   now: number;
   reduced: boolean;
   update: (change: Partial<Turn>) => void;
+  onQuestion: (question: string) => void;
 }) {
   const { t } = useLanguage();
   const elapsed = Math.max(0, now - turn.started);
@@ -150,7 +155,7 @@ function ChatReply({
     return (
       <div className="reply">
         <span className="reply-avatar">
-          <Icon name="sparkle" size={15} />
+          <Icon name="store" size={15} />
         </span>
         <div className="reply-content">
           <div className="reply-name">BizMate</div>
@@ -162,12 +167,21 @@ function ChatReply({
   return (
     <div className="reply">
       <span className="reply-avatar">
-        <Icon name="sparkle" size={15} />
+        <Icon name="store" size={15} />
       </span>
       <div className="reply-content">
         <div className="reply-name">BizMate</div>
         {turn.intent === 'sales' && (
           <SalesReport turn={turn} now={now} reduced={reduced} update={update} />
+        )}
+        {!turn.replyText && turn.intent === 'counter' && (
+          <CounterPayment turn={turn} now={now} reduced={reduced} update={update} />
+        )}
+        {!turn.replyText && turn.intent === 'refund' && (
+          <RefundFollowup turn={turn} now={now} reduced={reduced} update={update} />
+        )}
+        {!turn.replyText && turn.intent === 'closing' && (
+          <DailyClosing turn={turn} onQuestion={onQuestion} />
         )}
         {turn.replyText && (
           <section className="card">
@@ -273,7 +287,7 @@ function ChatReply({
             </p>
           </section>
         )}
-        {turn.action === 'confirm' && (
+        {turn.action === 'confirm' && turn.intent !== 'refund' && (
           <section className="card confirmation">
             <h2>{campaign ? t('Send this offer?') : t('Create a support request?')}</h2>
             <p>
@@ -313,7 +327,7 @@ function ChatReply({
             </p>
           </section>
         )}
-        {turn.approvedAt && !campaign && (
+        {turn.approvedAt && !campaign && turn.intent !== 'refund' && (
           <section className="card outcome">
             <h2>
               {turn.action === 'verified'
@@ -368,7 +382,9 @@ export default function App() {
 function MerchantApp() {
   const { language, setLanguage, t } = useLanguage();
   const { chats, activeId, turns, draft, setTurns, setDraft, newChat, selectChat } = useChats();
+  const activeChat = chats.find((item) => item.id === activeId)!;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebar = useSidebarWidth();
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem('bizmate-theme');
@@ -395,11 +411,13 @@ function MerchantApp() {
     input.current.style.height = Math.min(input.current.scrollHeight, 120) + 'px';
   }, [draft, activeId, language]);
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
-  const voice = useDictation(draft, setDraft, focusComposer, language);
+  const voice = useDictation(draft, setDraft, focusComposer);
   const working = turns.some(
     (turn) =>
       now - turn.started < responseDuration(turn) + followupDelay ||
-      (!!turn.reportRequestedAt && now - turn.reportRequestedAt < replyDelay),
+      (!!turn.reportRequestedAt && now - turn.reportRequestedAt < replyDelay) ||
+      (!!turn.counterQuery && now - turn.counterQuery.checkedAt < replyDelay) ||
+      (!!turn.refundQuery && now - turn.refundQuery.checkedAt < replyDelay),
   );
 
   useEffect(() => {
@@ -417,6 +435,10 @@ function MerchantApp() {
     const panel = chat.current;
     if (!panel || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
+      if (panel.querySelector('.welcome-wrap')) {
+        panel.scrollTop = 0;
+        return;
+      }
       if (panel.dataset.follow !== 'false') panel.scrollTop = panel.scrollHeight;
     });
     if (panel.firstElementChild) observer.observe(panel.firstElementChild);
@@ -434,10 +456,13 @@ function MerchantApp() {
     const contextual =
       previousTurn &&
       previousTurn.intent !== 'other' &&
-      (detected === 'other' || followup(previousTurn.intent).options.includes(canonical(question)));
+      (detected === 'other' ||
+        (detected === previousTurn.intent &&
+          followup(previousTurn.intent).options.includes(canonical(question))));
     const intent = contextual ? previousTurn.intent : detected;
     const replyText =
       contextual && intent !== 'sales' ? answerFollowup(intent, canonical(question)) : undefined;
+    const requestedAmount = amountFromQuestion(question);
     setTurns((previous) => [
       ...previous,
       {
@@ -447,6 +472,14 @@ function MerchantApp() {
         intent,
         replyText,
         offer: t(initialOffer),
+        counterQuery:
+          intent === 'counter' && requestedAmount
+            ? { amount: requestedAmount, minutes: 30, checkedAt: started }
+            : undefined,
+        refundQuery:
+          intent === 'refund' && requestedAmount
+            ? { amount: requestedAmount, checkedAt: started }
+            : undefined,
       },
     ]);
     setDraft('');
@@ -458,6 +491,23 @@ function MerchantApp() {
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     sendQuestion(draft);
+  }
+
+  function chatTicket(item: (typeof chats)[number]) {
+    const ticket = [...item.turns]
+      .reverse()
+      .find(
+        (turn) =>
+          turn.approvedAt &&
+          (turn.intent === 'payment' || turn.intent === 'bank' || turn.intent === 'refund'),
+      );
+    return ticket ? 'BM-' + ticket.id.slice(0, 8).toUpperCase() : '';
+  }
+
+  function chatName(item: (typeof chats)[number]) {
+    const title = t(item.title ?? item.turns[0]?.question ?? 'New chat');
+    const ticket = chatTicket(item);
+    return ticket ? title + ' - ' + ticket : title;
   }
 
   function navigateChat(id?: string) {
@@ -479,7 +529,11 @@ function MerchantApp() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      data-resizing={sidebar.resizing}
+      style={{ '--sidebar-width': sidebar.width + 'px' } as CSSProperties}
+    >
       <aside
         id="chat-history"
         className={sidebarOpen ? 'history-panel open' : 'history-panel'}
@@ -491,6 +545,24 @@ function MerchantApp() {
           }
         }}
       >
+        <div className="brand">
+          <span>
+            <span className="paytm-logo-frame">
+              <img
+                className="paytm-logo"
+                src="/brand/paytm.png"
+                alt="Paytm"
+                width="80"
+                height="25"
+              />
+            </span>
+            <span className="brand-divider" />
+            <span className="bizmate-label">
+              <Icon name="store" size={16} />
+              BizMate
+            </span>
+          </span>
+        </div>
         <div className="history-heading">
           <strong>{t('Chat history')}</strong>
           <button
@@ -514,14 +586,19 @@ function MerchantApp() {
               key={item.id}
               aria-current={item.id === activeId ? 'page' : undefined}
               onClick={() => navigateChat(item.id)}
-              title={item.turns[0]?.question ?? t('New chat')}
+              title={chatName(item)}
             >
-              <span>{item.turns[0]?.question ?? t('New chat')}</span>
-              <small>
-                {item.turns.length
-                  ? item.turns.length + (item.turns.length === 1 ? t(' message') : t(' messages'))
-                  : t('Start a conversation')}
-              </small>
+              <span className="history-row">
+                <span className="history-title">{chatName(item)}</span>
+                {!!item.unread && (
+                  <span
+                    className="unread-badge"
+                    aria-label={item.unread + ' ' + t('unread messages')}
+                  >
+                    {item.unread}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </nav>
@@ -553,6 +630,45 @@ function MerchantApp() {
         >
           {theme === 'light' ? t('Dark theme') : t('Light theme')}
         </button>
+        <div
+          className="sidebar-resizer"
+          role="separator"
+          tabIndex={0}
+          aria-label={t('Resize chat history')}
+          aria-orientation="vertical"
+          aria-valuemin={200}
+          aria-valuemax={420}
+          aria-valuenow={Math.round(sidebar.width)}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.currentTarget.focus();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            sidebar.setResizing(true);
+          }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              sidebar.resize(event.clientX);
+          }}
+          onPointerUp={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            sidebar.setResizing(false);
+          }}
+          onLostPointerCapture={() => sidebar.setResizing(false)}
+          onPointerCancel={() => sidebar.setResizing(false)}
+          onKeyDown={(event) => {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+              event.preventDefault();
+              sidebar.resize(
+                event.key === 'Home'
+                  ? 200
+                  : event.key === 'End'
+                    ? 420
+                    : sidebar.width + (event.key === 'ArrowRight' ? 10 : -10),
+              );
+            }
+          }}
+        />
       </aside>
       {sidebarOpen && (
         <button
@@ -576,20 +692,13 @@ function MerchantApp() {
               {String.fromCharCode(9776)}
               <span className="sr-only">{t('Chat history')}</span>
             </button>
-            <div className="brand">
-              <span>
-                <span className="paytm-logo-frame">
-                  <img
-                    className="paytm-logo"
-                    src="/brand/paytm.png"
-                    alt="Paytm"
-                    width="80"
-                    height="25"
-                  />
-                </span>
-                <span className="brand-divider" />
-                BizMate
+            <div className="chat-title" title={chatName(activeChat)} aria-live="polite">
+              <span className="chat-title-text">
+                {t(activeChat.title ?? turns[0]?.question ?? 'New chat')}
               </span>
+              {chatTicket(activeChat) && (
+                <span className="chat-ticket">{chatTicket(activeChat)}</span>
+              )}
             </div>
             <div className="header-actions">
               <span className="merchant">
@@ -625,8 +734,7 @@ function MerchantApp() {
             {turns.length === 0 ? (
               <section className="welcome">
                 <div className="hero-mark">
-                  <Icon name="sparkle" size={35} />
-                  <span>✦</span>
+                  <Icon name="store" size={35} />
                 </div>
                 <h1>{t('Hi! How can I help?')}</h1>
                 <p>
@@ -639,7 +747,7 @@ function MerchantApp() {
                       type="button"
                       disabled={!!voice.mode}
                       onClick={() => {
-                        if (index === 3) {
+                        if (question === 'Review my sales report.') {
                           sendQuestion(t(question));
                           return;
                         }
@@ -648,13 +756,43 @@ function MerchantApp() {
                       }}
                     >
                       <span className="tile">
-                        <Icon name={(['payment', 'campaign', 'bank', 'sales'] as const)[index]} />
+                        <Icon
+                          name={
+                            (['payment', 'payment', 'replay', 'sales', 'campaign'] as const)[index]
+                          }
+                        />
                       </span>
                       <span>{t(question)}</span>
                       <Icon name="arrow" size={16} />
                     </button>
                   ))}
                 </div>
+                <details className="more-questions">
+                  <summary>{t('More questions')}</summary>
+                  <div className="prompts">
+                    {moreQuestions.map((question) => (
+                      <button
+                        type="button"
+                        key={question}
+                        disabled={!!voice.mode}
+                        onClick={() => {
+                          if (question === 'Review my sales report.') {
+                            sendQuestion(t(question));
+                          } else {
+                            setDraft(t(question));
+                            focusComposer();
+                          }
+                        }}
+                      >
+                        <span className="tile">
+                          <Icon name={question === 'Review my sales report.' ? 'sales' : 'bank'} />
+                        </span>
+                        <span>{t(question)}</span>
+                        <Icon name="arrow" size={16} />
+                      </button>
+                    ))}
+                  </div>
+                </details>
               </section>
             ) : (
               turns.map((turn) => (
@@ -662,6 +800,7 @@ function MerchantApp() {
                   <div className="user-bubble">{turn.question}</div>
                   <ChatReply
                     turn={turn}
+                    onQuestion={sendQuestion}
                     now={now}
                     reduced={reduced}
                     update={(change) =>
@@ -679,7 +818,7 @@ function MerchantApp() {
           {!!turns.length &&
             (() => {
               const last = turns[turns.length - 1];
-              if (last.intent === 'sales') return null;
+              if (['sales', 'counter', 'refund', 'closing'].includes(last.intent)) return null;
               const elapsed = now - last.started;
               const duration = responseDuration(last);
               if (elapsed < duration) return null;
@@ -722,14 +861,21 @@ function MerchantApp() {
               {voice.mode && (
                 <div className="listening">
                   <span className="listening-label" role="status">
-                    {t('Listening…')}
+                    {t(
+                      voice.mode === 'loading'
+                        ? 'Preparing voice input…'
+                        : voice.mode === 'processing'
+                          ? 'Finishing transcription…'
+                          : 'Listening…',
+                    )}
                   </span>
                   <div className="wave" aria-hidden="true">
                     {reduced ? (
                       <StaticWaveform bars={27} height={27} barColor="#007da5" />
                     ) : (
-                      <MicrophoneWaveform
-                        active
+                      <Waveform
+                        data={voice.waveform}
+                        active={voice.mode === 'mic'}
                         height={27}
                         barWidth={3}
                         barGap={3}
@@ -740,7 +886,12 @@ function MerchantApp() {
                   <button type="button" className="secondary" onClick={() => voice.end(true)}>
                     {t('Cancel')}
                   </button>
-                  <button type="button" className="primary" onClick={() => voice.end()}>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={voice.mode !== 'mic'}
+                    onClick={() => void voice.end()}
+                  >
                     {t('Done')}
                   </button>
                 </div>

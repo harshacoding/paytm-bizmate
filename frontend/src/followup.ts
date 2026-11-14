@@ -31,6 +31,12 @@ export function followup(intent: Intent) {
 }
 
 export function answerFollowup(intent: Intent, answer: string): string {
+  if (intent === 'counter')
+    return 'Use the amount and time fields above to check your payment records. Payment status comes from the merchant payment record.';
+  if (intent === 'refund')
+    return 'Open the existing refund details above to review its latest status and reference. You can request a support follow-up after reviewing that record.';
+  if (intent === 'closing')
+    return 'Collections, refunds and bank credits cover records posted on this day. Bank transfers can include earlier collections.';
   if (intent === 'payment') {
     if (/deduct|commission|gst|refund|chargeback|कटौती|कटौत|कमीशन|తగ్గింప|కమీషన్/i.test(answer))
       return 'In this sample, sales of ₹20,000 have ₹240 commission, ₹43.20 GST, ₹800 refunds and ₹350 for a disputed payment deducted. That leaves an expected ₹18,566.80. Open View details on the payment result to see each record.';
