@@ -78,7 +78,9 @@ def test_correct_provider_model_credentials_and_strict_schema(
         assert set(schema["schema"]["required"]) == set(module.GoalExtraction.model_fields)
         assert "test-sarvam-key" not in json.dumps(body)
         if provider == "sarvam":
-            assert body["reasoning_effort"] == "none" and body["max_tokens"] == 4096
+            # V1 accepts JSON null to disable reasoning; the string "none" returns HTTP 400.
+            assert body["reasoning_effort"] is None
+            assert body["max_tokens"] == 4096
         return reply()
 
     monkeypatch.setattr(module, "urlopen", request)
@@ -197,3 +199,32 @@ def test_sarvam_agent_intake_still_stops_for_merchant_approval(monkeypatch, tmp_
         assert task["workflow_data"]["response_language"] == "te"
         assert task["approvals"][0]["decision"] == "pending"
         assert not task["receipts"] and not task["verifications"]
+
+
+@pytest.mark.parametrize("intent", ["unknown", "settlement"])
+def test_sarvam_chat_reply_cannot_replace_workflow_evidence(monkeypatch, tmp_path, intent):
+    answer = "A settlement transfers collected payments after deductions."
+    content = goal(intent=intent, detected_language="en", reply=answer)
+    monkeypatch.setattr(module, "urlopen", lambda *args, **kwargs: reply(content))
+    settings = Settings(
+        _env_file=None,
+        database_path=str(tmp_path / "chat.sqlite3"),
+        planner_mode="sarvam",
+        sarvam_api_key=SecretStr("test-key"),
+    )
+    with TestClient(create_app(settings)) as client:
+        conversation = client.post("/api/v1/conversations", json={}).json()
+        turn = client.post(
+            f"/api/v1/conversations/{conversation['conversation_id']}/messages",
+            json={
+                "content": "What is settlement?"
+                if intent == "unknown"
+                else "Why is my settlement short?"
+            },
+        ).json()
+        message = turn["assistant_message"]
+        if intent == "unknown":
+            assert message["content"] == answer and message["task_id"] is None
+        else:
+            assert "166.80" in message["content"] and message["content"] != answer
+            assert message["task_id"]

@@ -37,6 +37,7 @@ class ConversationRepository(Protocol):
         user_language: str | None = None,
         assistant_language: str = "en",
         detected_language: str | None = None,
+        task_id: str | None = None,
     ) -> ConversationTurn: ...
 
 
@@ -271,6 +272,7 @@ class SQLiteConversationRepository:
         user_language: str | None = None,
         assistant_language: str = "en",
         detected_language: str | None = None,
+        task_id: str | None = None,
     ) -> ConversationTurn:
         require_context(context)
         context.require(Scope.TASKS_WRITE)
@@ -314,6 +316,7 @@ class SQLiteConversationRepository:
                     language=language,
                     detected_language=detected_language if role == "user" else None,
                     response_language=assistant_language if role == "assistant" else None,
+                    task_id=task_id,
                     sequence=last_sequence + offset,
                     created_at=timestamp,
                 )

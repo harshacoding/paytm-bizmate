@@ -1,5 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+import hashlib
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from filelock import FileLock, Timeout
+from pydantic import ValidationError
+
+from bizmate.agents.languages import detect_language, say
+from bizmate.agents.planner import GoalExtraction
 from bizmate.api.dependencies import (
     current_context,
     require_task_approval,
@@ -25,10 +31,12 @@ from bizmate.domain.models import (
     ErrorResponse,
     ExecuteActionRequest,
     HealthResponse,
+    Intent,
     Receipt,
     SessionResponse,
     Task,
     TaskEvent,
+    TaskStatus,
     Verification,
     new_id,
 )
@@ -310,33 +318,108 @@ def send_conversation_message(
     repo: ConversationRepository = Depends(conversation_repository),
     context: MerchantContext = Depends(require_task_write),
 ):
-    owned_conversation(repo, context, conversation_id)
+    conversation = owned_conversation(repo, context, conversation_id)
     client_message_id = body.client_message_id or new_id()
-    previous = repo.get_turn(context, conversation_id, client_message_id)
-    if previous is not None:
-        if previous.user_message.content != body.content or (
-            body.language is not None and previous.user_message.language != body.language
-        ):
+    lock_id = hashlib.sha256(f"{context.merchant_id}:{conversation_id}".encode()).hexdigest()
+    locks = request.app.state.settings.checkpoint_file.parent / ".chat-locks"
+    locks.mkdir(parents=True, exist_ok=True)
+    try:
+        with FileLock(str(locks / (lock_id + ".lock")), timeout=0):
+            previous = repo.get_turn(context, conversation_id, client_message_id)
+            if previous is not None:
+                if previous.user_message.content != body.content or (
+                    body.language is not None and previous.user_message.language != body.language
+                ):
+                    raise ConversationConflictError(
+                        "Client message ID was used with different content"
+                    )
+                return previous
+            task, result = chat_result(request, context, conversation, body, client_message_id)
+            return repo.save_turn(
+                context,
+                conversation_id,
+                body.content,
+                task.next_action[:4000] if task else result["next_action"],
+                client_message_id,
+                user_language=body.language,
+                assistant_language=(
+                    task.workflow_data["response_language"] if task else result["response_language"]
+                ),
+                detected_language=detect_language(body.content) or result.get("detected_language"),
+                task_id=task.task_id if task else None,
+            )
+    except Timeout as exc:
+        raise ConversationConflictError(
+            "This chat is processing a message. Retry the same message."
+        ) from exc
+    except KeyError as exc:
+        raise HTTPException(404, "Conversation not found") from exc
+
+
+def chat_result(request, context, conversation, body, client_message_id):
+    workflow = orchestrator(request)
+    turn_id = hashlib.sha256(
+        f"{context.merchant_id}:{conversation.conversation_id}:{client_message_id}".encode()
+    ).hexdigest()
+    task_id = "chat-" + turn_id
+    tasks = [
+        task
+        for task in request.app.state.tasks.list_tasks(context)
+        if task.merchant_id == context.merchant_id
+        and task.conversation_id == conversation.conversation_id
+    ]
+    language = detect_language(body.content) or body.language or conversation.preferred_language
+    result = {
+        "response_language": str(language),
+        "detected_language": detect_language(body.content),
+    }
+    # Recover a workflow saved before its chat pair without redispatching writes.
+    previous = next((t for t in tasks if t.task_id == task_id), None)
+    if previous:
+        if previous.original_request != body.content:
             raise ConversationConflictError("Client message ID was used with different content")
-        return previous
-    # Chat preserves a lightweight intake reply. Task creation drives durable execution.
+        if previous.workflow_data.get("phase") in {"plan", "prepare"}:
+            previous = workflow.run(context, previous.task_id)
+        return previous, result
+    previous = next((t for t in tasks if any(e.event_id == turn_id for e in t.events)), None)
+    if previous:
+        return workflow.message(context, previous.task_id, body.content, event_id=turn_id), result
     result = request.app.state.graph.invoke(
         {
             "request": body.content,
-            "preferred_language": body.language
-            or owned_conversation(repo, context, conversation_id).preferred_language,
+            "preferred_language": body.language or conversation.preferred_language,
         }
     )
+    if result.get("planner_error"):
+        return None, result
     try:
-        return repo.save_turn(
-            context,
-            conversation_id,
-            body.content,
-            result["next_action"],
-            client_message_id,
-            user_language=body.language,
-            assistant_language=result.get("response_language") or "en",
-            detected_language=result.get("detected_language"),
+        goal = GoalExtraction.model_validate(
+            {k: v for k, v in result.items() if k in GoalExtraction.model_fields}
         )
-    except KeyError as exc:
-        raise HTTPException(404, "Conversation not found") from exc
+    except ValidationError:
+        return None, {
+            **result,
+            "response_language": str(language),
+            "next_action": say("planner_unavailable", language),
+        }
+    waiting = [
+        t
+        for t in tasks
+        if t.status == TaskStatus.AWAITING_INPUT and t.workflow_data.get("engine_version") == 1
+    ]
+    if len(waiting) == 1 and (
+        (goal.intent != Intent.UNKNOWN and goal.intent == waiting[0].intent)
+        or (goal.intent == Intent.UNKNOWN and (goal.needs_clarification or not goal.reply))
+    ):
+        return workflow.message(context, waiting[0].task_id, body.content, event_id=turn_id), result
+    if goal.intent == Intent.UNKNOWN:
+        return None, result
+    task = workflow.start(
+        context,
+        body.content,
+        conversation.conversation_id,
+        conversation.preferred_language,
+        task_id=task_id,
+        extraction=goal,
+    )
+    return task, result

@@ -18,6 +18,46 @@ def detect_language(text: str) -> LanguageCode | None:
 
 
 MESSAGES = {
+    "payment_lookup_unavailable": (
+        "I can't verify individual customer payments with the services connected here. "
+        "Please use the transaction reference and approximate payment time when "
+        "contacting payment support.",
+        "ఇక్కడ అనుసంధానించిన సేవలతో వ్యక్తిగత కస్టమర్ చెల్లింపులను తనిఖీ చేయలేను. "
+        "చెల్లింపు సహాయ బృందాన్ని సంప్రదించేటప్పుడు లావాదేవీ రిఫరెన్స్, "
+        "సుమారు చెల్లింపు సమయం తెలియజేయండి.",
+        "यहाँ जुड़ी सेवाओं से किसी ग्राहक के अलग भुगतान की स्थिति जाँच नहीं सकता। "
+        "भुगतान सहायता से संपर्क करते समय लेनदेन संदर्भ और लगभग भुगतान समय बताएँ।",
+    ),
+    "chat_help": (
+        "Hi! I can investigate settlement differences, prepare customer offers, or help "
+        "you contact support. What would you like help with?",
+        "నమస్తే! సెటిల్\u200cమెంట్ తేడాలను పరిశీలించగలను, కస్టమర్ ఆఫర్లను సిద్ధం చేయగలను "
+        "లేదా సహాయ బృందాన్ని సంప్రదించడంలో సహాయపడగలను. మీకు ఏ సహాయం కావాలి?",
+        "नमस्ते! मैं सेटलमेंट के अंतर की जाँच, ग्राहकों के लिए ऑफर तैयार करने या सहायता "
+        "टीम से संपर्क करने में मदद कर सकता हूँ। आपको किस काम में मदद चाहिए?",
+    ),
+    "chat_thanks": (
+        "You're welcome. What else can I help you with?",
+        "మరే విషయంలోనైనా సహాయం కావాలా?",
+        "और किस काम में मदद कर सकता हूँ?",
+    ),
+    "settlement_definition": (
+        "A settlement is the transfer of your collected payments to your bank account "
+        "after applicable deductions. I can investigate your settlement if you want to "
+        "check a difference.",
+        "సెటిల్\u200cమెంట్ అంటే వర్తించే తగ్గింపుల తర్వాత మీరు వసూలు చేసిన చెల్లింపులను మీ "
+        "బ్యాంక్ ఖాతాకు బదిలీ చేయడం. తేడా ఉంటే పరిశీలించగలను.",
+        "सेटलमेंट में लागू कटौतियों के बाद आपके एकत्रित भुगतान बैंक खाते में भेजे जाते "
+        "हैं। राशि में अंतर हो तो मैं जाँच कर सकता हूँ।",
+    ),
+    "planner_unavailable": (
+        "I couldn't process your request because the language service is unavailable. "
+        "Please try again shortly. No action was taken.",
+        "భాషా సేవ అందుబాటులో లేక మీ అభ్యర్థనను ప్రాసెస్ చేయలేకపోయాను. దయచేసి "
+        "కొద్దిసేపటి తర్వాత మళ్లీ ప్రయత్నించండి. ఏ చర్యా తీసుకోలేదు.",
+        "भाषा सेवा उपलब्ध नहीं होने के कारण आपका अनुरोध समझ नहीं सका। थोड़ी देर बाद फिर "
+        "कोशिश करें। कोई कार्रवाई नहीं की गई।",
+    ),
     "handoff_generic": (
         "The support reference was independently verified. The requested action remains "
         "pending with human support.",
@@ -73,11 +113,12 @@ MESSAGES = {
         'कौन सा ऑफर भेजना है? message="आपका ऑफर" लिखकर उत्तर दें।',
     ),
     "approval": (
-        "Review the exact saved action, audience, cost and evidence. Approve its input hash "
-        "using the approval API, then resume the task.",
-        "భద్రపరచిన పని, కస్టమర్లు, ఖర్చు, ఆధారాలు పరిశీలించండి. ఆమోద APIలో input hash ఆమోదించి పనిని కొనసాగించండి.",
-        "सहेजे गए काम, ग्राहकों, लागत और सबूत की समीक्षा करें। "
-        "अनुमोदन API में input hash मंजूर करें और काम फिर शुरू करें।",
+        "Review the proposed action, audience, cost and evidence below. "
+        "Approve to allow it, cancel it, or decide later.",
+        "కింద ప్రతిపాదించిన పని, కస్టమర్లు, ఖర్చు, ఆధారాలు పరిశీలించండి. "
+        "అనుమతించడానికి ఆమోదించండి, రద్దు చేయండి లేదా తర్వాత నిర్ణయించండి.",
+        "नीचे प्रस्तावित काम, ग्राहकों, लागत और सबूत की समीक्षा करें। "
+        "अनुमति देने के लिए मंजूरी दें, रद्द करें या बाद में तय करें।",
     ),
     "running": (
         "Executing the validated plan.",

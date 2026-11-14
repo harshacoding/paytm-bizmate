@@ -162,6 +162,7 @@ export function useWorkspace(setLanguage: (language: LanguageCode) => void) {
     setBusy(true);
     setError('');
     let turn = retry ? pending : null;
+    let confirmed = false;
     try {
       let id = retry ? pending!.conversationId : active.current;
       if (!id) {
@@ -181,6 +182,7 @@ export function useWorkspace(setLanguage: (language: LanguageCode) => void) {
       setDrafts((previous) => ({ ...previous, [id]: '', new: '' }));
       // Preference is persisted separately; do not misrepresent it as detected message language.
       const reply = await api.sendMessage(id, turn.content, turn.id);
+      confirmed = true;
       if (!mounted.current) return;
       if (active.current === id) {
         loadSequence.current++;
@@ -190,11 +192,15 @@ export function useWorkspace(setLanguage: (language: LanguageCode) => void) {
         );
       }
       rememberPending(null);
+      if (reply.assistant_message.task_id) {
+        const task = await api.task(reply.assistant_message.task_id);
+        if (mounted.current) updateTask(task);
+      }
       const chats = await api.conversations();
       if (mounted.current) setConversations(chats);
     } catch (failure) {
       if (mounted.current) {
-        if (turn) rememberPending({ ...turn, failed: true });
+        if (turn && !confirmed) rememberPending({ ...turn, failed: true });
         setError(errorText(failure));
       }
     } finally {

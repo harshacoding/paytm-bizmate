@@ -54,7 +54,15 @@ class Orchestrator:
         self.recovery = Recovery(repo, registry, services)
         self.engine = ApprovalEngine(repo, registry)
 
-    def start(self, context, message, conversation_id=None, preferred_language=None, task_id=None):
+    def start(
+        self,
+        context,
+        message,
+        conversation_id=None,
+        preferred_language=None,
+        task_id=None,
+        extraction: GoalExtraction | None = None,
+    ):
         require_context(context)
         context.require(Scope.TASKS_READ, Scope.TASKS_WRITE)
         task_id = task_id or new_id()
@@ -79,20 +87,22 @@ class Orchestrator:
                 "preferred_language": str(preferred_language or context.preferred_language),
                 "detected_language": detect_language(message),
                 "response_language": str(language),
+                # Reuse validated chat intake instead of charging for a second model call.
+                **({"intake_extraction": extraction.model_dump(mode="json")} if extraction else {}),
             },
         )
         self.repo.save(context, task)
         return self.run(context, task.task_id)
 
-    def message(self, context, task_id, message):
+    def message(self, context, task_id, message, event_id=None):
         # Run and message share the same cross-process lock, including task mutation.
-        return self.run(context, task_id, message=message)
+        return self.run(context, task_id, message=message, message_event_id=event_id)
 
     @staticmethod
     def thread_id(context, task_id):
         return hashlib.sha256(f"{context.merchant_id}:{task_id}".encode()).hexdigest()
 
-    def run(self, context, task_id, message=None, campaign_edit=None):
+    def run(self, context, task_id, message=None, campaign_edit=None, message_event_id=None):
         task = self.recovery.task(context, task_id)
         if task.workflow_data.get("engine_version") != 1:
             raise ActionConflict("This legacy task has no resumable orchestration plan")
@@ -103,6 +113,17 @@ class Orchestrator:
         try:
             with FileLock(str(locks / (thread + ".lock")), timeout=0):
                 task = self.recovery.task(context, task_id)
+                if message_event_id:
+                    previous = next(
+                        (e for e in task.events if e.event_id == message_event_id), None
+                    )
+                    if previous:
+                        if previous.kind != "merchant_message" or previous.message != message:
+                            raise ActionConflict("Message ID was used with different content")
+                        # Replayed chat must never execute an approved action.
+                        if task.workflow_data.get("phase") not in {"plan", "prepare"}:
+                            return task
+                        message = None
                 current = task.approvals[task.workflow_data.get("approval_start", 0) :]
                 if task.workflow_data["phase"] == "action" and current:
                     approval = current[-1]
@@ -137,7 +158,11 @@ class Orchestrator:
                             workflow_data=data,
                             events=(
                                 *task.events,
-                                TaskEvent(kind="merchant_message", message=message),
+                                TaskEvent(
+                                    event_id=message_event_id or new_id(),
+                                    kind="merchant_message",
+                                    message=message,
+                                ),
                             ),
                         ),
                     )
@@ -386,7 +411,7 @@ class Orchestrator:
             task = self._save(context, task, status=TaskStatus.PLANNING, key="running")
         if task.status != TaskStatus.PLANNING:
             raise ActionConflict("Task must be planning")
-        result = self.planner.invoke(
+        result = task.workflow_data.get("intake_extraction") or self.planner.invoke(
             {
                 "request": task.workflow_data["planning_request"],
                 "preferred_language": task.workflow_data["response_language"],
@@ -395,7 +420,7 @@ class Orchestrator:
         fields = GoalExtraction.model_fields
         try:
             # Adapter extensions cannot inject identity, status, tools or policy.
-            goal = GoalExtraction.model_validate({k: result[k] for k in fields})
+            goal = GoalExtraction.model_validate({k: result[k] for k in fields if k in result})
         except (KeyError, ValidationError):
             self._save(
                 context,
@@ -411,11 +436,12 @@ class Orchestrator:
             "extraction": goal.model_dump(mode="json"),
             "input_pending": True,
         }
+        data.pop("intake_extraction", None)
         if result.get("planner_error"):
             task = task.with_updates(
                 events=(
                     *task.events,
-                    TaskEvent(kind="planner_error", message=say("error", language)),
+                    TaskEvent(kind="planner_error", message=say("planner_unavailable", language)),
                 )
             )
         if goal.offer_message and goal.offer_message not in task.workflow_data["planning_request"]:
@@ -425,7 +451,11 @@ class Orchestrator:
             return "pause"
         if goal.intent == Intent.UNKNOWN or goal.needs_clarification:
             self._save(
-                context, task, status=TaskStatus.AWAITING_INPUT, key="clarify", workflow_data=data
+                context,
+                task,
+                status=TaskStatus.AWAITING_INPUT,
+                key="planner_unavailable" if result.get("planner_error") else "clarify",
+                workflow_data=data,
             )
             return "pause"
         if goal.intent == Intent.WIN_BACK and goal.offer_message is None:

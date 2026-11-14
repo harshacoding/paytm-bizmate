@@ -201,18 +201,9 @@ const copy: Record<string, [string, string]> = {
   'Task clarification': ['काम की जानकारी', 'పని స్పష్టీకరణ'],
   'Message not confirmed': ['संदेश की पुष्टि नहीं हुई', 'సందేశం నిర్ధారణ కాలేదు'],
   'Retry this exact message': ['यही संदेश फिर भेजें', 'ఇదే సందేశాన్ని మళ్ళీ పంపండి'],
-  'Start a task from this question': ['इस सवाल से काम शुरू करें', 'ఈ ప్రశ్నతో పని ప్రారంభించండి'],
-  'This creates a separate tracked task. Chat alone does not start execution.': [
-    'यह अलग काम का रिकॉर्ड बनाएगा। केवल चैट से कार्रवाई शुरू नहीं होती।',
-    'ఇది ప్రత్యేక పని రికార్డును సృష్టిస్తుంది. చాట్ మాత్రమే చర్యను ప్రారంభించదు.',
-  ],
   'Sample walkthrough': ['नमूना डेमो', 'నమూనా డెమో'],
   'Loading conversation…': ['बातचीत लोड हो रही है…', 'సంభాషణ లోడ్ అవుతోంది…'],
   'Sending your message…': ['आपका संदेश भेज रहे हैं…', 'మీ సందేశాన్ని పంపుతోంది…'],
-  'Chat uses saved server messages. Business execution starts only through a tracked task.': [
-    'चैट में सर्वर के सहेजे संदेश हैं। कार्रवाई केवल दर्ज काम से शुरू होती है।',
-    'చాట్‌లో సర్వర్‌లో భద్రపరచిన సందేశాలు ఉంటాయి. నమోదు చేసిన పని ద్వారా మాత్రమే చర్య ప్రారంభమవుతుంది.',
-  ],
   'All tasks': ['सभी काम', 'అన్ని పనులు'],
   'Tasks in this chat': ['इस चैट के काम', 'ఈ చాట్‌లోని పనులు'],
 };

@@ -54,12 +54,17 @@ def test_create_list_detail_and_both_message_roles(client):
     assert turn["user_message"]["role"] == "user"
     assert turn["user_message"]["content"] == "  Why is my settlement short?  "
     assert turn["assistant_message"]["role"] == "assistant"
-    assert "Request understood" in turn["assistant_message"]["content"]
+    assert "166.80" in turn["assistant_message"]["content"]
+    task_id = turn["assistant_message"]["task_id"]
+    assert task_id and turn["user_message"]["task_id"] == task_id
     assert turn["user_message"]["sequence"] == 1
     assert turn["assistant_message"]["sequence"] == 2
     history = client.get(f"/api/v1/conversations/{conversation_id}/messages").json()
     assert history == [turn["user_message"], turn["assistant_message"]]
-    assert client.get("/api/v1/tasks").json() == before
+    tasks = client.get("/api/v1/tasks").json()
+    assert len(tasks) == len(before) + 1
+    task = client.get(f"/api/v1/tasks/{task_id}").json()
+    assert task["status"] == "AWAITING_APPROVAL" and not task["receipts"]
 
 
 def test_retry_returns_existing_turn_without_reinvoking_graph(client, monkeypatch):

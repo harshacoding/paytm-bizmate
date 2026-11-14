@@ -50,7 +50,7 @@ The campaign example produces 120 eligible consenting customers, ₹240 cost, 11
 
 Ambiguous requests pause at `AWAITING_INPUT`. Clarify with `POST /api/v1/tasks/{task_id}/messages` and `{"message":"your clarification"}`. An offer without exact merchant text asks for `message="your offer"`. A message saying “approve” does not make an approval decision. Messages can change the response language without changing approved inputs.
 
-`POST /api/v1/conversations/{conversation_id}/messages` keeps its existing lightweight intake and history contract. It returns a localized intent-intake reply and does not create a business task. Start execution through the task endpoint, which the existing workspace composer already uses. Task identity and checkpoint identity exclude the conversation ID.
+`POST /api/v1/conversations/{conversation_id}/messages` now prepares supported workflows automatically and persists their `task_id` on both messages. General questions return a direct reply without creating a task. A clarification continues the single waiting task in that conversation. Stable client message IDs, scoped workflow IDs and per-conversation locks recover retries without duplicate preparation or writes, including a crash before the chat pair is committed. Explicit approval/execute controls remain required; text such as “approve it” grants no authority. The standalone task API remains available.
 
 ## Natural-language modes and language context
 
@@ -75,7 +75,7 @@ BIZMATE_PLANNER_MODEL=sarvam-105b
 BIZMATE_SARVAM_API_KEY=your-sarvam-subscription-key
 ```
 
-The adapter uses the subscription-key header and strict JSON Schema described in [Sarvam's API reference](https://docs.sarvam.ai/api-reference/chat/chat-completions-v1). Reasoning is disabled and output is capped at 4096 tokens. Responses are revalidated, and truncated completions cannot become a plan. Provider-specific credentials never cross endpoints. Keep keys only in the ignored backend `.env`; never commit a real key. Use a new task to test a model change because saved tasks reuse their extraction/checkpoints.
+The adapter uses the subscription-key header and strict JSON Schema described in [Sarvam's API reference](https://docs.sarvam.ai/api-reference/chat/chat-completions-v1). Reasoning is disabled using JSON `null` (not the rejected string `"none"`) and output is capped at 4096 tokens. Responses are revalidated, and truncated completions cannot become a plan. Provider-specific credentials never cross endpoints. Keep keys only in the ignored backend `.env`; never commit a real key. Use a new task to test a model change because saved tasks reuse their extraction/checkpoints.
 
 OpenAI remains an alternative configuration:
 

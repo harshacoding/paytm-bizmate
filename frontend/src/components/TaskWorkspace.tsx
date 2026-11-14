@@ -47,12 +47,14 @@ export function TaskWorkspace({
   language: fallbackLanguage,
   onTask,
   onClose,
+  embedded = false,
 }: {
   id: string;
   session: Session;
   language: LanguageCode;
   onTask: (task: Task) => void;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const [task, setTask] = useState<Task | null>(null);
   const responseLanguage =
@@ -164,9 +166,11 @@ export function TaskWorkspace({
   if (!task)
     return (
       <section className="api-task card" aria-label={t('Task details')}>
-        <button className="secondary" onClick={onClose}>
-          {t('Back to chat')}
-        </button>
+        {!embedded && (
+          <button className="secondary" onClick={onClose}>
+            {t('Back to chat')}
+          </button>
+        )}
         {error ? (
           <div role="alert">
             <p>{error}</p>
@@ -211,9 +215,11 @@ export function TaskWorkspace({
   return (
     <section className="api-task card" aria-label={t('Task details')} lang={language}>
       <div className="api-section-heading">
-        <button className="api-back" onClick={onClose}>
-          ← {t('Back to chat')}
-        </button>
+        {!embedded && (
+          <button className="api-back" onClick={onClose}>
+            ← {t('Back to chat')}
+          </button>
+        )}
         <button className="secondary" disabled={busy} onClick={() => void refresh()}>
           {t('Refresh')}
         </button>

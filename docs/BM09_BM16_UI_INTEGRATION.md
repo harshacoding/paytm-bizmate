@@ -22,9 +22,10 @@ not task creation payloads.
 - A submitted chat uses one stable `client_message_id`. The merchant can retry
   the same uncertain turn without changing its content or creating a second ID.
   Pending turns survive a page reload in session storage, scoped by merchant.
-- Sending a chat does **not** also create a task. Each user message has an explicit
-  “Start a task from this question” action. Current task intake runs the backend orchestrator, which may pause for
-  clarification or approval. The UI displays the returned state and next action.
+- Sending a supported request automatically starts backend preparation and links
+  both saved messages to its tracked task. The latest linked task renders inline
+  with evidence, clarification and approval controls. Ordinary chat has no task
+  creation prompt. A clarification continues the single waiting workflow.
 - “Your tasks” shows this conversation's tasks, with an “All tasks” view for
   older/unlinked work. Details include lifecycle status, next action, plan progress,
   clarification, timeline, approvals, execution receipts, verification and handoffs.
@@ -81,12 +82,12 @@ npm run dev
 ```
 
 Open `http://127.0.0.1:5173`. Create a conversation, submit a question, reload,
-switch conversations, start an explicit task and save a clarification. Change the
+switch conversations, send a workflow request and save a clarification. Change the
 language selector and confirm earlier assistant messages remain in their original
 language.
 
-New chat messages remain separate from task execution. Starting a settlement,
-campaign or bank-support task now generates a backend-owned plan. To review the
+Chat prepares settlement, campaign or bank-support work automatically. Approval
+and execution remain explicit and independent of chat text. To review the
 older manual approval contract independently, prepare a **dedicated local database**:
 
 ```powershell
