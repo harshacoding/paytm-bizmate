@@ -34,6 +34,20 @@ On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`; chang
 
 The offline planner and synthetic workflows require no model key. Voice dictation requires the optional backend speech key. Optional settings: copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`. Keep secrets on the backend; frontend `VITE_` configuration is public. Both development servers bind to loopback. Synthetic merchant selection is a local development convenience, not authentication.
 
+## Sarvam planner setup
+
+In the private `backend/.env`, set:
+
+```dotenv
+BIZMATE_PLANNER_MODE=sarvam
+BIZMATE_PLANNER_MODEL=sarvam-105b
+BIZMATE_SARVAM_API_KEY=your-sarvam-subscription-key
+```
+
+Restart the backend after changing configuration. The adapter uses Sarvam's `POST https://api.sarvam.ai/v1/chat/completions` with the `api-subscription-key` header and strict goal-extraction JSON Schema. See the [official API reference](https://docs.sarvam.ai/api-reference/chat/chat-completions-v1). Keys stay on the server; never put them in frontend VITE settings, requests, logs or Git.
+
+Without an explicit model, Sarvam mode selects `sarvam-105b`; OpenAI mode retains `gpt-4o-mini`. Demo mode remains the fresh-checkout default. Sarvam is used for intent/goal extraction, not permissions, financial arithmetic or approval. Missing keys, provider failures, refusal, truncation or invalid output pause safely; they do not silently switch to another provider or the demo parser. Existing task checkpoints reuse saved extraction; create a new task to exercise the changed provider.
+
 ## Implemented capabilities
 
 - Connected React/TypeScript chat with server conversation history, multilingual task details, exact approval/cancel/defer controls, timelines, evidence, receipts and verification timestamps. An explicitly separate sample walkthrough remains available.
@@ -43,7 +57,7 @@ The offline planner and synthetic workflows require no model key. Voice dictatio
 
 The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning is connected. The connected UI supports exact approval and explicit continuation through orchestration. Unknown approvals return HTTP 404.
 
-**BM-07/08 implemented:** structured intent extraction, multilingual clarification and summaries, validated workflow steps, durable checkpoints, approval/input pause and resume, bounded reads, source fallback and uncertain-write inspection. See [BM-07/BM-08 implementation and testing](docs/BM07_BM08_TESTING.md) for commands, model configuration and remaining integration. Default intent extraction uses an offline demo parser, with optional OpenAI structured extraction. Scheduling and fresh-credit closure remain separate workflow tasks. Static previews remain separate from task evidence.
+**BM-07/08 implemented:** structured intent extraction, multilingual clarification and summaries, validated workflow steps, durable checkpoints, approval/input pause and resume, bounded reads, source fallback and uncertain-write inspection. See [BM-07/BM-08 implementation and testing](docs/BM07_BM08_TESTING.md) for commands, model configuration and remaining integration. Default intent extraction uses an offline demo parser, with optional Sarvam or OpenAI structured extraction. Scheduling and fresh-credit closure remain separate workflow tasks. Static previews remain separate from task evidence.
 
 Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 

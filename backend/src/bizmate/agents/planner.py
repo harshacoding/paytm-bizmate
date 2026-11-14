@@ -62,10 +62,12 @@ class Planner:
     def extract(self, text: str) -> GoalExtraction:
         if self.settings.planner_mode == "demo":
             return demo_extract(text)
-        if not self.settings.openai_api_key:
+        sarvam = self.settings.planner_mode == "sarvam"
+        key = self.settings.sarvam_api_key if sarvam else self.settings.openai_api_key
+        if not key or not key.get_secret_value().strip():
             raise ValueError("Model planner requires a server API key")
         body = {
-            "model": self.settings.planner_model,
+            "model": self.settings.planner_model or ("sarvam-105b" if sarvam else "gpt-4o-mini"),
             "messages": [
                 {
                     "role": "system",
@@ -92,20 +94,28 @@ class Planner:
                 },
             },
         }
+        if sarvam:
+            body.update(reasoning_effort="none", max_tokens=4096)
         request = Request(
-            "https://api.openai.com/v1/chat/completions",
+            "https://api.sarvam.ai/v1/chat/completions"
+            if sarvam
+            else "https://api.openai.com/v1/chat/completions",
             data=json.dumps(body).encode(),
             method="POST",
             headers={
                 "Content-Type": "application/json",
-                "Authorization": "Bearer " + self.settings.openai_api_key.get_secret_value(),
+                **(
+                    {"api-subscription-key": key.get_secret_value()}
+                    if sarvam
+                    else {"Authorization": "Bearer " + key.get_secret_value()}
+                ),
             },
         )
         with urlopen(request, timeout=15) as response:
             payload = json.load(response)
         message = payload["choices"][0]["message"]
-        if message.get("refusal"):
-            raise ValueError("Planner refused extraction")
+        if message.get("refusal") or payload["choices"][0].get("finish_reason", "stop") != "stop":
+            raise ValueError("Planner refused or did not finish extraction")
         return GoalExtraction.model_validate_json(message["content"], strict=True)
 
     def invoke(self, state: dict) -> dict:

@@ -67,7 +67,17 @@ Examples:
 
 Each incoming message chooses the response language from the dominant detected language. Ties or text without detectable words use the selected conversation language for intake, or the prior response language on task resume. Original requests and clarification events remain verbatim. Structured goals, input language, response language, read budgets, evidence, approval summaries and workflow phase persist in the task snapshot. Clarifications, approval summaries, progress, errors and final summaries have English/Telugu/Hindi templates. Tool inputs, scopes, recipients, costs and reconciliation arithmetic are server-owned and independent of presentation language.
 
-To use live structured model extraction, configure these server-only settings in `backend/.env` and restart:
+To use Sarvam structured extraction, configure these server-only settings in `backend/.env` and restart:
+
+```dotenv
+BIZMATE_PLANNER_MODE=sarvam
+BIZMATE_PLANNER_MODEL=sarvam-105b
+BIZMATE_SARVAM_API_KEY=your-sarvam-subscription-key
+```
+
+The adapter uses the subscription-key header and strict JSON Schema described in [Sarvam's API reference](https://docs.sarvam.ai/api-reference/chat/chat-completions-v1). Reasoning is disabled and output is capped at 4096 tokens. Responses are revalidated, and truncated completions cannot become a plan. Provider-specific credentials never cross endpoints. Keep keys only in the ignored backend `.env`; never commit a real key. Use a new task to test a model change because saved tasks reuse their extraction/checkpoints.
+
+OpenAI remains an alternative configuration:
 
 ```dotenv
 BIZMATE_PLANNER_MODE=openai
@@ -75,7 +85,7 @@ BIZMATE_PLANNER_MODEL=gpt-4o-mini
 BIZMATE_OPENAI_API_KEY=your-server-api-key
 ```
 
-The model receives user text as untrusted content, with a strict goal-extraction schema. It cannot return executable tools, merchant identity, permissions, money calculations or approval decisions. The server revalidates the output and copies an offer only if it appears in merchant input. Invalid output, refusal, missing credentials or provider errors pause for clarification with a saved public error event. The provider call has a 15-second timeout. Model integration is covered with mocked HTTP responses. Live paid-provider execution has not been exercised.
+The model receives user text as untrusted content, with a strict goal-extraction schema. It cannot return executable tools, merchant identity, permissions, money calculations or approval decisions. The server revalidates the output and copies an offer only if it appears in merchant input. Invalid output, refusal, missing credentials or provider errors pause for clarification with a saved public error event. The provider call has a 15-second timeout. Model integration is covered with mocked HTTP responses, including Sarvam header/endpoint/schema checks, provider errors and an approval-gated agent integration test. Live Sarvam execution needs a locally supplied key; mock tests do not validate account/model access.
 
 ## Checkpoints and recovery
 
