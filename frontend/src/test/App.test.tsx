@@ -4,6 +4,7 @@ import App from '../App';
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem('bizmate-theme', 'light');
   vi.useFakeTimers();
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
   vi.stubGlobal(
@@ -89,4 +90,41 @@ it('preserves the draft if speech is unavailable and keeps bank changes pending'
   fireEvent.click(screen.getByRole('button', { name: 'Ask support' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm support request' }));
   expect(screen.getByText('Pending with support.')).toBeInTheDocument();
+});
+
+it('keeps separate chat drafts, restores history and persists the theme', () => {
+  const view = render(<App />);
+  choose('Help me bring customers back.');
+  const draft = screen.getByRole('textbox', { name: 'Type a question' });
+  fireEvent.change(draft, { target: { value: 'First chat draft' } });
+  fireEvent.click(screen.getByRole('button', { name: /New chat/ }));
+  expect(draft).toHaveValue('');
+  fireEvent.change(draft, { target: { value: 'Second chat draft' } });
+  const history = screen.getByRole('navigation', { name: 'Saved conversations' });
+  fireEvent.click(history.querySelectorAll('button')[1]);
+  expect(draft).toHaveValue('First chat draft');
+  expect(screen.getByRole('textbox', { name: 'Offer message' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Dark theme/ }));
+  expect(document.documentElement.dataset.theme).toBe('dark');
+  view.unmount();
+  render(<App />);
+  expect(screen.getByRole('textbox', { name: 'Type a question' })).toHaveValue('First chat draft');
+  expect(screen.getByRole('button', { name: /Light theme/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+
+it('accepts suggested and typed follow-up replies in context', () => {
+  render(<App />);
+  choose('Why is my payment short?');
+  tick(7000);
+  fireEvent.click(screen.getByRole('button', { name: 'Explain the deductions' }));
+  expect(screen.getByText(/In this sample, sales of/)).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Type a question' }), {
+    target: { value: 'when can I check?' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(screen.getByText(/The demo uses one sample payment period/)).toBeInTheDocument();
+  expect(screen.getAllByRole('progressbar')).toHaveLength(1);
 });

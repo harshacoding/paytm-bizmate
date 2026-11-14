@@ -12,7 +12,6 @@ import {
   detectIntent,
   expected,
   initialOffer,
-  loadTurns,
   missing,
   money,
   questions,
@@ -23,6 +22,8 @@ import {
 } from './demo';
 import type { Turn } from './demo';
 import { useDictation } from './useDictation';
+import { useChats } from './useChats';
+import { followup, answerFollowup } from './followup';
 
 const symbols = {
   sparkle: 'M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z',
@@ -124,8 +125,8 @@ function ChatReply({
   update: (change: Partial<Turn>) => void;
 }) {
   const elapsed = Math.max(0, now - turn.started);
-  const payment = turn.intent === 'payment';
-  const campaign = turn.intent === 'campaign';
+  const payment = turn.intent === 'payment' && !turn.replyText;
+  const campaign = turn.intent === 'campaign' && !turn.replyText;
   const delivery = readDelivery(turn);
   const reference = 'BM-' + turn.id.slice(0, 8).toUpperCase();
   const offerCost = new Intl.NumberFormat('en-IN', {
@@ -142,6 +143,11 @@ function ChatReply({
       </span>
       <div className="reply-content">
         <div className="reply-name">BizMate</div>
+        {turn.replyText && (
+          <section className="card">
+            <p>{turn.replyText}</p>
+          </section>
+        )}
         {payment && (
           <>
             <PaymentProgress elapsed={elapsed} reduced={reduced} />
@@ -209,7 +215,7 @@ function ChatReply({
             )}
           </section>
         )}
-        {turn.intent === 'bank' && (
+        {turn.intent === 'bank' && !turn.replyText && (
           <section className="card">
             <h2>Change your bank account</h2>
             <p>
@@ -310,8 +316,21 @@ function ChatReply({
 }
 
 export default function App() {
-  const [turns, setTurns] = useState(loadTurns);
-  const [draft, setDraft] = useState('');
+  const { chats, activeId, turns, draft, setTurns, setDraft, newChat, selectChat } = useChats();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('bizmate-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {}
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem('bizmate-theme', theme);
+    } catch {}
+  }, [theme]);
   const [now, setNow] = useState(Date.now);
   const [announcement, announce] = useState('');
   const [reduced, setReduced] = useState(
@@ -322,7 +341,7 @@ export default function App() {
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
   const voice = useDictation(draft, setDraft, focusComposer);
   const working = turns.some(
-    (turn) => turn.intent === 'payment' && now - turn.started < stages[3].at,
+    (turn) => turn.intent === 'payment' && !turn.replyText && now - turn.started < stages[3].at,
   );
 
   useEffect(() => {
@@ -331,13 +350,6 @@ export default function App() {
     media?.addEventListener('change', update);
     return () => media?.removeEventListener('change', update);
   }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem('bizmate-demo-v1', JSON.stringify(turns));
-    } catch {
-      /* Chat remains available in memory. */
-    }
-  }, [turns]);
   useEffect(() => {
     if (!working) return;
     const timer = window.setInterval(() => setNow(Date.now()), 100);
@@ -353,26 +365,49 @@ export default function App() {
     return () => observer.disconnect();
   }, []);
 
-  function send(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const question = draft.trim();
+  function sendQuestion(text: string) {
+    const question = text.trim();
     if (!question || voice.mode) return;
     const started = Date.now();
     if (chat.current) chat.current.dataset.follow = 'true';
     setNow(started);
+    const previousTurn = turns[turns.length - 1];
+    const detected = detectIntent(question);
+    const contextual =
+      previousTurn &&
+      previousTurn.intent !== 'other' &&
+      (detected === 'other' || followup(previousTurn.intent).options.includes(question));
+    const intent = contextual ? previousTurn.intent : detected;
+    const replyText = contextual ? answerFollowup(intent, question) : undefined;
     setTurns((previous) => [
       ...previous,
       {
         id: crypto.randomUUID(),
         question,
         started,
-        intent: detectIntent(question),
+        intent,
+        replyText,
         offer: initialOffer,
       },
     ]);
     setDraft('');
     voice.reset();
     announce('Question sent.');
+    focusComposer();
+  }
+
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    sendQuestion(draft);
+  }
+
+  function navigateChat(id?: string) {
+    voice.reset();
+    if (id) selectChat(id);
+    else newChat();
+    setNow(Date.now());
+    setSidebarOpen(false);
+    if (chat.current) chat.current.dataset.follow = 'true';
     focusComposer();
   }
 
@@ -386,176 +421,280 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="top-inner">
-          <div className="brand">
-            <span className="brand-mark">
-              <Icon name="sparkle" size={20} />
-            </span>
-            <span>
-              <span className="paytm">
-                pay<span>tm</span>
-              </span>
-              <span className="brand-divider" />
-              BizMate
-            </span>
-          </div>
-          <div className="header-actions">
-            <span className="merchant">
-              <Icon name="store" size={17} /> Sharma General Store
-            </span>
-            <button
-              className="replay"
-              type="button"
-              onClick={replay}
-              aria-label="Replay demo"
-              title="Replay demo"
-            >
-              <Icon name="replay" size={17} />
-              <span>Replay demo</span>
-            </button>
-          </div>
-        </div>
-      </header>
-      <main
-        className="chat"
-        ref={chat}
-        onScroll={(event) => {
-          const panel = event.currentTarget;
-          panel.dataset.follow = String(
-            panel.scrollHeight - panel.clientHeight - panel.scrollTop < 72,
-          );
+      <aside
+        id="chat-history"
+        className={sidebarOpen ? 'history-panel open' : 'history-panel'}
+        aria-label="Chat history"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setSidebarOpen(false);
+            document.getElementById('history-toggle')?.focus();
+          }
         }}
       >
-        <div className={turns.length ? 'chat-column conversation' : 'chat-column welcome-wrap'}>
-          {turns.length === 0 ? (
-            <section className="welcome">
-              <div className="hero-mark">
-                <Icon name="sparkle" size={35} />
-                <span>✦</span>
-              </div>
-              <h1>Hi! How can I help?</h1>
-              <p>Ask about a payment, bring customers back, or get help with your account.</p>
-              <div className="prompts">
-                {questions.map((question, index) => (
-                  <button
-                    key={question}
-                    type="button"
-                    disabled={!!voice.mode}
-                    onClick={() => {
-                      setDraft(question);
-                      focusComposer();
-                    }}
-                  >
-                    <span className="tile">
-                      <Icon name={(['payment', 'campaign', 'bank'] as const)[index]} />
-                    </span>
-                    <span>{question}</span>
-                    <Icon name="arrow" size={16} />
-                  </button>
-                ))}
-              </div>
-            </section>
-          ) : (
-            turns.map((turn) => (
-              <article className="turn" key={turn.id}>
-                <div className="user-bubble">{turn.question}</div>
-                <ChatReply
-                  turn={turn}
-                  now={now}
-                  reduced={reduced}
-                  update={(change) =>
-                    setTurns((previous) =>
-                      previous.map((item) => (item.id === turn.id ? { ...item, ...change } : item)),
-                    )
-                  }
-                />
-              </article>
-            ))
-          )}
+        <div className="history-heading">
+          <strong>Chat history</strong>
+          <button
+            type="button"
+            className="secondary close-history"
+            onClick={() => {
+              setSidebarOpen(false);
+              document.getElementById('history-toggle')?.focus();
+            }}
+          >
+            Close
+          </button>
         </div>
-      </main>
-      <footer className="composer-region">
-        <div className="chat-column">
-          <form className="composer" onSubmit={send}>
-            {voice.mode && (
-              <div className="listening">
-                <span className="listening-label" role="status">
-                  Listening…{voice.mode === 'simulation' && <small>Simulated dictation</small>}
+        <button type="button" className="primary new-chat" onClick={() => navigateChat()}>
+          + New chat
+        </button>
+        <nav aria-label="Saved conversations">
+          {chats.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              aria-current={item.id === activeId ? 'page' : undefined}
+              onClick={() => navigateChat(item.id)}
+              title={item.turns[0]?.question ?? 'New chat'}
+            >
+              <span>{item.turns[0]?.question ?? 'New chat'}</span>
+              <small>
+                {item.turns.length
+                  ? item.turns.length + (item.turns.length === 1 ? ' message' : ' messages')
+                  : 'Start a conversation'}
+              </small>
+            </button>
+          ))}
+        </nav>
+        <p className="history-note">Chats are saved in this browser.</p>
+        <button
+          type="button"
+          className="secondary theme-toggle"
+          aria-pressed={theme === 'dark'}
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        >
+          {theme === 'light' ? 'Dark theme' : 'Light theme'}
+        </button>
+      </aside>
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="history-backdrop"
+          aria-label="Close chat history"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <div className="chat-workspace">
+        <header className="topbar">
+          <div className="top-inner">
+            <button
+              id="history-toggle"
+              type="button"
+              className="secondary history-toggle"
+              aria-controls="chat-history"
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {String.fromCharCode(9776)}
+              <span className="sr-only">Chat history</span>
+            </button>
+            <div className="brand">
+              <span className="brand-mark">
+                <Icon name="sparkle" size={20} />
+              </span>
+              <span>
+                <span className="paytm">
+                  pay<span>tm</span>
                 </span>
-                <div className="wave" aria-hidden="true">
-                  {reduced ? (
-                    <StaticWaveform bars={27} height={27} barColor="#007da5" />
-                  ) : voice.mode === 'simulation' ? (
-                    <ScrollingWaveform height={27} barWidth={3} barGap={3} barColor="#007da5" />
-                  ) : (
-                    <MicrophoneWaveform
-                      active
-                      height={27}
-                      barWidth={3}
-                      barGap={3}
-                      barColor="#007da5"
-                    />
-                  )}
-                </div>
-                <button type="button" className="secondary" onClick={() => voice.end(true)}>
-                  Cancel
-                </button>
-                <button type="button" className="primary" onClick={() => voice.end()}>
-                  Done
-                </button>
-              </div>
-            )}
-            <label className="sr-only" htmlFor="question">
-              Type a question
-            </label>
-            <textarea
-              id="question"
-              ref={input}
-              rows={2}
-              maxLength={2000}
-              placeholder="Type a question…"
-              value={draft}
-              readOnly={!!voice.mode}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-            <div className="composer-actions">
+                <span className="brand-divider" />
+                BizMate
+              </span>
+            </div>
+            <div className="header-actions">
+              <span className="merchant">
+                <Icon name="store" size={17} /> Sharma General Store
+              </span>
               <button
+                className="replay"
                 type="button"
-                className="secondary speak"
-                disabled={!!voice.mode}
-                onClick={() => voice.start(false)}
+                onClick={replay}
+                aria-label="Replay demo"
+                title="Replay demo"
               >
-                <Icon name="mic" size={16} /> Speak
-              </button>
-              <button
-                type="button"
-                className="simulate"
-                disabled={!!voice.mode}
-                onClick={() => voice.start(true)}
-              >
-                Simulate dictation
-              </button>
-              <button
-                type="submit"
-                className="primary send"
-                disabled={!draft.trim() || !!voice.mode}
-              >
-                Send <Icon name="send" size={16} />
+                <Icon name="replay" size={17} />
+                <span>Replay demo</span>
               </button>
             </div>
-          </form>
-          <div className="notice" role="status">
-            {voice.notice}
           </div>
-          <p className="demo-note">
-            <span /> Demo mode · Sample data and simulated actions
-          </p>
-          <div className="sr-only" role="status">
-            {announcement}
+        </header>
+        <main
+          className="chat"
+          ref={chat}
+          onScroll={(event) => {
+            const panel = event.currentTarget;
+            panel.dataset.follow = String(
+              panel.scrollHeight - panel.clientHeight - panel.scrollTop < 72,
+            );
+          }}
+        >
+          <div className={turns.length ? 'chat-column conversation' : 'chat-column welcome-wrap'}>
+            {turns.length === 0 ? (
+              <section className="welcome">
+                <div className="hero-mark">
+                  <Icon name="sparkle" size={35} />
+                  <span>✦</span>
+                </div>
+                <h1>Hi! How can I help?</h1>
+                <p>Ask about a payment, bring customers back, or get help with your account.</p>
+                <div className="prompts">
+                  {questions.map((question, index) => (
+                    <button
+                      key={question}
+                      type="button"
+                      disabled={!!voice.mode}
+                      onClick={() => {
+                        setDraft(question);
+                        focusComposer();
+                      }}
+                    >
+                      <span className="tile">
+                        <Icon name={(['payment', 'campaign', 'bank'] as const)[index]} />
+                      </span>
+                      <span>{question}</span>
+                      <Icon name="arrow" size={16} />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              turns.map((turn) => (
+                <article className="turn" key={turn.id}>
+                  <div className="user-bubble">{turn.question}</div>
+                  <ChatReply
+                    turn={turn}
+                    now={now}
+                    reduced={reduced}
+                    update={(change) =>
+                      setTurns((previous) =>
+                        previous.map((item) =>
+                          item.id === turn.id ? { ...item, ...change } : item,
+                        ),
+                      )
+                    }
+                  />
+                </article>
+              ))
+            )}
           </div>
-        </div>
-      </footer>
+          {!!turns.length &&
+            (() => {
+              const last = turns[turns.length - 1];
+              if (last.intent === 'payment' && !last.replyText && now - last.started < stages[3].at)
+                return null;
+              const prompt = followup(last.intent);
+              return (
+                <section className="chat-column followup" aria-label="Follow-up questions">
+                  <h2>{prompt.question}</h2>
+                  <div className="followup-options">
+                    {prompt.options.map((option) => (
+                      <button
+                        type="button"
+                        className="secondary"
+                        key={option}
+                        disabled={!!voice.mode}
+                        onClick={() => sendQuestion(option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  <p>Choose an option, or type your answer below.</p>
+                </section>
+              );
+            })()}
+        </main>
+        <footer className="composer-region">
+          <div className="chat-column">
+            <form className="composer" onSubmit={send}>
+              {voice.mode && (
+                <div className="listening">
+                  <span className="listening-label" role="status">
+                    Listening…{voice.mode === 'simulation' && <small>Simulated dictation</small>}
+                  </span>
+                  <div className="wave" aria-hidden="true">
+                    {reduced ? (
+                      <StaticWaveform bars={27} height={27} barColor="#007da5" />
+                    ) : voice.mode === 'simulation' ? (
+                      <ScrollingWaveform height={27} barWidth={3} barGap={3} barColor="#007da5" />
+                    ) : (
+                      <MicrophoneWaveform
+                        active
+                        height={27}
+                        barWidth={3}
+                        barGap={3}
+                        barColor="#007da5"
+                      />
+                    )}
+                  </div>
+                  <button type="button" className="secondary" onClick={() => voice.end(true)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="primary" onClick={() => voice.end()}>
+                    Done
+                  </button>
+                </div>
+              )}
+              <label className="sr-only" htmlFor="question">
+                Type a question
+              </label>
+              <textarea
+                id="question"
+                ref={input}
+                rows={2}
+                maxLength={2000}
+                placeholder="Type a question…"
+                value={draft}
+                readOnly={!!voice.mode}
+                onChange={(event) => setDraft(event.target.value)}
+              />
+              <div className="composer-actions">
+                <button
+                  type="button"
+                  className="secondary speak"
+                  disabled={!!voice.mode}
+                  onClick={() => voice.start(false)}
+                >
+                  <Icon name="mic" size={16} /> Speak
+                </button>
+                <button
+                  type="button"
+                  className="simulate"
+                  disabled={!!voice.mode}
+                  onClick={() => voice.start(true)}
+                >
+                  Simulate dictation
+                </button>
+                <button
+                  type="submit"
+                  className="primary send"
+                  disabled={!draft.trim() || !!voice.mode}
+                >
+                  Send <Icon name="send" size={16} />
+                </button>
+              </div>
+            </form>
+            <div className="notice" role="status">
+              {voice.notice}
+            </div>
+            <p className="demo-note">
+              <span /> Demo mode · Sample data and simulated actions
+            </p>
+            <div className="sr-only" role="status">
+              {announcement}
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

@@ -42,6 +42,7 @@ export type Turn = {
   offer: string;
   action?: Action;
   approvedAt?: number;
+  replyText?: string;
 };
 export function detectIntent(question: string): Intent {
   if (/bank account|account details|ifsc/i.test(question)) return 'bank';
