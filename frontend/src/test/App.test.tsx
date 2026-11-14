@@ -1,12 +1,13 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from '../DemoApp';
-import { languages, translate } from '../i18n';
+import { languages, speechLocales, translate } from '../i18n';
 import type { Language } from '../i18n';
 import { detectIntent } from '../demo';
 import { merchantToday, sampleSales, validPeriod } from '../components/SalesReport';
 import { prepareVoiceInput, openVoiceStream } from '../voiceEngine';
 import { captureVoice } from '../voiceCapture';
+import { findCounterPayments } from '../paymentDemo';
 const translateLanguage = (language: Language) => languages[language];
 vi.mock('../voiceEngine', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../voiceEngine')>()),
@@ -402,7 +403,10 @@ it('keeps branding in history and updates the current chat title with an approve
 
 it('checks counter payments by amount and time and gates Soundbox help on a confirmed match', () => {
   render(<App />);
-  choose('Did I receive ₹480?');
+  choose('Did I receive a payment?');
+  fireEvent.change(screen.getByLabelText('Payment amount'), { target: { value: '480' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
+  tick(2200);
   expect(screen.getByText('Received', { exact: true })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Get Soundbox help' }));
   expect(screen.getByRole('link', { name: 'Paytm Soundbox help' })).toBeInTheDocument();
@@ -420,14 +424,18 @@ it('checks counter payments by amount and time and gates Soundbox help on a conf
   fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
   tick(2200);
   expect(
-    screen.getByText('More than one payment matches. Compare the payment time with your customer.'),
+    screen.getByText(
+      'Several payments match. Compare the customer name and time, then select the right payment.',
+    ),
   ).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Get Soundbox help' })).toBeNull();
 });
 
 it('checks an existing refund before approved support follow-up and verified credit', () => {
   render(<App />);
-  choose('Where is my ₹650 refund?');
+  choose('What is my refund status?');
+  fireEvent.click(screen.getByRole('button', { name: 'Check existing refund' }));
+  tick(2200);
   expect(screen.getByText('Refund pending')).toBeInTheDocument();
   expect(screen.getByText('RF-650-001')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Follow up on this refund' }));
@@ -442,6 +450,82 @@ it('checks an existing refund before approved support follow-up and verified cre
   expect(screen.getByText('RF-650-001')).toBeInTheDocument();
 });
 
+it('disambiguates repeated ₹100 payments by payer and time without treating a pending match as received', () => {
+  render(<App />);
+  choose('Did I receive a payment?');
+  expect(screen.getByLabelText('Payment amount')).toHaveValue(null);
+  fireEvent.change(screen.getByLabelText('Payment amount'), { target: { value: '100' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
+  tick(2200);
+  expect(screen.getByText('Saiteja')).toBeInTheDocument();
+  expect(screen.getByText('Neha')).toBeInTheDocument();
+  expect(screen.getByText('Ravi')).toBeInTheDocument();
+  expect(screen.getByText('Name unavailable')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Get Soundbox help' })).toBeNull();
+
+  fireEvent.change(screen.getByLabelText('When was it paid?'), { target: { value: '5-10' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
+  tick(2200);
+  expect(screen.queryByText('Neha')).toBeNull();
+  expect(screen.queryByText('Name unavailable')).toBeNull();
+  const saiteja = screen.getByText('Saiteja').closest<HTMLElement>('.payment-match')!;
+  expect(within(saiteja).getByText(/7 minutes ago/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Select payment · Ravi/ }));
+  expect(screen.queryByRole('button', { name: 'Get Soundbox help' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Select payment · Saiteja/ }));
+  expect(screen.getByRole('button', { name: 'Get Soundbox help' })).toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText('Customer name (optional)'), {
+    target: { value: '  sAIteja  ' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
+  tick(2200);
+  expect(screen.queryByText('Ravi')).toBeNull();
+  expect(screen.getByText('Saiteja')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Customer name (optional)'), {
+    target: { value: 'No matching customer' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Search payment records' }));
+  tick(2200);
+  expect(screen.getByText('Couldn’t find a matching payment')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Get Soundbox help' })).toBeNull();
+});
+
+it('filters inclusive time boundaries and sorts same-amount payments newest first', () => {
+  expect(findCounterPayments(10000, 15).map((record) => record.minutesAgo)).toEqual([3, 7, 9, 13]);
+  expect(
+    findCounterPayments(10000, 7, false, { minMinutes: 7 }).map((record) => record.payerName),
+  ).toEqual(['Saiteja']);
+  expect(
+    findCounterPayments(10000, 10, false, { minMinutes: 5 }).map((record) => record.payerName),
+  ).toEqual(['Saiteja', 'Ravi']);
+  expect(
+    findCounterPayments(10000, 15, false, { settledIds: ['PAY-950-001'] }).find(
+      (record) => record.payerName === 'Ravi',
+    )?.status,
+  ).toBe('Pending');
+});
+
+it.each(['en', 'hi', 'te'] as Language[])(
+  'shows payment names and relative times in %s',
+  (language) => {
+    localStorage.setItem('bizmate-language', language);
+    const t = (text: string) => translate(text, language);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: t('Did I receive a payment?') }));
+    fireEvent.click(screen.getByRole('button', { name: t('Send') }));
+    tick(3400);
+    fireEvent.change(screen.getByLabelText(t('Payment amount')), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: t('Search payment records') }));
+    tick(2200);
+    const saiteja = screen.getByText('Saiteja').closest<HTMLElement>('.payment-match')!;
+    const relative = new Intl.RelativeTimeFormat(speechLocales[language], {
+      numeric: 'always',
+    }).format(-7, 'minute');
+    expect(within(saiteja).getByText((text) => text.startsWith(relative))).toBeInTheDocument();
+  },
+);
+
 it('shows separate daily collection, refund and bank-credit totals with period coverage', () => {
   render(<App />);
   choose('How much did I collect today?');
@@ -453,6 +537,19 @@ it('shows separate daily collection, refund and bank-credit totals with period c
   fireEvent.click(screen.getByRole('button', { name: 'Review another sales period' }));
   tick(2200);
   expect(screen.getByRole('radio', { name: 'Monthly' })).toBeInTheDocument();
+});
+
+it('uses a follow-up amount from the chat composer to check counter payments', () => {
+  render(<App />);
+  choose('Did I receive a payment?');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Type a question' }), {
+    target: { value: '100 rupees' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  tick(3400);
+  expect(screen.getByText('Saiteja')).toBeInTheDocument();
+  expect(screen.getByText('Ravi')).toBeInTheDocument();
+  expect(screen.getByText(/7 minutes ago/)).toBeInTheDocument();
 });
 
 it.each([

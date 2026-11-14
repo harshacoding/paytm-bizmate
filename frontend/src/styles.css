@@ -2412,6 +2412,36 @@ summary > span {
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
+.payment-match {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.payment-match[data-selected='true'] {
+  background: var(--pale);
+  border-color: var(--accent);
+}
+.payment-payer {
+  margin-block: 5px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.payment-payer > span {
+  color: var(--muted);
+  margin-inline-end: 5px;
+}
+.chat-payment-lookup {
+  margin-top: 16px;
+}
+.payment-sample-label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.payment-match > button {
+  margin-top: 10px;
+}
 .record-status {
   display: flex;
   align-items: center;

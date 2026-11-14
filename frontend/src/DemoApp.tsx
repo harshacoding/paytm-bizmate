@@ -460,9 +460,11 @@ function MerchantApp() {
         (detected === previousTurn.intent &&
           followup(previousTurn.intent).options.includes(canonical(question))));
     const intent = contextual ? previousTurn.intent : detected;
-    const replyText =
-      contextual && intent !== 'sales' ? answerFollowup(intent, canonical(question)) : undefined;
     const requestedAmount = amountFromQuestion(question);
+    const replyText =
+      contextual && intent !== 'sales' && !(intent === 'counter' && requestedAmount)
+        ? answerFollowup(intent, canonical(question))
+        : undefined;
     setTurns((previous) => [
       ...previous,
       {
@@ -474,7 +476,18 @@ function MerchantApp() {
         offer: t(initialOffer),
         counterQuery:
           intent === 'counter' && requestedAmount
-            ? { amount: requestedAmount, minutes: 30, checkedAt: started }
+            ? {
+                amount: requestedAmount,
+                minutes:
+                  previousTurn?.intent === 'counter'
+                    ? (previousTurn.counterQuery?.minutes ?? 15)
+                    : 15,
+                minMinutes:
+                  previousTurn?.intent === 'counter'
+                    ? previousTurn.counterQuery?.minMinutes
+                    : undefined,
+                checkedAt: started,
+              }
             : undefined,
         refundQuery:
           intent === 'refund' && requestedAmount

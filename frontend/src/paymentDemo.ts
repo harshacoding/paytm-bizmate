@@ -1,7 +1,9 @@
 import type { Turn } from './demo';
 
 export function amountFromQuestion(question: string) {
-  const match = question.match(/(?:₹|rs\.?|rupees?|paid|refunded)\s*(\d[\d,]*(?:\.\d{1,2})?)/i);
+  const match =
+    question.match(/(?:₹|rs\.?|rupees?|paid|refunded)\s*(\d[\d,]*(?:\.\d{1,2})?)/i) ??
+    question.match(/^\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|रुपये|రూపాయలు)?\s*[?]?\s*$/i);
   return match ? paiseFromInput(match[1].replaceAll(',', '')) : undefined;
 }
 
@@ -13,15 +15,35 @@ export function paiseFromInput(value: string) {
 }
 
 export const counterPayments = [
-  { id: 'PAY-480-001', paise: 48000, minutesAgo: 10, status: 'Received' },
-  { id: 'PAY-480-002', paise: 48000, minutesAgo: 45, status: 'Received' },
-  { id: 'PAY-950-001', paise: 95000, minutesAgo: 6, status: 'Pending' },
+  { id: 'PAY-100-001', paise: 10000, payerName: 'Saiteja', minutesAgo: 7, status: 'Received' },
+  { id: 'PAY-100-002', paise: 10000, payerName: 'Ravi', minutesAgo: 9, status: 'Pending' },
+  { id: 'PAY-100-003', paise: 10000, payerName: 'Neha', minutesAgo: 3, status: 'Received' },
+  { id: 'PAY-100-004', paise: 10000, payerName: null, minutesAgo: 13, status: 'Received' },
+  { id: 'PAY-480-001', paise: 48000, payerName: 'Saiteja', minutesAgo: 10, status: 'Received' },
+  { id: 'PAY-480-002', paise: 48000, payerName: 'Ramesh', minutesAgo: 45, status: 'Received' },
+  { id: 'PAY-950-001', paise: 95000, payerName: 'Anitha', minutesAgo: 6, status: 'Pending' },
 ] as const;
 
-export function findCounterPayments(amount: number, minutes: number, settled = false) {
+export function findCounterPayments(
+  amount: number,
+  minutes: number,
+  settled = false,
+  options: { minMinutes?: number; payerName?: string; settledIds?: readonly string[] } = {},
+) {
+  const payer = options.payerName?.trim().normalize('NFKC').toLocaleLowerCase();
   return counterPayments
-    .filter((record) => record.paise === amount && record.minutesAgo <= minutes)
-    .map((record) => ({ ...record, status: settled ? 'Received' : record.status }));
+    .filter(
+      (record) =>
+        record.paise === amount &&
+        record.minutesAgo <= minutes &&
+        record.minutesAgo >= (options.minMinutes ?? 0) &&
+        (!payer || record.payerName?.normalize('NFKC').toLocaleLowerCase().includes(payer)),
+    )
+    .sort((a, b) => a.minutesAgo - b.minutesAgo)
+    .map((record) => ({
+      ...record,
+      status: settled || options.settledIds?.includes(record.id) ? 'Received' : record.status,
+    }));
 }
 
 export const existingRefund = {

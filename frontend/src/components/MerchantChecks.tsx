@@ -17,16 +17,27 @@ type Props = { turn: Turn; now: number; reduced: boolean; update: (change: Parti
 
 export function CounterPayment({ turn, now, reduced, update }: Props) {
   const { t, language } = useLanguage();
+  const initialAmount = turn.counterQuery?.amount ?? amountFromQuestion(turn.question);
   const [amount, setAmount] = useState(
-    String((turn.counterQuery?.amount ?? amountFromQuestion(turn.question) ?? 48000) / 100),
+    initialAmount === undefined ? '' : String(initialAmount / 100),
   );
-  const [minutes, setMinutes] = useState(turn.counterQuery?.minutes ?? 30);
+  const [minutes, setMinutes] = useState(turn.counterQuery?.minutes ?? 15);
+  const [minMinutes, setMinMinutes] = useState(turn.counterQuery?.minMinutes ?? 0);
+  const [payerName, setPayerName] = useState(turn.counterQuery?.payerName ?? '');
   const [error, setError] = useState(false);
   const query = turn.counterQuery;
   const loading = !!query && now - query.checkedAt < replyDelay;
   const matches = query
-    ? findCounterPayments(query.amount, query.minutes, !!turn.counterSettled)
+    ? findCounterPayments(query.amount, query.minutes, !!turn.counterSettled, {
+        ...query,
+        settledIds: turn.counterSettledIds,
+      })
     : [];
+  const selected = turn.counterSelectedId
+    ? matches.find((record) => record.id === turn.counterSelectedId)
+    : matches.length === 1
+      ? matches[0]
+      : undefined;
   function search(event: FormEvent) {
     event.preventDefault();
     const paise = paiseFromInput(amount);
@@ -36,14 +47,22 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
     }
     setError(false);
     update({
-      counterQuery: { amount: paise, minutes, checkedAt: Date.now() },
+      counterQuery: {
+        amount: paise,
+        minutes,
+        minMinutes,
+        payerName: payerName.trim(),
+        checkedAt: Date.now(),
+      },
+      counterSelectedId: undefined,
+      counterSettled: false,
       soundboxHelp: false,
     });
   }
   return (
     <section className="card">
       <h2>{t('Payment at the counter')}</h2>
-      <p>{t('Check the amount and approximate time against your payment records.')}</p>
+      <p>{t('Match the amount, customer name and approximate payment time.')}</p>
       <form className="record-search" onSubmit={search}>
         <div className="report-fields">
           <label className="report-field">
@@ -59,13 +78,30 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
           </label>
           <label className="report-field">
             {t('When was it paid?')}
-            <select value={minutes} onChange={(event) => setMinutes(Number(event.target.value))}>
-              {[15, 30, 60, 120].map((value) => (
+            <select
+              value={minMinutes === 5 ? '5-10' : String(minutes)}
+              onChange={(event) => {
+                setMinMinutes(event.target.value === '5-10' ? 5 : 0);
+                setMinutes(event.target.value === '5-10' ? 10 : Number(event.target.value));
+              }}
+            >
+              <option value="5-10">{t('5–10 minutes ago')}</option>
+              {[5, 10, 15, 30, 60, 120].map((value) => (
                 <option key={value} value={value}>
                   {value} {t('minutes ago or less')}
                 </option>
               ))}
             </select>
+          </label>
+          <label className="report-field">
+            {t('Customer name (optional)')}
+            <input
+              type="text"
+              maxLength={100}
+              value={payerName}
+              placeholder={t('For example, Saiteja')}
+              onChange={(event) => setPayerName(event.target.value)}
+            />
           </label>
         </div>
         {error && <p role="alert">{t('Enter a valid amount.')}</p>}
@@ -89,22 +125,48 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
           )}
           {matches.length > 1 && (
             <p>
-              {t('More than one payment matches. Compare the payment time with your customer.')}
+              {t(
+                'Several payments match. Compare the customer name and time, then select the right payment.',
+              )}
             </p>
           )}
           {matches.map((record) => (
-            <div className="payment-match" key={record.id}>
+            <div
+              className="payment-match"
+              key={record.id}
+              data-selected={selected?.id === record.id}
+            >
               <div className="record-status" data-status={record.status}>
                 <strong role="status">{t(record.status)}</strong>
                 <span>{money(record.paise)}</span>
               </div>
+              <p className="payment-payer">
+                <span>{t('From')}</span>{' '}
+                <strong>{record.payerName ?? t('Name unavailable')}</strong>
+              </p>
               <p className="fine">
+                {new Intl.RelativeTimeFormat(speechLocales[language], { numeric: 'always' }).format(
+                  -record.minutesAgo,
+                  'minute',
+                )}
+                {' · '}
                 {new Intl.DateTimeFormat(speechLocales[language], {
                   hour: 'numeric',
                   minute: '2-digit',
                   timeZone: 'Asia/Kolkata',
                 }).format(new Date(query.checkedAt - record.minutesAgo * 60000))}
               </p>
+              {matches.length > 1 && (
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-pressed={selected?.id === record.id}
+                  aria-label={`${t('Select payment')} · ${record.payerName ?? t('Name unavailable')} · ${money(record.paise)}`}
+                  onClick={() => update({ counterSelectedId: record.id, soundboxHelp: false })}
+                >
+                  {t(selected?.id === record.id ? 'Selected payment' : 'Select payment')}
+                </button>
+              )}
               <details>
                 <summary>{t('View details')}</summary>
                 <p className="fine">
@@ -113,7 +175,7 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
               </details>
             </div>
           ))}
-          {matches.length === 1 && matches[0].status === 'Received' && (
+          {selected?.status === 'Received' && (
             <button
               className="secondary"
               type="button"
@@ -127,13 +189,24 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
               className="secondary"
               type="button"
               onClick={() =>
-                update({ counterSettled: true, counterQuery: { ...query, checkedAt: Date.now() } })
+                update({
+                  counterSettled: false,
+                  counterSettledIds: [
+                    ...new Set([
+                      ...(turn.counterSettledIds ?? []),
+                      ...matches
+                        .filter((record) => record.status === 'Pending')
+                        .map((record) => record.id),
+                    ]),
+                  ],
+                  counterQuery: { ...query, checkedAt: Date.now() },
+                })
               }
             >
               {t('Run simulated payment update')}
             </button>
           )}
-          {turn.soundboxHelp && matches.some((record) => record.status === 'Received') && (
+          {turn.soundboxHelp && selected?.status === 'Received' && (
             <p className="device-help">
               {t(
                 'The payment is confirmed in the record. You can check your Soundbox alerts next.',
@@ -150,7 +223,7 @@ export function CounterPayment({ turn, now, reduced, update }: Props) {
           {!matches.length && (
             <p className="fine">
               {t(
-                'Try another amount or a wider time window. The current records do not confirm this payment.',
+                'Try another amount, customer name or time window. The current records do not confirm this payment.',
               )}
             </p>
           )}

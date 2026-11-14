@@ -1,7 +1,7 @@
 export const questions = [
   'Why is my payment short?',
-  'Did I receive ₹480?',
-  'Where is my ₹650 refund?',
+  'Did I receive a payment?',
+  'What is my refund status?',
   'How much did I collect today?',
   'Help me bring customers back.',
 ];
@@ -50,8 +50,16 @@ export type Turn = {
   salesPeriod?: { start: string; end: string };
   salesMode?: 'today' | 'date' | 'month' | 'range';
   reportRequestedAt?: number;
-  counterQuery?: { amount: number; minutes: number; checkedAt: number };
+  counterQuery?: {
+    amount: number;
+    minutes: number;
+    checkedAt: number;
+    minMinutes?: number;
+    payerName?: string;
+  };
+  counterSelectedId?: string;
   counterSettled?: boolean;
+  counterSettledIds?: string[];
   soundboxHelp?: boolean;
   refundQuery?: { amount: number; checkedAt: number };
 };

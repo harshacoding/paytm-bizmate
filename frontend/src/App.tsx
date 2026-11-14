@@ -12,6 +12,7 @@ import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
 import { Waveform, StaticWaveform } from './components/elevenlabs/waveform';
 import { workspaceText } from './workspaceText';
 import type { LanguageCode } from './api/types';
+import { ChatPaymentLookup } from './components/ChatPaymentLookup';
 import { useUnread } from './useUnread';
 
 export default function App() {
@@ -438,8 +439,8 @@ function ConnectedApp() {
                     <div className="prompts">
                       {[
                         'Why is my payment short?',
-                        'Did I receive ₹480?',
-                        'Where is my ₹650 refund?',
+                        'Did I receive a payment?',
+                        'What is my refund status?',
                         'How much did I collect today?',
                         'Help me bring customers back.',
                       ].map((question) => (
@@ -461,7 +462,7 @@ function ConnectedApp() {
                     </div>
                   </section>
                 ) : (
-                  workspace.messages.map((message) => (
+                  workspace.messages.map((message, index) => (
                     <article
                       key={message.message_id}
                       className={`api-message ${message.role}`}
@@ -511,6 +512,7 @@ function ConnectedApp() {
                           {t('Task details')}
                         </button>
                       )}
+                      <ChatPaymentLookup messages={workspace.messages} index={index} />
                     </article>
                   ))
                 )}

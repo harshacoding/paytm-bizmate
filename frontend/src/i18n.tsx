@@ -5,8 +5,36 @@ export type Language = 'en' | 'hi' | 'te';
 export const languages = { en: 'English', hi: 'हिन्दी', te: 'తెలుగు' };
 export const speechLocales = { en: 'en-IN', hi: 'hi-IN', te: 'te-IN' };
 const rows = [
-  ['Did I receive ₹480?', 'क्या मुझे ₹480 मिले?', 'నాకు ₹480 వచ్చాయా?'],
-  ['Where is my ₹650 refund?', 'मेरा ₹650 का रिफंड कहाँ है?', 'నా ₹650 రిఫండ్ ఎక్కడ ఉంది?'],
+  ['Sample payment lookup', 'नमूना भुगतान खोज', 'నమూనా చెల్లింపు శోధన'],
+  [
+    'Sample payment records · Customer names and times are simulated.',
+    'नमूना भुगतान रिकॉर्ड · ग्राहकों के नाम और समय डेमो के लिए हैं।',
+    'నమూనా చెల్లింపు రికార్డులు · కస్టమర్ పేర్లు, సమయాలు డెమో కోసం రూపొందించబడ్డాయి.',
+  ],
+  [
+    'Match the amount, customer name and approximate payment time.',
+    'रकम, ग्राहक का नाम और भुगतान का अनुमानित समय मिलाएँ।',
+    'మొత్తం, కస్టమర్ పేరు, చెల్లింపు జరిగిన సమయాన్ని సరిపోల్చండి.',
+  ],
+  ['Customer name (optional)', 'ग्राहक का नाम (वैकल्पिक)', 'కస్టమర్ పేరు (ఐచ్ఛికం)'],
+  ['For example, Saiteja', 'जैसे, Saiteja', 'ఉదాహరణకు, Saiteja'],
+  ['5–10 minutes ago', '5–10 मिनट पहले', '5–10 నిమిషాల క్రితం'],
+  ['From', 'भेजने वाला', 'పంపినవారు'],
+  ['Name unavailable', 'नाम उपलब्ध नहीं है', 'పేరు అందుబాటులో లేదు'],
+  ['Select payment', 'भुगतान चुनें', 'చెల్లింపును ఎంచుకోండి'],
+  ['Selected payment', 'चुना गया भुगतान', 'ఎంచుకున్న చెల్లింపు'],
+  [
+    'Several payments match. Compare the customer name and time, then select the right payment.',
+    'कई भुगतान मिले हैं। ग्राहक का नाम और समय मिलाकर सही भुगतान चुनें।',
+    'అనేక చెల్లింపులు సరిపోలాయి. కస్టమర్ పేరు, సమయం చూసి సరైన చెల్లింపును ఎంచుకోండి.',
+  ],
+  [
+    'Try another amount, customer name or time window. The current records do not confirm this payment.',
+    'दूसरी रकम, ग्राहक का नाम या समय सीमा आज़माएँ। मौजूदा रिकॉर्ड इस भुगतान की पुष्टि नहीं करते।',
+    'వేరే మొత్తం, కస్టమర్ పేరు లేదా సమయ పరిధిని ప్రయత్నించండి. ప్రస్తుత రికార్డులు ఈ చెల్లింపును నిర్ధారించడం లేదు.',
+  ],
+  ['Did I receive a payment?', 'क्या मुझे भुगतान मिला?', 'నాకు చెల్లింపు వచ్చిందా?'],
+  ['What is my refund status?', 'मेरे रिफंड की स्थिति क्या है?', 'నా రిఫండ్ స్థితి ఏమిటి?'],
   ['How much did I collect today?', 'आज मैंने कितना जमा किया?', 'ఈ రోజు నేను ఎంత వసూలు చేశాను?'],
   ['More questions', 'और सवाल', 'మరిన్ని ప్రశ్నలు'],
   ['Payment at the counter', 'काउंटर पर भुगतान', 'కౌంటర్ వద్ద చెల్లింపు'],
