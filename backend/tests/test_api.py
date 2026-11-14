@@ -108,8 +108,8 @@ def test_approval_endpoint_fails_closed(client):
                 "input_hash": "a" * 64,
             },
         )
-        assert response.status_code == 501
-        assert response.json()["task_reference"] == "BM-06"
+        assert response.status_code == 404
+        assert response.json()["code"] == "NOT_FOUND"
     saved = client.get(f"/api/v1/tasks/{task['task_id']}").json()
     assert saved["status"] != "COMPLETED" and not saved["receipts"]
 

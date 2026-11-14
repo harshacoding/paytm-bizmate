@@ -1,6 +1,8 @@
-from bizmate.domain.models import Evidence, Intent, Model, Receipt, Scope
-from bizmate.domain.types import Count, Identifier, InputHash, MessageText, ShortText
-from bizmate.services.mock_models import CustomerHistory, PaymentRecord
+import json
+
+from bizmate.domain.models import ActionResult, Evidence, Intent, Model, Scope, VerificationResult
+from bizmate.domain.types import Count, Identifier, MessageText, ShortText
+from bizmate.services.mock_models import CampaignPayload, CustomerHistory, PaymentRecord
 from bizmate.services.mocks import MockServices
 from bizmate.tools.registry import ToolMetadata, ToolRegistry, VerificationSpec
 
@@ -19,12 +21,10 @@ class ReferenceInputs(Model):
 
 class TicketInputs(TaskInputs):
     summary: MessageText
-    idempotency_key: Identifier
 
 
-class SendInputs(TaskInputs):
-    approved_input_hash: InputHash
-    idempotency_key: Identifier
+class SendInputs(TaskInputs, CampaignPayload):
+    pass
 
 
 class PaymentRecords(Model):
@@ -35,16 +35,50 @@ class EvidenceRecords(Model):
     evidence: tuple[Evidence, ...]
 
 
-class TicketStatus(Model):
+class TicketStatus(VerificationResult):
     status: ShortText
 
 
-class CampaignDelivery(Model):
+class CampaignDelivery(VerificationResult):
     delivered: Count
     failed: Count
 
 
 def register_mock_tools(registry: ToolRegistry, services: MockServices):
+    def ticket_status(context, inputs):
+        status = services.status(context, inputs.reference)
+        row = services.store.action(context.merchant_id, "create_support_ticket", inputs.reference)
+        return TicketStatus(
+            merchant_id=context.merchant_id,
+            task_id=row["task_id"],
+            external_reference=row["reference"],
+            evidence_reference=row["reference"],
+            verified=status in {"open", "closed"},
+            status=status,
+        )
+
+    def campaign_delivery(context, inputs):
+        counts = services.delivery(context, inputs.reference)
+        row = services.store.action(context.merchant_id, "send_campaign", inputs.reference)
+        return CampaignDelivery(
+            merchant_id=context.merchant_id,
+            task_id=row["task_id"],
+            external_reference=row["reference"],
+            evidence_reference=row["reference"],
+            verified=sum(counts.values()) == len(json.loads(row["inputs"])["recipient_ids"]),
+            **counts,
+        )
+
+    def create_ticket(context, inputs, *, idempotency_key):
+        receipt = services.create(context, inputs.task_id, inputs.summary, idempotency_key)
+        return ActionResult(external_reference=receipt.external_reference)
+
+    def send_campaign(context, inputs, *, idempotency_key):
+        payload = CampaignPayload.model_validate(inputs.model_dump(exclude={"task_id"}))
+        digest = services.prepare_campaign(context, inputs.task_id, payload)
+        receipt = services.send(context, inputs.task_id, digest, idempotency_key)
+        return ActionResult(external_reference=receipt.external_reference)
+
     for name, scopes, intents, schema, output, handler in [
         (
             "get_transactions",
@@ -86,7 +120,7 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             [Intent.SETTLEMENT, Intent.HANDOFF],
             ReferenceInputs,
             TicketStatus,
-            lambda context, inputs: TicketStatus(status=services.status(context, inputs.reference)),
+            ticket_status,
         ),
         (
             "get_campaign_delivery_status",
@@ -94,9 +128,7 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             [Intent.WIN_BACK],
             ReferenceInputs,
             CampaignDelivery,
-            lambda context, inputs: CampaignDelivery(
-                **services.delivery(context, inputs.reference)
-            ),
+            campaign_delivery,
         ),
     ]:
         registry.register(
@@ -127,10 +159,8 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             ),
         ),
         TicketInputs,
-        lambda context, inputs: services.create(
-            context, inputs.task_id, inputs.summary, inputs.idempotency_key
-        ),
-        output_schema=Receipt,
+        create_ticket,
+        output_schema=ActionResult,
     )
     registry.register(
         ToolMetadata(
@@ -148,8 +178,6 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             ),
         ),
         SendInputs,
-        lambda context, inputs: services.send(
-            context, inputs.task_id, inputs.approved_input_hash, inputs.idempotency_key
-        ),
-        output_schema=Receipt,
+        send_campaign,
+        output_schema=ActionResult,
     )

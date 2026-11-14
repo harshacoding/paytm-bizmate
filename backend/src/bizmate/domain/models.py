@@ -176,6 +176,16 @@ class Verification(TaskEntity):
     verified_at: AwareDatetime = Field(default_factory=now)
 
 
+class ActionResult(Model):
+    external_reference: ShortText
+
+
+class VerificationResult(TaskEntity):
+    external_reference: ShortText
+    verified: StrictBool
+    evidence_reference: ShortText
+
+
 class ToolExecution(TaskEntity):
     execution_id: Identifier
     tool_name: Identifier
@@ -215,6 +225,19 @@ class Task(TaskEntity):
     created_at: AwareDatetime = Field(default_factory=now)
     updated_at: AwareDatetime = Field(default_factory=now)
     simulated: StrictBool = True
+
+    @property
+    def has_unresolved_execution(self) -> bool:
+        return any(
+            e.outcome == "uncertain"
+            and not any(
+                r.idempotency_key == e.execution_id
+                and r.input_hash == e.input_hash
+                and r.action == e.tool_name
+                for r in self.receipts
+            )
+            for e in self.tool_executions
+        )
 
     @model_validator(mode="after")
     def valid_task(self) -> Self:
@@ -259,6 +282,8 @@ class Task(TaskEntity):
         if any(v.tool_name == receipts_by_id[v.receipt_id].action for v in self.verifications):
             raise ValueError("Verification must use a separate read tool")
         if self.status == TaskStatus.COMPLETED:
+            if self.has_unresolved_execution:
+                raise ValueError("Completion cannot leave an uncertain execution unresolved")
             reads = {
                 key: [v for v in self.verifications if v.receipt_id == key] for key in receipts
             }
@@ -345,6 +370,15 @@ class CreateTaskRequest(Model):
 class ApprovalDecisionRequest(Model):
     decision: Literal["approve", "cancel"]
     input_hash: InputHash
+
+
+class ApprovalRequest(Model):
+    action: Identifier
+    inputs: dict[str, JsonValue]
+
+
+class ExecuteActionRequest(Model):
+    inputs: dict[str, JsonValue]
 
 
 class ClarificationRequest(Model):

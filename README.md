@@ -27,7 +27,9 @@ No API key is required. Optional settings: copy `backend/.env.example` to `backe
 - Merchant-scoped SQLite task storage, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
 - Typed tool registry with intent/scope discovery, strict input/output validation and executable preconditions. BM-04 adapters are registered; planner integration remains pending. See [BM-05 integration contract](docs/BM_05_TOOL_REGISTRY.md).
 
-**Pending implementation:** LLM intent, workflow execution, durable graph checkpoints, approval execution, tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. Requests remain awaiting implementation. Approval decisions return HTTP 501; the send button is disabled. Static previews are separate from task evidence.
+The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input approve/cancel APIs, durable execution claims, replay protection, receipts and independent verification. BM-04 synthetic adapters are connected; writes require approval through the engine. Workflow planning and UI approval/send controls remain unfinished. Unknown approvals return HTTP 404.
+
+**Pending implementation:** LLM intent, workflow execution, durable graph checkpoints, product tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. New chat/task requests still use the scaffold graph. Static previews are separate from task evidence.
 
 Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 

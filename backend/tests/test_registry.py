@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from bizmate.domain.errors import AccessDenied, FeaturePending
+from bizmate.domain.errors import AccessDenied
 from bizmate.domain.models import Intent, Model, Scope, Task
 from bizmate.domain.types import Identifier, MessageText, Money
 from bizmate.persistence.repository import MemoryTaskRepository
@@ -376,14 +376,13 @@ def test_side_effects_remain_blocked_until_bm06_even_if_inputs_claim_approval():
     )
     tools = registry.discover(demo_context("merchant_demo"), intent=Intent.SETTLEMENT)
     assert tools[0].metadata.name == "create_support_ticket"
-    assert tools[0].execution_gate == "approval_engine_pending"
-    with pytest.raises(FeaturePending) as exc:
+    assert tools[0].execution_gate == "approval_required"
+    with pytest.raises(AccessDenied):
         registry.execute(
             "create_support_ticket",
             demo_context("merchant_demo"),
             {"reference": "r", "approved": True, "idempotency_key": "fake"},
         )
-    assert exc.value.task_reference == "BM-06"
     assert calls == []
 
 
