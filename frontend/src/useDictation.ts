@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { questions } from './demo';
 import { speechLocales, useLanguage } from './i18n';
 import type { Language } from './i18n';
 
@@ -16,7 +15,6 @@ type Recognition = {
 };
 type Session = {
   original: string;
-  timers: number[];
   recognition?: Recognition;
 };
 const fallback = 'You can still type your question.';
@@ -28,14 +26,13 @@ export function useDictation(
   language: Language = 'en',
 ) {
   const { t } = useLanguage();
-  const [mode, setMode] = useState<'mic' | 'simulation' | null>(null);
+  const [mode, setMode] = useState<'mic' | null>(null);
   const [notice, setNotice] = useState('');
   const current = useRef<Session | null>(null);
 
   function release() {
     const session = current.current;
     current.current = null;
-    session?.timers.forEach((timer) => window.clearTimeout(timer));
     if (session?.recognition) {
       session.recognition.onresult = session.recognition.onerror = session.recognition.onend = null;
       session.recognition.abort();
@@ -59,23 +56,15 @@ export function useDictation(
     focus();
   }
 
-  function start(simulate: boolean) {
+  function start() {
     if (current.current) return;
-    const session: Session = { original: draft, timers: [] };
+    const session: Session = { original: draft };
     const apply = (words: string) => {
       if (current.current === session)
         setDraft([session.original.trimEnd(), words.trim()].filter(Boolean).join(' '));
     };
     current.current = session;
     setNotice('');
-    if (simulate) {
-      setMode('simulation');
-      const words = t(questions[0]).split(' ');
-      session.timers = words.map((_, index) =>
-        window.setTimeout(() => apply(words.slice(0, index + 1).join(' ')), (index + 1) * 310),
-      );
-      return;
-    }
     const browser = window as Window & {
       SpeechRecognition?: new () => Recognition;
       webkitSpeechRecognition?: new () => Recognition;

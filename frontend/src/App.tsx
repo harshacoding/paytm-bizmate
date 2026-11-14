@@ -8,11 +8,7 @@ import {
   replyDelay,
   followupDelay,
 } from './components/ResponseActivity';
-import {
-  MicrophoneWaveform,
-  ScrollingWaveform,
-  StaticWaveform,
-} from './components/elevenlabs/waveform';
+import { MicrophoneWaveform, StaticWaveform } from './components/elevenlabs/waveform';
 import {
   audience,
   breakdown,
@@ -727,13 +723,10 @@ function MerchantApp() {
                 <div className="listening">
                   <span className="listening-label" role="status">
                     {t('Listening…')}
-                    {voice.mode === 'simulation' && <small>{t('Simulated dictation')}</small>}
                   </span>
                   <div className="wave" aria-hidden="true">
                     {reduced ? (
                       <StaticWaveform bars={27} height={27} barColor="#007da5" />
-                    ) : voice.mode === 'simulation' ? (
-                      <ScrollingWaveform height={27} barWidth={3} barGap={3} barColor="#007da5" />
                     ) : (
                       <MicrophoneWaveform
                         active
@@ -766,33 +759,29 @@ function MerchantApp() {
                   readOnly={!!voice.mode}
                   onChange={(event) => setDraft(event.target.value)}
                 />
-              </div>
-              <div className="composer-actions">
-                <button
-                  type="button"
-                  className="simulate"
-                  disabled={!!voice.mode}
-                  onClick={() => voice.start(true)}
-                >
-                  {t('Simulate dictation')}
-                </button>
-                <button
-                  type="button"
-                  className="secondary speak"
-                  disabled={!!voice.mode}
-                  onClick={() => voice.start(false)}
-                >
-                  <Icon name="mic" size={16} />
-                  {t('Speak')}
-                </button>
-                <button
-                  type="submit"
-                  className="primary send"
-                  disabled={!draft.trim() || !!voice.mode}
-                >
-                  {t('Send')}
-                  <Icon name="send" size={16} />
-                </button>
+                <div className="composer-actions">
+                  <button
+                    type="button"
+                    className="secondary speak"
+                    aria-label={t('Speak')}
+                    title={t('Speak')}
+                    disabled={!!voice.mode}
+                    onClick={() => voice.start()}
+                  >
+                    <Icon name="mic" size={16} />
+                  </button>
+                  <button
+                    type="submit"
+                    className="primary send"
+                    aria-label={t('Send')}
+                    disabled={!draft.trim() || !!voice.mode}
+                  >
+                    <Icon name="send" size={18} />
+                    <span className="send-label" aria-hidden="true">
+                      {t('Send')}
+                    </span>
+                  </button>
+                </div>
               </div>
             </form>
             <div className="notice" role="status">

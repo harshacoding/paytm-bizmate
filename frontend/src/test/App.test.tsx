@@ -39,14 +39,33 @@ function choose(name: string) {
   tick(3400);
 }
 
-it('reviews simulated speech before sending, then verifies the credit after approval', () => {
+function mockSpeech() {
+  const recognition = {
+    lang: '',
+    onresult: undefined as ((event: { results: { transcript: string }[][] }) => void) | undefined,
+    onerror: undefined as (() => void) | undefined,
+    start: vi.fn(),
+    abort: vi.fn(),
+  };
+  vi.stubGlobal(
+    'SpeechRecognition',
+    vi.fn(function () {
+      return recognition;
+    }),
+  );
+  return recognition;
+}
+
+it('reviews live speech before sending, then verifies the credit after approval', () => {
+  const recognition = mockSpeech();
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: 'Simulate dictation' }));
-  tick(950);
+  fireEvent.click(screen.getByRole('button', { name: 'Speak' }));
+  act(() => recognition.onresult?.({ results: [[{ transcript: 'Why is my' }]] }));
+
   const draft = screen.getByRole('textbox', { name: 'Type a question' });
   expect(draft).toHaveValue('Why is my');
   expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
-  tick(1200);
+  act(() => recognition.onresult?.({ results: [[{ transcript: 'Why is my payment short?' }]] }));
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
   expect(draft).toHaveValue('Why is my payment short?');
   expect(screen.queryByRole('progressbar')).toBeNull();
@@ -203,14 +222,17 @@ it('aggregates inclusive sales periods exactly and rejects future or invalid dat
 });
 
 it.each(['en', 'hi', 'te'] as Language[])(
-  'runs editable simulated dictation and support approval in %s',
+  'runs editable live dictation and support approval in %s',
   (language) => {
+    const recognition = mockSpeech();
     const view = render(<App />);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: language } });
     const t = (text: string) => translate(text, language);
     expect(document.documentElement.lang).toBe(language);
-    fireEvent.click(screen.getByRole('button', { name: t('Simulate dictation') }));
-    tick(6000);
+    fireEvent.click(screen.getByRole('button', { name: t('Speak') }));
+    act(() =>
+      recognition.onresult?.({ results: [[{ transcript: t('Why is my payment short?') }]] }),
+    );
     expect(screen.getByRole('combobox')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: t('Done') }));
     expect(screen.getByRole('textbox', { name: t('Type a question') })).toHaveValue(
