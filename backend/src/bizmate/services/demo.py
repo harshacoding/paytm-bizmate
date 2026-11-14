@@ -1,17 +1,36 @@
+from bizmate.domain.context import MerchantContext
 from bizmate.domain.models import DemoPreview, Merchant
 
 MERCHANTS = {
     "merchant_demo": Merchant(
         merchant_id="merchant_demo",
         display_name="Sharma General Store",
-        scopes=["payments:read", "customers:read", "tickets:write", "campaigns:write"],
+        scopes=[
+            "tasks:read",
+            "tasks:write",
+            "tasks:approve",
+            "payments:read",
+            "customers:read",
+            "tickets:write",
+            "campaigns:write",
+        ],
     ),
     "merchant_other": Merchant(
         merchant_id="merchant_other",
         display_name="Second Demo Merchant",
-        scopes=["payments:read"],
+        scopes=["tasks:read", "tasks:write", "payments:read"],
     ),
 }
+
+
+def demo_context(merchant_id: str) -> MerchantContext:
+    merchant = MERCHANTS[merchant_id]
+    return MerchantContext(
+        actor_id=f"demo_actor_{merchant_id}",
+        merchant_id=merchant.merchant_id,
+        display_name=merchant.display_name,
+        scopes=merchant.scopes,
+    )
 
 
 def preview() -> DemoPreview:

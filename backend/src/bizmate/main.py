@@ -5,10 +5,10 @@ from fastapi.responses import JSONResponse
 from bizmate.agents.graph import build_graph
 from bizmate.api.routes import router
 from bizmate.config import Settings
-from bizmate.domain.errors import FeaturePending
+from bizmate.domain.errors import AccessDenied, FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
 from bizmate.persistence.repository import MemoryTaskRepository, TaskRepository
-from bizmate.services.demo import MERCHANTS
+from bizmate.services.demo import MERCHANTS, demo_context
 
 
 def create_app(settings: Settings | None = None, repo: TaskRepository | None = None) -> FastAPI:
@@ -17,14 +17,16 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         raise ValueError("Unknown synthetic merchant; choose merchant_demo or merchant_other")
     app = FastAPI(
         title="Paytm BizMate API",
-        version="0.1.0",
+        version="0.2.0",
         description="Local scaffold. Memory storage, synthetic fixtures, no live actions or LLM.",
     )
     app.state.settings = settings
+    app.state.merchant_context = demo_context(settings.demo_merchant_id)
     app.state.tasks = repo if repo is not None else MemoryTaskRepository()
     app.state.graph = build_graph()
     if repo is None:
         app.state.tasks.save(
+            demo_context("merchant_demo"),
             Task(
                 task_id="demo-settlement",
                 merchant_id="merchant_demo",
@@ -36,7 +38,7 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
                         kind="demo_seed", message="Synthetic example; no investigation has run."
                     )
                 ],
-            )
+            ),
         )
     app.add_middleware(
         CORSMiddleware,
@@ -57,6 +59,17 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         )
 
     app.include_router(router)
+
+    @app.exception_handler(AccessDenied)
+    async def access_denied_handler(request: Request, exc: AccessDenied):
+        return JSONResponse(
+            status_code=403,
+            content=ErrorResponse(
+                code="ACCESS_DENIED",
+                message=str(exc),
+            ).model_dump(),
+        )
+
     return app
 
 

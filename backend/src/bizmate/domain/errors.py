@@ -3,3 +3,7 @@ class FeaturePending(Exception):
         self.task_reference = task_reference
         self.message = message
         super().__init__(message)
+
+
+class AccessDenied(PermissionError):
+    """A valid session lacks a scope or does not own the requested record."""

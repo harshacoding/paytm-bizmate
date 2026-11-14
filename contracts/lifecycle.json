@@ -1,0 +1,61 @@
+{
+  "completion_requirement": "Every receipt needs a successful independent verification.",
+  "contract_version": "0.2.0",
+  "transitions": {
+    "AWAITING_APPROVAL": [
+      "ESCALATED",
+      "FAILED",
+      "PLANNING",
+      "READY"
+    ],
+    "AWAITING_INPUT": [
+      "ESCALATED",
+      "FAILED",
+      "PLANNING"
+    ],
+    "COMPLETED": [],
+    "CREATED": [
+      "ESCALATED",
+      "FAILED",
+      "PLANNING"
+    ],
+    "ESCALATED": [],
+    "FAILED": [],
+    "PLANNING": [
+      "AWAITING_INPUT",
+      "ESCALATED",
+      "FAILED",
+      "READY"
+    ],
+    "READY": [
+      "AWAITING_APPROVAL",
+      "AWAITING_INPUT",
+      "ESCALATED",
+      "FAILED",
+      "RUNNING"
+    ],
+    "RUNNING": [
+      "AWAITING_APPROVAL",
+      "AWAITING_INPUT",
+      "ESCALATED",
+      "FAILED",
+      "PLANNING",
+      "VERIFYING",
+      "WAITING_EXTERNAL"
+    ],
+    "VERIFYING": [
+      "COMPLETED",
+      "ESCALATED",
+      "FAILED",
+      "PLANNING",
+      "WAITING_EXTERNAL"
+    ],
+    "WAITING_EXTERNAL": [
+      "AWAITING_INPUT",
+      "ESCALATED",
+      "FAILED",
+      "RUNNING",
+      "VERIFYING"
+    ]
+  }
+}

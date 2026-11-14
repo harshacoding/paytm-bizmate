@@ -1,0 +1,49 @@
+# BM-02 domain and merchant-context contract
+
+Contract version 0.2.0 defines validated entities, explicit task transitions and a trusted server-side synthetic session. Persistence, LLM planning and actual approval execution remain separate work in BM-03/BM-06/BM-07.
+
+## Shared types
+
+`backend/src/bizmate/domain/models.py` is authoritative. `contracts/openapi.json` and `frontend/src/api/schema.d.ts` are generated from it. Frontend aliases for Merchant, Task, TaskStatus, PlanStep, ToolExecution, Approval, Receipt, Evidence, Verification and CapabilityGap live in `frontend/src/api/types.ts`.
+
+- IDs use 1-128 letters, digits, underscores or hyphens, beginning with a letter or digit. Human text is trimmed and nonempty; input messages are limited to 4,000 characters.
+- Extra request fields are rejected. Callers cannot provide merchant identity, actor identity, scopes or a task status through task-intake/message/approval endpoints.
+- Models are frozen snapshots. Use `with_updates(...)` for validated replacements. Collections use tuples/frozen sets. JSON still serializes these as arrays. Tool and approval payloads must contain JSON values, excluding nonfinite numbers. Repository copies detach nested dictionaries from stored state.
+- Monetary values are strict integer paise. Booleans, strings and floats are rejected. Absolute amounts/costs are nonnegative; evidence, expected amount and residual support signed amounts. Values must remain within JavaScript's exact integer range, plus or minus 9,007,199,254,740,991, for the generated TypeScript number contract.
+- Timestamps require a timezone. `updated_at` cannot precede creation; scheduled time cannot precede creation; a verification cannot precede its receipt.
+- Approval input hashes are lowercase SHA-256 strings. Decided approvals require an actor and aware timestamp. Pending approvals cannot contain either. BM-06 must compute and bind hashes to real approved inputs at execution time.
+- Plan steps and attached records carry task and merchant IDs. Task validation rejects foreign or duplicate records, missing/cyclic plan dependencies, and verification references without a matching receipt.
+
+## Lifecycle
+
+`domain/lifecycle.py` defines allowed edges. The generated `contracts/lifecycle.json` makes these available to the team. `transition_task` validates an edge, keeps identity unchanged, records a status event, and returns a new validated task. It rejects skipped stages, repeated states, backdated transitions and naive timestamps. Completed, escalated and failed tasks are terminal in this version; reopening needs a later explicit domain decision.
+
+Completion requires the latest independent verification for every receipt to succeed, all plan steps done, no pending approvals, and no scheduled next run. Conflicting latest reads block completion. A verification must use a separate tool and cannot predate its receipt. These are structural minimums. BM-06/BM-11 must still verify action inputs, source authenticity and goal-specific outcomes: a support-ticket read alone must not resolve a missing settlement credit.
+
+## Trusted merchant context
+
+`MerchantContext` carries actor ID, merchant ID, display name and frozen scopes. The app resolves it once from registered server-side demo configuration. HTTP headers, query parameters, request text, tool arguments and graph/model results cannot replace this context. The public Merchant model is metadata, not an execution authority.
+
+Scopes are explicit: `tasks:read`, `tasks:write`, `tasks:approve`, `payments:read`, `customers:read`, `tickets:write`, `campaigns:write`. Missing scopes return HTTP 403. Cross-merchant tasks return 404. APIs apply ownership checks even if a repository adapter returns a foreign task. The demo context is not production authentication and still requires loopback-only local use.
+
+## Devi's integration contract
+
+Repository signatures now take `MerchantContext`, not caller-chosen merchant IDs:
+
+```python
+list_tasks(context) -> list[Task]
+get_task(context, task_id) -> Task | None
+save(context, task) -> Task
+```
+
+The memory adapter checks scopes and ownership, revalidates incoming snapshots, protects ID collisions and disallows illegal stored status changes. The future SQLite adapter must preserve these guarantees. Its transaction boundaries, durable approvals and checkpoint coordination remain BM-03.
+
+Mock-service ports also receive the separate `MerchantContext`; methods producing task-bound evidence or receipts take a task ID as well. Implement adapters against these signatures rather than accepting an LLM-supplied merchant ID.
+
+Tool discovery/execute also takes `MerchantContext`; handlers receive that context separately from schema-validated inputs. Top-level identity/permission parameters are rejected even if a tool schema declares them. Handlers must always use the separate context for identity, never values inside data payloads. Read scopes are enforced at execution. Writes remain blocked until BM-06 is implemented.
+
+## Saiteja's integration contract
+
+The session response now includes `actor_id`. Tasks include `tool_executions` and `capability_gaps`. Generated contracts add required merchant/task references on attached entities and stronger field constraints. Frontend fixtures have been updated. Regenerate types rather than copying old payload shapes. Display lifecycle state from the backend; client-side state changes do not authorize actions.
+
+Run `npm run contracts:generate` after intentional changes and `npm run check` before review. The task stays unchecked in TASKS.md until Devi's review is accepted.

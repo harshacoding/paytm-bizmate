@@ -1,6 +1,7 @@
 import type { DemoPreview, Session, Task } from '../api/types';
 
 export const session: Session = {
+  actor_id: 'demo_actor_merchant_demo',
   mode: 'synthetic_local_demo',
   merchant: { merchant_id: 'merchant_demo', display_name: 'Sharma General Store', scopes: [] },
 };
@@ -16,6 +17,8 @@ export const task: Task = {
   approvals: [],
   receipts: [],
   verifications: [],
+  tool_executions: [],
+  capability_gaps: [],
   next_action: 'Workflow execution is not implemented (BM-07).',
   next_run_at: null,
   checkpoint_id: null,

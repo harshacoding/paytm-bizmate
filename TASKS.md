@@ -42,6 +42,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-02 Define domain models and trusted merchant context
 
 - [ ] Complete
+- **Implementation status:** Implemented on `codex/bm-02-domain-context`; validation and merchant-isolation tests added. Awaiting Devi's review. See `docs/BM_02_CONTRACTS.md`.
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-01
