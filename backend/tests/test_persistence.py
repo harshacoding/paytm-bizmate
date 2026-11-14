@@ -209,11 +209,11 @@ def test_database_path_is_independent_of_startup_directory(tmp_path, monkeypatch
 def test_newer_database_schema_is_rejected(tmp_path):
     path = tmp_path / "future.sqlite3"
     with sqlite3.connect(path) as connection:
-        connection.execute("PRAGMA user_version = 2")
+        connection.execute("PRAGMA user_version = 3")
     with pytest.raises(RuntimeError, match="newer"):
         SQLiteTaskRepository(path)
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
 
 
 def test_api_history_survives_separate_processes(tmp_path):

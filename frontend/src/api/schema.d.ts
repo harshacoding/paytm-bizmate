@@ -4,6 +4,60 @@
  */
 
 export interface paths {
+    "/api/v1/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversations */
+        get: operations["conversations_api_v1_conversations_get"];
+        put?: never;
+        /** Create Conversation */
+        post: operations["create_conversation_api_v1_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversation Detail */
+        get: operations["conversation_detail_api_v1_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Conversation Language */
+        patch: operations["update_conversation_language_api_v1_conversations__conversation_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversation Messages */
+        get: operations["conversation_messages_api_v1_conversations__conversation_id__messages_get"];
+        put?: never;
+        /** Send Conversation Message */
+        post: operations["send_conversation_message_api_v1_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/demo/preview": {
         parameters: {
             query?: never;
@@ -202,8 +256,80 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** Conversation */
+        Conversation: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /**
+             * Preferred Language
+             * @default en
+             */
+            preferred_language: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ConversationMessage */
+        ConversationMessage: {
+            /** Content */
+            content: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Language
+             * @default und
+             */
+            language: string;
+            /** Message Id */
+            message_id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Sequence */
+            sequence: number;
+        };
+        /** ConversationTurn */
+        ConversationTurn: {
+            assistant_message: components["schemas"]["ConversationMessage"];
+            /** Client Message Id */
+            client_message_id: string;
+            user_message: components["schemas"]["ConversationMessage"];
+        };
+        /** CreateConversationRequest */
+        CreateConversationRequest: {
+            /**
+             * Preferred Language
+             * @default en
+             */
+            preferred_language: string;
+            /**
+             * Title
+             * @default New conversation
+             */
+            title: string;
+        };
         /** CreateTaskRequest */
         CreateTaskRequest: {
+            /** Conversation Id */
+            conversation_id?: string | null;
             /** Message */
             message: string;
         };
@@ -252,9 +378,9 @@ export interface components {
             /**
              * Mode
              * @default scaffold
-             * @constant
+             * @enum {string}
              */
-            mode: "scaffold";
+            mode: "scaffold" | "synthetic_services";
             /**
              * Status
              * @default ok
@@ -322,6 +448,15 @@ export interface components {
             /** Task Id */
             task_id: string;
         };
+        /** SendConversationMessageRequest */
+        SendConversationMessageRequest: {
+            /** Client Message Id */
+            client_message_id?: string | null;
+            /** Content */
+            content: string;
+            /** Language */
+            language?: string | null;
+        };
         /** SessionResponse */
         SessionResponse: {
             merchant: components["schemas"]["Merchant"];
@@ -359,6 +494,8 @@ export interface components {
             approvals: components["schemas"]["Approval"][];
             /** Checkpoint Id */
             checkpoint_id: string | null;
+            /** Conversation Id */
+            conversation_id: string | null;
             /**
              * Created At
              * Format: date-time
@@ -407,6 +544,10 @@ export interface components {
             updated_at: string;
             /** Verifications */
             verifications: components["schemas"]["Verification"][];
+            /** Workflow Data */
+            workflow_data: {
+                [key: string]: unknown;
+            };
         };
         /** TaskEvent */
         TaskEvent: {
@@ -447,6 +588,11 @@ export interface components {
             /** Tool Name */
             tool_name: string;
         };
+        /** UpdateConversationLanguageRequest */
+        UpdateConversationLanguageRequest: {
+            /** Preferred Language */
+            preferred_language: string;
+        };
         /** Verification */
         Verification: {
             /** Evidence Reference */
@@ -474,6 +620,308 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    conversations_api_v1_conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_conversation_api_v1_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    conversation_detail_api_v1_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_conversation_language_api_v1_conversations__conversation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConversationLanguageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    conversation_messages_api_v1_conversations__conversation_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationMessage"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    send_conversation_message_api_v1_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendConversationMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationTurn"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     demo_preview_api_v1_demo_preview_get: {
         parameters: {
             query?: never;
@@ -570,7 +1018,9 @@ export interface operations {
     };
     tasks_api_v1_tasks_get: {
         parameters: {
-            query?: never;
+            query?: {
+                conversation_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;

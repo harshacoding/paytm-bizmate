@@ -16,8 +16,9 @@ def repo(request, tmp_path):
 
 
 @pytest.fixture
-def client(repo):
-    with TestClient(create_app(Settings(_env_file=None), repo)) as client:
+def client(repo, tmp_path):
+    settings = Settings(_env_file=None, database_path=str(tmp_path / "chat.sqlite3"))
+    with TestClient(create_app(settings, repo)) as client:
         yield client
 
 

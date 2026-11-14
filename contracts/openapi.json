@@ -157,9 +157,163 @@
         "title": "ClarificationRequest",
         "type": "object"
       },
+      "Conversation": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "merchant_id": {
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "preferred_language": {
+            "default": "en",
+            "maxLength": 63,
+            "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+            "title": "Preferred Language",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "merchant_id",
+          "title",
+          "preferred_language",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Conversation",
+        "type": "object"
+      },
+      "ConversationMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "language": {
+            "default": "und",
+            "maxLength": 63,
+            "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+            "title": "Language",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "sequence": {
+            "exclusiveMinimum": 0.0,
+            "title": "Sequence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "message_id",
+          "conversation_id",
+          "role",
+          "content",
+          "language",
+          "sequence",
+          "created_at"
+        ],
+        "title": "ConversationMessage",
+        "type": "object"
+      },
+      "ConversationTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "assistant_message": {
+            "$ref": "#/components/schemas/ConversationMessage"
+          },
+          "client_message_id": {
+            "title": "Client Message Id",
+            "type": "string"
+          },
+          "user_message": {
+            "$ref": "#/components/schemas/ConversationMessage"
+          }
+        },
+        "required": [
+          "client_message_id",
+          "user_message",
+          "assistant_message"
+        ],
+        "title": "ConversationTurn",
+        "type": "object"
+      },
+      "CreateConversationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_language": {
+            "default": "en",
+            "maxLength": 63,
+            "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+            "title": "Preferred Language",
+            "type": "string"
+          },
+          "title": {
+            "default": "New conversation",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "CreateConversationRequest",
+        "type": "object"
+      },
       "CreateTaskRequest": {
         "additionalProperties": false,
         "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "message": {
             "maxLength": 4000,
             "minLength": 1,
@@ -285,8 +439,11 @@
         "additionalProperties": false,
         "properties": {
           "mode": {
-            "const": "scaffold",
             "default": "scaffold",
+            "enum": [
+              "scaffold",
+              "synthetic_services"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -437,6 +594,48 @@
         "title": "Receipt",
         "type": "object"
       },
+      "SendConversationMessageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_message_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Message Id"
+          },
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 63,
+                "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "SendConversationMessageRequest",
+        "type": "object"
+      },
       "SessionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -543,6 +742,17 @@
             ],
             "title": "Checkpoint Id"
           },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -645,11 +855,17 @@
             },
             "title": "Verifications",
             "type": "array"
+          },
+          "workflow_data": {
+            "additionalProperties": true,
+            "title": "Workflow Data",
+            "type": "object"
           }
         },
         "required": [
           "task_id",
           "revision",
+          "conversation_id",
           "merchant_id",
           "goal",
           "original_request",
@@ -662,6 +878,7 @@
           "receipts",
           "verifications",
           "executions",
+          "workflow_data",
           "next_action",
           "next_run_at",
           "checkpoint_id",
@@ -771,6 +988,22 @@
         "title": "ToolExecution",
         "type": "object"
       },
+      "UpdateConversationLanguageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_language": {
+            "maxLength": 63,
+            "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$",
+            "title": "Preferred Language",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preferred_language"
+        ],
+        "title": "UpdateConversationLanguageRequest",
+        "type": "object"
+      },
       "Verification": {
         "additionalProperties": false,
         "properties": {
@@ -820,6 +1053,388 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/conversations": {
+      "get": {
+        "operationId": "conversations_api_v1_conversations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Conversation"
+                  },
+                  "title": "Response Conversations Api V1 Conversations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Conversations",
+        "tags": [
+          "conversations"
+        ]
+      },
+      "post": {
+        "operationId": "create_conversation_api_v1_conversations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Create Conversation",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}": {
+      "get": {
+        "operationId": "conversation_detail_api_v1_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Conversation Detail",
+        "tags": [
+          "conversations"
+        ]
+      },
+      "patch": {
+        "operationId": "update_conversation_language_api_v1_conversations__conversation_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateConversationLanguageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Update Conversation Language",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages": {
+      "get": {
+        "operationId": "conversation_messages_api_v1_conversations__conversation_id__messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationMessage"
+                  },
+                  "title": "Response Conversation Messages Api V1 Conversations  Conversation Id  Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Conversation Messages",
+        "tags": [
+          "conversations"
+        ]
+      },
+      "post": {
+        "operationId": "send_conversation_message_api_v1_conversations__conversation_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendConversationMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationTurn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          }
+        },
+        "summary": "Send Conversation Message",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
     "/api/v1/demo/preview": {
       "get": {
         "operationId": "demo_preview_api_v1_demo_preview_get",
@@ -925,6 +1540,25 @@
     "/api/v1/tasks": {
       "get": {
         "operationId": "tasks_api_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

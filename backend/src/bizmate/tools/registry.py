@@ -4,7 +4,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from bizmate.domain.errors import FeaturePending
-from bizmate.domain.models import Merchant, Model
+from bizmate.domain.models import Approval, Merchant, Model
+from bizmate.tools.policy import validate_approved_action
 
 
 class ToolMetadata(Model):
@@ -35,12 +36,20 @@ class ToolRegistry:
             if set(m.required_scopes) <= set(merchant.scopes)
         ]
 
-    def execute(self, name: str, merchant: Merchant, inputs: dict[str, Any]) -> Any:
+    def execute(
+        self,
+        name: str,
+        merchant: Merchant,
+        inputs: dict[str, Any],
+        *,
+        approval: Approval | None = None,
+    ) -> Any:
         metadata, schema, handler = self._tools[name]
         if not set(metadata.required_scopes) <= set(merchant.scopes):
             raise PermissionError("Missing tool scope")
         parsed = schema.model_validate(inputs)
-        # Preconditions and write approvals must be enforced before adding any write handler.
-        if metadata.risk != "read" or metadata.approval_required or metadata.preconditions:
+        if metadata.preconditions:
             raise FeaturePending("BM-06", "Consequential tool execution is not implemented.")
+        if metadata.risk == "side_effect" or metadata.approval_required:
+            validate_approved_action(approval, merchant, name, parsed.model_dump())
         return handler(merchant, parsed)

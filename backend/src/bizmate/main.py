@@ -11,18 +11,29 @@ from bizmate.api.routes import router
 from bizmate.config import Settings
 from bizmate.domain.errors import FeaturePending
 from bizmate.domain.models import ErrorResponse, Task, TaskEvent
+from bizmate.persistence.conversations import (
+    ConversationConflictError,
+    ConversationRepository,
+    SQLiteConversationRepository,
+)
 from bizmate.persistence.repository import TaskConflictError, TaskRepository
 from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS
 
 
-def create_app(settings: Settings | None = None, repo: TaskRepository | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    repo: TaskRepository | None = None,
+    chat_repo: ConversationRepository | None = None,
+) -> FastAPI:
     settings = settings or Settings()
     if settings.demo_merchant_id not in MERCHANTS:
         raise ValueError("Unknown synthetic merchant; choose merchant_demo or merchant_other")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        if chat_repo is None:
+            app.state.conversations = SQLiteConversationRepository(settings.database_file)
         if repo is None:
             app.state.tasks = SQLiteTaskRepository(settings.database_file)
             if app.state.tasks.get_task("merchant_demo", "demo-settlement") is None:
@@ -58,11 +69,13 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
     app.state.settings = settings
     if repo is not None:
         app.state.tasks = repo
+    if chat_repo is not None:
+        app.state.conversations = chat_repo
     app.state.graph = build_graph()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Content-Type"],
     )
 
@@ -82,6 +95,13 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         return JSONResponse(
             status_code=409,
             content=ErrorResponse(code="TASK_CONFLICT", message=str(exc)).model_dump(),
+        )
+
+    @app.exception_handler(ConversationConflictError)
+    async def message_conflict_handler(request: Request, exc: ConversationConflictError):
+        return JSONResponse(
+            status_code=409,
+            content=ErrorResponse(code="MESSAGE_CONFLICT", message=str(exc)).model_dump(),
         )
 
     @app.exception_handler(HTTPException)

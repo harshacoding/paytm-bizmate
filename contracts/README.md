@@ -2,7 +2,7 @@
 
 Harsha owns domain and policy semantics; Devi owns HTTP transport and storage. Saiteja consumes generated TypeScript types.
 
-- Source of truth: `backend/src/bizmate/domain/models.py` and `backend/src/bizmate/api/routes.py`.
+- Source of truth: `backend/src/bizmate/domain/models.py`, `backend/src/bizmate/domain/chat.py` and `backend/src/bizmate/api/routes.py`.
 - Export: `npm run contracts:generate` writes `contracts/openapi.json` and `frontend/src/api/schema.d.ts`.
 - Check: `npm run contracts:check` fails when backend OpenAPI differs. CI also regenerates frontend types and checks Git drift.
 - Change backend schemas, regenerate, update examples/tests, and commit all affected files in the same PR. Do not hand-edit generated files.

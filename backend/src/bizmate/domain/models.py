@@ -122,6 +122,7 @@ class CapabilityGap(Model):
 class Task(Model):
     task_id: str = Field(default_factory=new_id)
     revision: int = Field(default=0, ge=0)
+    conversation_id: str | None = None
     merchant_id: str
     goal: str
     original_request: str
@@ -134,6 +135,7 @@ class Task(Model):
     receipts: list[Receipt] = Field(default_factory=list)
     verifications: list[Verification] = Field(default_factory=list)
     executions: list[ToolExecution] = Field(default_factory=list)
+    workflow_data: dict[str, Any] = Field(default_factory=dict)
     next_action: str
     next_run_at: datetime | None = None
     checkpoint_id: str | None = None
@@ -144,6 +146,7 @@ class Task(Model):
 
 class CreateTaskRequest(Model):
     message: Message
+    conversation_id: str | None = Field(default=None, min_length=1)
 
 
 class ApprovalDecisionRequest(Model):
@@ -163,7 +166,7 @@ class ErrorResponse(Model):
 
 class HealthResponse(Model):
     status: Literal["ok"] = "ok"
-    mode: Literal["scaffold"] = "scaffold"
+    mode: Literal["scaffold", "synthetic_services"] = "scaffold"
     storage: Literal["memory", "sqlite"] = "memory"
     workflows_implemented: bool = False
 

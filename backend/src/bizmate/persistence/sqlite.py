@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from contextlib import closing
 from datetime import UTC
@@ -20,7 +21,7 @@ class SQLiteTaskRepository:
             with connection:
                 connection.execute("BEGIN IMMEDIATE")
                 version = connection.execute("PRAGMA user_version").fetchone()[0]
-                if version > 1:
+                if version > 2:
                     raise RuntimeError("Database schema is newer than this backend supports")
                 connection.execute(
                     """CREATE TABLE IF NOT EXISTS tasks (
@@ -28,14 +29,30 @@ class SQLiteTaskRepository:
                         merchant_id TEXT NOT NULL,
                         created_at TEXT NOT NULL,
                         revision INTEGER NOT NULL CHECK (revision > 0),
-                        payload TEXT NOT NULL
+                        payload TEXT NOT NULL,
+                        conversation_id TEXT
                     )"""
                 )
                 connection.execute(
                     """CREATE INDEX IF NOT EXISTS tasks_merchant_created
                        ON tasks (merchant_id, created_at DESC, task_id DESC)"""
                 )
-                connection.execute("PRAGMA user_version = 1")
+                columns = {row[1] for row in connection.execute("PRAGMA table_info(tasks)")}
+                if "conversation_id" not in columns:
+                    connection.execute("ALTER TABLE tasks ADD COLUMN conversation_id TEXT")
+                    for task_id, payload in connection.execute(
+                        "SELECT task_id, payload FROM tasks"
+                    ):
+                        conversation_id = json.loads(payload).get("conversation_id")
+                        connection.execute(
+                            "UPDATE tasks SET conversation_id = ? WHERE task_id = ?",
+                            (conversation_id, task_id),
+                        )
+                connection.execute(
+                    """CREATE INDEX IF NOT EXISTS tasks_merchant_conversation
+                       ON tasks (merchant_id, conversation_id)"""
+                )
+                connection.execute("PRAGMA user_version = 2")
 
     def _connect(self) -> sqlite3.Connection:
         # Connections belong to one operation, so FastAPI workers never share a connection.
@@ -76,11 +93,13 @@ class SQLiteTaskRepository:
             snapshot.updated_at = now()
             created_at = snapshot.created_at.replace(tzinfo=snapshot.created_at.tzinfo or UTC)
             connection.execute(
-                """INSERT INTO tasks (task_id, merchant_id, created_at, revision, payload)
-                   VALUES (?, ?, ?, ?, ?)
+                """INSERT INTO tasks
+                   (task_id, merchant_id, created_at, revision, payload, conversation_id)
+                   VALUES (?, ?, ?, ?, ?, ?)
                    ON CONFLICT(task_id) DO UPDATE SET
                        created_at = excluded.created_at,
                        revision = excluded.revision,
+                       conversation_id = excluded.conversation_id,
                        payload = excluded.payload""",
                 (
                     snapshot.task_id,
@@ -88,6 +107,7 @@ class SQLiteTaskRepository:
                     created_at.astimezone(UTC).isoformat(),
                     snapshot.revision,
                     snapshot.model_dump_json(),
+                    snapshot.conversation_id,
                 ),
             )
         return snapshot
