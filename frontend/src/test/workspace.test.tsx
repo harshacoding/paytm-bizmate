@@ -243,6 +243,7 @@ it('shows server-started work in chat without asking the merchant to create a ta
   fireEvent.change(screen.getByRole('textbox', { name: 'Type a question' }), {
     target: { value: '  Why is my payment short?  ' },
   });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   await screen.findByText('Saved server reply.');
   expect(api.sendMessage).toHaveBeenCalledWith(
@@ -263,6 +264,7 @@ it('keeps ordinary chat as a direct reply without a workflow panel or task promp
   fireEvent.change(await screen.findByRole('textbox', { name: 'Type a question' }), {
     target: { value: 'Hello' },
   });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   await screen.findByText('Saved server reply.');
   expect(screen.queryByText('Start a task from this question')).toBeNull();
@@ -290,6 +292,7 @@ it('does not mark a saved message unconfirmed when refreshing its task fails', a
   fireEvent.change(await screen.findByRole('textbox', { name: 'Type a question' }), {
     target: { value: 'Investigate settlement' },
   });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   await screen.findByText('Confirmed workflow reply.');
   await waitFor(() => expect(api.task).toHaveBeenCalled());
@@ -335,6 +338,7 @@ it('retries an uncertain chat turn with the same content and id and deduplicates
   fireEvent.change(screen.getByRole('textbox', { name: 'Type a question' }), {
     target: { value: 'My payment?' },
   });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Retry this exact message' }));
   await screen.findByText('Saved server reply.');
