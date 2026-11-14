@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paytm Merchant Saathi | Hackathon Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* === THEME === */
+:root{--navy:#092342;--navy2:#102e50;--blue:#00a7e8;--blue2:#0079be;--ink:#102c4b;--muted:#5a6d81;--line:#d6e1e9;--pale:#eaf7fc;--white:#fff;--stage-bg:#d9e5ed;--slide-bg:#fff;font-family:'DM Sans',sans-serif}
+*{box-sizing:border-box}
+/* === MANDATORY FRONTEND SLIDES VIEWPORT CSS === */
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+    .deck-controls {
+        display: none !important;
+    }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* === SLIDE SYSTEM === */
+.slide{color:var(--ink);padding:92px 108px 78px}
+.slide.dark{background:var(--navy);color:white}
+.slide::before{content:'';position:absolute;left:108px;right:108px;top:76px;border-top:2px solid var(--line)}
+.slide.dark::before{border-color:#3d5b7b}
+.brand{position:absolute;top:26px;left:108px;font-size:26px;font-weight:700;letter-spacing:.02em;color:var(--blue2)}
+.dark .brand{color:#61ccf3}
+.brand small{font-weight:500;color:var(--muted);font-size:17px;margin-left:14px}
+.dark .brand small{color:#a4bed3}
+.page{position:absolute;bottom:31px;right:108px;font-size:16px;color:#6d7e90}
+.dark .page{color:#9bb5cc}
+.eyebrow{font-size:20px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue2);margin:0 0 15px}
+.dark .eyebrow{color:#59c9f2}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-family:'Barlow Condensed',sans-serif;letter-spacing:-.012em}
+h1{font-size:114px;line-height:.95;font-weight:700}
+h2{font-size:75px;line-height:1.02;font-weight:700;max-width:1650px}
+h3{font-size:40px;line-height:1.08;font-weight:600}
+.lede{font-size:30px;line-height:1.4;color:var(--muted);max-width:1380px;margin-top:25px}
+.dark .lede{color:#b7d0e1}
+.rule{height:6px;width:112px;background:var(--blue);margin:38px 0}
+.faint{color:#8797a6}
+.dark .faint{color:#96b2c9}
+.bottom-note{position:absolute;bottom:43px;left:108px;font-size:16px;color:#6d7e90;max-width:1550px}
+.dark .bottom-note{color:#adc2d4}
+/* === COVER === */
+.cover .headline{position:absolute;top:255px;left:108px;max-width:1180px}
+.cover .subtitle{font-size:35px;line-height:1.4;margin-top:42px;max-width:900px;color:var(--muted)}
+.cover .cover-line{position:absolute;right:143px;top:226px;height:625px;border-left:8px solid var(--blue)}
+.cover .cover-tag{position:absolute;left:108px;bottom:100px;font-size:22px;font-weight:600;color:var(--blue2)}
+/* === TYPE AND LAYOUT UTILITIES === */
+.content-top{margin-top:44px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:72px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:42px}
+.big-stat{font:700 135px/.92 'Barlow Condensed',sans-serif;color:var(--blue2)}
+.stat-label{font-size:25px;line-height:1.36;color:var(--muted);margin-top:12px}
+.dark .stat-label{color:#b8cfe0}
+.body{font-size:28px;line-height:1.38}
+.small{font-size:21px;line-height:1.4;color:var(--muted)}
+.dark .small{color:#b7ccde}
+.label{font-size:20px;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.09em}
+.dark .label{color:#5fcef2}
+.item{padding-top:28px;border-top:2px solid var(--line)}
+.dark .item{border-color:#456583}
+.item h3{margin:11px 0 17px}
+.item p{font-size:26px;line-height:1.35;color:var(--muted)}
+.dark .item p{color:#b7ccde}
+.divider{border-top:2px solid var(--line);margin:38px 0}
+.dark .divider{border-color:#456583}
+/* === EVIDENCE LEDGER === */
+.ledger{display:grid;grid-template-columns:1fr 1fr;gap:38px;margin-top:46px}
+.ledger-side{padding:35px 0;border-top:4px solid var(--blue)}
+.ledger-row{display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--line);font-size:28px}
+.ledger-row strong{font-family:'Barlow Condensed',sans-serif;font-size:42px}
+.ledger-row.emph{color:var(--blue2)}
+.ledger-row.alert{color:#b45629}
+.dark .ledger-row{border-color:#476582}
+.ledger .mini{font-size:20px;color:var(--muted);margin-top:18px}
+/* === WORKFLOW AND ARCHITECTURE === */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:35px;margin-top:63px}
+.step{border-top:5px solid var(--blue);padding-top:22px}
+.step-num{font:700 57px/1 'Barlow Condensed',sans-serif;color:var(--blue2)}
+.step h3{font-size:35px;margin:20px 0 13px}
+.step p{font-size:24px;line-height:1.38;color:var(--muted)}
+.architecture{display:grid;grid-template-columns:390px 1fr 420px;gap:42px;align-items:stretch;margin-top:55px}
+.arch-box{border-top:4px solid var(--blue);padding:24px 0}
+.arch-box h3{font-size:37px;margin-bottom:22px}
+.arch-box p{font-size:23px;line-height:1.38;color:var(--muted);margin:10px 0}
+.arch-center{background:var(--pale);padding:31px 35px;border-top:4px solid var(--blue2)}
+.arch-center h3{font-size:40px;margin:0 0 16px}
+.arch-center p{font-size:24px;line-height:1.35;margin:9px 0}
+.arch-join{text-align:center;color:var(--blue2);font:700 40px 'Barlow Condensed',sans-serif;padding:11px 0}
+/* === TENSION AND OUTCOME === */
+.quote{font:600 59px/1.13 'Barlow Condensed',sans-serif;max-width:1460px;margin-top:96px}
+.quote strong{color:#64d0f4}
+.outcome{display:grid;grid-template-columns:1fr 1fr;gap:95px;margin-top:74px}
+.outcome .item{border-color:#486784}
+.outcome h3{font-size:44px}
+.outcome p{font-size:27px;line-height:1.36;color:#bfd3e3}
+.impact{display:grid;grid-template-columns:repeat(3,1fr);gap:58px;margin-top:75px}
+.impact .item h3{font-size:42px}
+.impact .item p{font-size:25px}
+/* === NAVIGATION AND EDITING === */
+.deck-controls{display:flex;gap:12px;align-items:center;background:rgba(9,35,66,.88);padding:8px 14px;border-radius:24px;color:white;font:500 13px 'DM Sans',sans-serif}
+.deck-controls button{background:none;border:0;color:white;cursor:pointer;font:600 18px 'DM Sans',sans-serif}
+.edit-hotzone{position:fixed;top:0;left:0;width:85px;height:85px;z-index:10000;cursor:pointer}
+.edit-toggle{position:fixed;top:10px;left:10px;z-index:10001;background:var(--navy);color:white;border:0;padding:10px 16px;border-radius:7px;opacity:0;pointer-events:none;cursor:pointer}
+.edit-toggle.show,.edit-toggle.active{opacity:1;pointer-events:auto}
+.editing [data-editable]{outline:2px dashed var(--blue);outline-offset:3px;cursor:text}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .3s ease,transform .3s ease}
+.visible .reveal{opacity:1;transform:translateY(0)}
+.visible .reveal:nth-child(2){transition-delay:.08s}.visible .reveal:nth-child(3){transition-delay:.16s}.visible .reveal:nth-child(4){transition-delay:.24s}
+@media print{ @page{size:20in 11.25in;margin:0} .slide{print-color-adjust:exact;-webkit-print-color-adjust:exact}.reveal{opacity:1!important;transform:none!important}.edit-hotzone,.edit-toggle{display:none!important}}
+</style>
+</head>
+<body>
+<div class="deck-viewport"><main class="deck-stage" id="deckStage" aria-label="Paytm Merchant Saathi presentation">
+<!-- === 01 TITLE === -->
+<section class="slide cover active visible" data-slide="1"><div class="brand">Paytm <small>Build for India AI Hackathon</small></div><div class="headline"><div class="eyebrow reveal" data-editable>Autonomous AI Teammates</div><h1 class="reveal" data-editable>Merchant<br>Saathi</h1><div class="rule reveal"></div><p class="subtitle reveal" data-editable>One AI teammate that investigates settlement gaps, helps merchants win customers back, and knows when to hand off.</p></div><div class="cover-line"></div><div class="cover-tag" data-editable>Merchant support that gets the job done</div><div class="page">01 / 12</div></section>
+<!-- === 02 PROBLEM === -->
+<section class="slide" data-slide="2"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Problem statement</div><h2 class="reveal" data-editable>The merchant sees a gap.<br>Support sees scattered records.</h2><p class="lede reveal" data-editable>Today’s bank credit may combine a different day’s sales, refunds, fees, and delayed payouts. The shopkeeper must reconstruct the answer across reports.</p><div class="cols content-top"><div class="item reveal"><span class="label">What merchants report</span><h3 data-editable>“Which day’s payments settled?”</h3><p data-editable>A Paytm for Business reviewer described manually calculating the sales day behind each settlement after the interface changed.</p></div><div class="item reveal"><span class="label">Current recovery path</span><h3 data-editable>Check two separate views</h3><p data-editable>Paytm’s missing settlement guidance asks merchants to compare the app’s settlement tab with their bank statement.</p></div></div><div class="bottom-note">Evidence: Paytm for Business App Store review, 28 Oct 2025; Paytm for Business support guidance.</div><div class="page">02 / 12</div></section>
+<!-- === 03 SOLUTION === -->
+<section class="slide dark" data-slide="3"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Proposed solution</div><h2 class="reveal" data-editable>One teammate.<br>Three accountable outcomes.</h2><div class="three content-top"><div class="item reveal"><span class="label">01</span><h3 data-editable>Investigate</h3><p data-editable>Reconcile a merchant’s payment ledger, adjustments, settlement feed, and supplied bank credit.</p></div><div class="item reveal"><span class="label">02</span><h3 data-editable>Recover</h3><p data-editable>Help the merchant create an approved campaign for customers who have opted in.</p></div><div class="item reveal"><span class="label">03</span><h3 data-editable>Escalate</h3><p data-editable>Identify missing access or authority and hand a complete case to a human owner.</p></div></div><p class="bottom-note" data-editable>One case history and one approval boundary follow the merchant across each workflow.</p><div class="page">03 / 12</div></section>
+<!-- === 04 HERO WORKFLOW === -->
+<section class="slide" data-slide="4"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Hero workflow · Settlement investigation</div><h2 class="reveal" data-editable>From ₹20,000 in sales<br>to ₹18,400 in the bank</h2><div class="ledger"><div class="ledger-side reveal"><div class="label">Yesterday’s collection</div><div class="ledger-row"><span>Captured sales</span><strong>₹20,000</strong></div><div class="ledger-row"><span>Approved refund</span><strong>− ₹500</strong></div><div class="ledger-row"><span>Disclosed charge</span><strong>− ₹100</strong></div><div class="ledger-row emph"><span>Expected net</span><strong>₹19,400</strong></div></div><div class="ledger-side reveal"><div class="label">Bank evidence</div><div class="ledger-row"><span>Confirmed credit</span><strong>₹18,400</strong></div><div class="ledger-row alert"><span>Unmatched amount</span><strong>₹1,000</strong></div><div class="ledger-row"><span>Next action</span><strong style="font-size:32px">Open a case</strong></div><p class="mini" data-editable>The teammate explains the ₹600 difference, assigns the ₹1,000 exception, and rechecks when new bank evidence arrives.</p></div></div><div class="bottom-note">Illustrative synthetic case. Charges and due times depend on the merchant’s actual plan.</div><div class="page">04 / 12</div></section>
+<!-- === 05 HERO EXECUTION === -->
+<section class="slide" data-slide="5"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">End to end execution</div><h2 class="reveal" data-editable>The investigation ends with proof<br>or a named owner</h2><div class="steps"><div class="step reveal"><div class="step-num">01</div><h3 data-editable>Read</h3><p data-editable>Import a bank extract and fetch authorized Paytm transaction records.</p></div><div class="step reveal"><div class="step-num">02</div><h3 data-editable>Match</h3><p data-editable>Use exact references and integer paise to account for each batch.</p></div><div class="step reveal"><div class="step-num">03</div><h3 data-editable>Act</h3><p data-editable>With merchant approval, create a support ticket containing masked evidence.</p></div><div class="step reveal"><div class="step-num">04</div><h3 data-editable>Close</h3><p data-editable>Recheck later bank evidence and close only when the credit is verified.</p></div></div><div class="bottom-note" data-editable>Ambiguous references, partial statements, and conflicting records keep the case open for review.</div><div class="page">05 / 12</div></section>
+<!-- === 06 SECOND WORKFLOW === -->
+<section class="slide" data-slide="6"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Second workflow · Customer win-back</div><h2 class="reveal" data-editable>Turn a quiet week into a<br>measured return visit</h2><div class="steps"><div class="step reveal"><div class="step-num">01</div><h3 data-editable>Spot the gap</h3><p data-editable>Compare visits or bookings with the merchant’s own prior pattern.</p></div><div class="step reveal"><div class="step-num">02</div><h3 data-editable>Draft an offer</h3><p data-editable>Set a budget and contribution floor. Draft local language copy.</p></div><div class="step reveal"><div class="step-num">03</div><h3 data-editable>Approve</h3><p data-editable>Merchant chooses an eligible, opted-in audience and reviews the message.</p></div><div class="step reveal"><div class="step-num">04</div><h3 data-editable>Measure</h3><p data-editable>Compare net contribution with a holdout when enough data exists.</p></div></div><div class="bottom-note">MVP uses synthetic customer records and a simulated send. No identity is inferred from UPI handles.</div><div class="page">06 / 12</div></section>
+<!-- === 07 GAP === -->
+<section class="slide dark" data-slide="7"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Trust demonstration · Capability gap</div><h2 class="reveal" data-editable>“Can you refund this<br>payment right now?”</h2><p class="quote reveal" data-editable>The teammate checks its permissions, sees that a refund tool is unavailable, and says so plainly. It assembles the payment evidence, asks for approval to share it, and routes the request to an authorized operator.</p><div class="outcome"><div class="item reveal"><h3 data-editable>Visible next step</h3><p data-editable>A case ID, assigned owner, and follow-up time replace a vague promise.</p></div><div class="item reveal"><h3 data-editable>Hard boundary</h3><p data-editable>No invented status. No unapproved refund. No payment action outside granted tools.</p></div></div><div class="page">07 / 12</div></section>
+<!-- === 08 STACK === -->
+<section class="slide" data-slide="8"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Technology stack</div><h2 class="reveal" data-editable>One agent, typed tools,<br>verifiable state</h2><div class="architecture"><div class="arch-box reveal"><h3 data-editable>Merchant surface</h3><p data-editable>React web app</p><p data-editable>English and Hindi input</p><p data-editable>Evidence timeline</p><p data-editable>Approval screen</p></div><div class="arch-center reveal"><h3 data-editable>Workflow service</h3><p data-editable>FastAPI and SQLite for the sprint</p><p data-editable>State machine and audit log</p><p data-editable>Exact ledger matching in integer paise</p><p data-editable>LLM for document mapping and grounded explanations</p><p data-editable>Versioned rules and human review</p></div><div class="arch-box reveal"><h3 data-editable>Mock integrations</h3><p data-editable>Payment ledger</p><p data-editable>Settlement events</p><p data-editable>Bank extract import</p><p data-editable>CRM and campaign preview</p></div></div><div class="bottom-note" data-editable>Production connectors require merchant authorization, scoped access, and provider-approved APIs.</div><div class="page">08 / 12</div></section>
+<!-- === 09 USP === -->
+<section class="slide" data-slide="9"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Unique selling proposition</div><h2 class="reveal" data-editable>Every answer has evidence.<br>Every action has a boundary.</h2><div class="three content-top"><div class="item reveal"><span class="label">Existing Paytm reach</span><h3 data-editable>Merchant relationship</h3><p data-editable>Paytm reported 1.64 crore merchants on subscription plans in Q2 FY27.</p></div><div class="item reveal"><span class="label">Product difference</span><h3 data-editable>Case ownership</h3><p data-editable>The teammate follows an exception to verified credit or human disposition, beyond a settlement query.</p></div><div class="item reveal"><span class="label">Trust mechanism</span><h3 data-editable>Capability awareness</h3><p data-editable>Missing data or authority becomes a visible handoff with the evidence already assembled.</p></div></div><div class="bottom-note">Paytm Q2 FY27 results, 27 Oct 2026. Competitor benchmark: Razorpay Recon, announced 17 Dec 2024.</div><div class="page">09 / 12</div></section>
+<!-- === 10 IMPACT === -->
+<section class="slide" data-slide="10"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Impact and benefits</div><h2 class="reveal" data-editable>Measure completion,<br>not conversation volume</h2><div class="impact"><div class="item reveal"><span class="label">Merchant</span><h3 data-editable>Time to a clear answer</h3><p data-editable>Can the owner explain each rupee and see who owns the remaining amount?</p></div><div class="item reveal"><span class="label">Support</span><h3 data-editable>Minutes per resolved case</h3><p data-editable>Count investigation time, repeat contacts, and reopened tickets.</p></div><div class="item reveal"><span class="label">Growth</span><h3 data-editable>Incremental contribution</h3><p data-editable>For win-back, compare net contribution with an eligible holdout group.</p></div></div><div class="divider"></div><p class="body reveal" data-editable>48-hour proof: one balanced settlement case, one merchant-approved campaign preview, one honest capability-gap handoff.</p><div class="bottom-note">Pilot metrics are proposed measures, not observed results.</div><div class="page">10 / 12</div></section>
+<!-- === 11 BUSINESS MODEL === -->
+<section class="slide" data-slide="11"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Business model</div><h2 class="reveal" data-editable>Start with service economics.<br>Earn a merchant growth product.</h2><div class="cols content-top"><div class="item reveal"><span class="label">Phase 1 · Internal buyer</span><h3 data-editable>Merchant support</h3><p data-editable>Value is eligible cases handled faster, with fewer repeat contacts. Compare total cost, including model calls and human review, against the current process.</p></div><div class="item reveal"><span class="label">Phase 2 · Merchant option</span><h3 data-editable>Growth add-on</h3><p data-editable>If win-back experiments produce measurable net contribution, offer campaign planning and measurement to merchants on a paid plan.</p></div></div><div class="divider"></div><p class="body reveal" data-editable>Contribution hypothesis = cases assisted × net minutes saved × support cost per minute − operating and review cost.</p><div class="bottom-note">Pricing, merchant uptake, retention lift, and support savings require a live pilot.</div><div class="page">11 / 12</div></section>
+<!-- === 12 CLOSE === -->
+<section class="slide dark" data-slide="12"><div class="brand">Paytm <small>Merchant Saathi</small></div><div class="eyebrow">Hackathon demonstration</div><h2 class="reveal" data-editable>A teammate that can<br>finish a job responsibly</h2><div class="rule reveal"></div><div class="three content-top"><div class="item reveal"><span class="label">Settlement</span><h3 data-editable>₹1,000 traced</h3><p data-editable>Late credit closes the open investigation after a verified match.</p></div><div class="item reveal"><span class="label">Win-back</span><h3 data-editable>Offer approved</h3><p data-editable>Consent and margin checks gate a simulated campaign.</p></div><div class="item reveal"><span class="label">Capability gap</span><h3 data-editable>Human owns it</h3><p data-editable>An unavailable refund action becomes an accountable handoff.</p></div></div><div class="bottom-note" data-editable>Paytm Merchant Saathi · Autonomous AI Teammates</div><div class="page">12 / 12</div></section>
+</main></div>
+<div class="deck-controls"><button id="previous" aria-label="Previous slide">‹</button><span id="counter">1 / 12</span><button id="next" aria-label="Next slide">›</button></div>
+<div class="edit-hotzone" aria-hidden="true"></div><button id="editToggle" class="edit-toggle" title="Edit text (E)">Edit</button>
+<script>
+/* === PRESENTATION CONTROLLER === */
+class SlidePresentation{
+ constructor(){this.stage=document.getElementById('deckStage');this.slides=[...document.querySelectorAll('.slide')];this.current=0;this.scale();window.addEventListener('resize',()=>this.scale());document.getElementById('previous').onclick=()=>this.show(this.current-1);document.getElementById('next').onclick=()=>this.show(this.current+1);document.addEventListener('keydown',e=>this.key(e));let x=0;document.addEventListener('touchstart',e=>{x=e.changedTouches[0].screenX},{passive:true});document.addEventListener('touchend',e=>{const d=e.changedTouches[0].screenX-x;if(Math.abs(d)>50)this.show(this.current+(d<0?1:-1))},{passive:true});let last=0;document.addEventListener('wheel',e=>{if(Date.now()-last>550&&Math.abs(e.deltaY)>20){this.show(this.current+(e.deltaY>0?1:-1));last=Date.now()}},{passive:true});this.show(Number(new URLSearchParams(location.search).get('slide')||1)-1)}
+ scale(){const f=Math.min(innerWidth/1920,innerHeight/1080),x=(innerWidth-1920*f)/2,y=(innerHeight-1080*f)/2;this.stage.style.transform=`translate(${x}px, ${y}px) scale(${f})`}
+ show(n){this.current=Math.max(0,Math.min(n,this.slides.length-1));this.slides.forEach((s,i)=>{s.classList.toggle('active',i===this.current);s.classList.toggle('visible',i===this.current)});document.getElementById('counter').textContent=`${this.current+1} / ${this.slides.length}`;history.replaceState(null,'',`?slide=${this.current+1}`)}
+ key(e){if(e.target.isContentEditable)return;if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();this.show(this.current+1)}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();this.show(this.current-1)}if(e.key==='Home')this.show(0);if(e.key==='End')this.show(this.slides.length-1);if(e.key.toLowerCase()==='e')editor.toggle()}
+}
+/* === LOCAL TEXT EDITOR === */
+class LocalEditor{constructor(){this.isActive=false;this.els=[...document.querySelectorAll('[data-editable]')];this.els.forEach((el,i)=>{const saved=localStorage.getItem(`merchant-saathi-text-${i}`);if(saved!==null)el.textContent=saved;el.addEventListener('input',()=>localStorage.setItem(`merchant-saathi-text-${i}`,el.textContent))})}toggle(){this.isActive=!this.isActive;document.body.classList.toggle('editing',this.isActive);document.getElementById('editToggle').classList.toggle('active',this.isActive);this.els.forEach(el=>el.contentEditable=this.isActive?'true':'false')}}
+const editor=new LocalEditor();new SlidePresentation();const zone=document.querySelector('.edit-hotzone'),toggle=document.getElementById('editToggle');let hideTimer;zone.onmouseenter=()=>{clearTimeout(hideTimer);toggle.classList.add('show')};zone.onmouseleave=()=>hideTimer=setTimeout(()=>{if(!editor.isActive)toggle.classList.remove('show')},400);toggle.onmouseenter=()=>clearTimeout(hideTimer);toggle.onmouseleave=()=>hideTimer=setTimeout(()=>{if(!editor.isActive)toggle.classList.remove('show')},400);toggle.onclick=()=>editor.toggle();zone.onclick=()=>editor.toggle();
+</script>
+</body>
+</html>

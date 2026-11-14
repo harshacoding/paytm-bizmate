@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paytm BizMate — Just tell it what your business needs.</title>
+<style>
+/* ===========================================
+   FIXED 16:9 STAGE: MANDATORY BASE STYLES
+   Include this ENTIRE file in every presentation.
+   Slides are authored at 1920×1080 and scaled as a whole.
+   =========================================== */
+
+/* 1. Lock the browser viewport */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 2. Full-window deck viewport */
+.deck-viewport {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--stage-bg, #000);
+}
+
+/* 3. Fixed 16:9 design canvas.
+   JavaScript sets transform: translate(...) scale(...). */
+.deck-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    background: var(--slide-bg, #fff);
+}
+
+/* 4. Slides stack inside the fixed stage.
+   Content must be laid out at 1920×1080, not reflowed per device. */
+.slide {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    display: block;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    background: var(--slide-bg, #fff);
+}
+
+.slide.active,
+.slide.visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+/* 5. Keep media inside authored slide bounds */
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 6. Presentation chrome stays outside the slide design system */
+.deck-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+/* 7. Print one fixed-size slide per page */
+@media print {
+    html,
+    body {
+        width: 1920px;
+        height: auto;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-viewport {
+        position: static;
+        overflow: visible;
+        background: #fff;
+    }
+
+    .deck-stage {
+        position: static;
+        width: auto;
+        height: auto;
+        transform: none !important;
+        background: none;
+    }
+
+    .slide {
+        position: relative;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 1920px;
+        height: 1080px;
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .slide:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+    .deck-controls {
+        display: none !important;
+    }
+}
+
+/* 8. Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+}
+
+
+
+/* Theme and type follow the selected Strategy Brief cover. */
+:root {
+  --navy: #092b4e;
+  --blue: #0078b9;
+  --ice: #e9f5ff;
+  --muted: #435b70;
+  --line: #bfd0de;
+  --stage-bg: #dae4eb;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  color: var(--navy);
+}
+* { box-sizing: border-box; }
+h1,h2,h3,p,figure,blockquote,dl,dd { margin: 0; }
+.slide { padding: 84px 116px; font-size: 32px; line-height: 1.35; }
+.dark { background: var(--navy); color: white; }
+.dark p { color: #e1ebf2; }
+.section-name,.kicker { font-size: 23px; line-height: 1.25; font-weight: 650; letter-spacing: .072em; text-transform: uppercase; color: var(--blue); }
+.dark .section-name,.dark .kicker { color: #80d6fa; }
+.slide-title { font-size: 75px; line-height: 1.06; font-weight: 630; letter-spacing: -.046em; max-width: 1630px; margin: 32px 0 60px; }
+h3 { font-size: 40px; line-height: 1.13; letter-spacing: -.03em; font-weight: 620; }
+.body { color: var(--muted); }
+.foot { position: absolute; bottom: 46px; left: 116px; right: 116px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 15px; font-size: 21px; color: var(--muted); }
+.dark .foot { border-color: #48617a; color: #c0d3e3; }
+.foot .index { font-variant-numeric: tabular-nums; }
+.cover .fold { position: absolute; inset: 0 0 0 auto; width: 660px; background: var(--ice); clip-path: polygon(59% 0,100% 0,100% 100%,0 100%); }
+.cover .mast { position: absolute; top: 102px; left: 116px; font-size: 32px; color: #1766a6; }
+.cover .hero { position: absolute; top: 339px; left: 110px; right: 300px; }
+.cover .hero::before { content: ""; display: block; width: 115px; height: 8px; margin-bottom: 46px; background: var(--blue); }
+.cover h1 { font-size: 142px; font-weight: 650; line-height: 1; letter-spacing: -.062em; }
+.cover .subtitle { margin-top: 36px; font-size: 48px; color: #42576d; }
+.cover .base { position:absolute; bottom:86px; left:116px; right:116px; display:flex; justify-content:space-between; align-items:center; font-size:25px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 85px; }
+.bands { display: grid; gap: 0; }
+.band { padding: 26px 0; border-top: 2px solid var(--line); }
+.band h3 { margin-bottom: 12px; }
+.question { font-size: 65px; letter-spacing: -.04em; line-height: 1.14; }
+.statement { padding: 45px 48px; background: var(--ice); border-top: 6px solid var(--blue); }
+.statement .kicker { margin-bottom: 32px; }
+.statement .body { margin-top: 36px; font-size: 30px; }
+.solution .slide-title { margin-bottom: 42px; }
+.solution-columns { display: grid; grid-template-columns: 1fr 1.05fr; gap: 94px; align-items:start; }
+.pitch { font-size: 31px; line-height: 1.35; }
+.scope { margin-top: 27px; border-top: 2px solid #48627e; padding-top: 22px; }
+.scope p { margin-top: 6px; font-size: 27px; line-height: 1.32; }
+.scope article + article { margin-top: 18px; }
+.conversation { padding: 26px 36px; background: #123a5c; border-left: 5px solid #80d6fa; }
+.conversation .turn + .turn { margin-top: 20px; }
+.conversation blockquote { margin-top: 4px; font-size: 33px; line-height: 1.28; }
+.conversation .turn:nth-child(2) blockquote { color: #c1ecff; }
+.journey { margin-top: 38px; padding-top: 22px; border-top: 2px solid #48627e; display:flex; justify-content:space-between; align-items:center; font-size:32px; font-weight:600; }
+.journey b { color:#80d6fa; font-weight:400; }
+.case { display: grid; grid-template-columns: 790px 1fr; gap: 84px; }
+.proof { padding: 31px 39px; background: var(--ice); border-top: 5px solid var(--blue); }
+.proof .kicker { margin-bottom: 19px; }
+.proof dl > div { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #c3d6e2; padding: 7px 0; font-size: 28px; }
+.proof dd { font-variant-numeric: tabular-nums; }
+.proof .total { font-weight: 650; color: #005f95; }
+.case h3 { margin: 16px 0 12px; }
+.case .residual { display:block; font-size:111px; font-weight:620; color:var(--blue); line-height:1; letter-spacing:-.06em; }
+.case .body { font-size:30px; max-width:770px; }
+.case .follow { margin-top:30px; padding-top:23px; border-top:2px solid var(--line); }
+.win { display:grid; grid-template-columns:1fr 1fr; gap:90px; }
+.funnel { margin-top:25px; }
+.funnel .measure { margin-bottom:26px; }
+.measure .pair { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+.measure .pair strong { font-size:38px; color:var(--blue); font-variant-numeric:tabular-nums; }
+.bar-track { height:15px; background:#e4edf4; }
+.bar-fill { display:block; height:100%; width:var(--width); background:var(--blue); }
+.results { border-left:5px solid var(--blue); padding-left:25px; margin-top:28px; font-size:31px; }
+.win .band { padding:22px 0; }
+.arch { display:grid; grid-template-columns: 1fr 54px 1fr 54px 1.35fr; align-items:stretch; margin:38px 0 34px; }
+.node { padding:32px; background:var(--ice); border-top:5px solid var(--blue); }
+.node .kicker { font-size:20px; margin-bottom:13px; }
+.node p { margin-top:15px; font-size:26px; }
+.arrow { display:grid; place-items:center; font-size:39px; color:var(--blue); }
+.layers { display:grid; grid-template-columns:1.15fr 1fr; gap:62px; }
+.layers p { margin-top:10px; font-size:28px; }
+.ownership { display:grid; grid-template-columns:1.1fr 1fr; gap:94px; align-items:start; }
+.ownership .band { border-color:#49647e; padding:18px 0; }
+.ownership .band h3 { font-size:36px; margin:0 0 5px; }
+.ownership .band p { font-size:27px; }
+.handoff-proof { background:#123a5c; padding:34px 38px; border-left:5px solid #80d6fa; }
+.handoff-proof .question { font-size:55px; margin:17px 0 24px; }
+.handoff-proof .body { font-size:29px; }
+.handoff-proof .status { margin-top:24px; border-top:2px solid #49647e; padding-top:18px; font-size:28px; color:#c1ecff; }
+.metrics { width:100%; border-collapse:collapse; }
+.metrics th { text-align:left; padding:0 24px 19px 0; color:var(--blue); font-size:23px; letter-spacing:.05em; text-transform:uppercase; }
+.metrics td { padding:25px 32px 25px 0; border-top:2px solid var(--line); font-size:30px; vertical-align:top; }
+.metrics td:first-child { font-weight:620; width:28%; }
+.metrics td:last-child { width:34%; }
+.tiers { display:grid; grid-template-columns:repeat(3,1fr); gap:54px; }
+.tier { border-top:5px solid var(--blue); padding-top:25px; }
+.tier p { margin-top:24px; font-size:32px; color:var(--muted); }
+.model-note { margin-top:65px; background:var(--ice); padding:27px 36px; font-size:29px; }
+/* Presentation controls are separate from the printable content. */
+.deck-controls { display:flex; align-items:center; gap:4px; bottom:6px; padding:4px 7px; border-radius:9px; background:#f8fbfe; border:1px solid #aebfcf; font-size:13px; white-space:nowrap; }
+.pitch-line { white-space:nowrap; }
+.pitch-line:last-child { color:#80d6fa; }
+@media screen {
+  .deck-viewport { bottom:46px; }
+  :fullscreen .deck-viewport { bottom:0; }
+  :fullscreen .deck-controls { display:none; }
+}
+button { background:transparent; border:0; border-radius:5px; padding:5px 9px; color:#092b4e; font:inherit; cursor:pointer; }
+button:hover,button:focus-visible { background:#d8edf9; }
+button:disabled { opacity:.35; cursor:default; }
+#position { min-width:42px; text-align:center; }
+[contenteditable="true"] { outline:1px dashed #0088c6; outline-offset:2px; }
+@media print {
+  @page { size:20in 11.25in; margin:0; }
+  * { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .deck-stage { overflow:visible; }
+  .deck-controls { display:none!important; }
+}</style>
+</head>
+<body>
+<div class="deck-viewport">
+<main class="deck-stage" aria-label="Paytm BizMate hackathon pitch">
+<section class="slide cover active" aria-label="Title">
+  <div class="fold" aria-hidden="true"></div>
+  <p class="mast">Paytm Build for India AI Hackathon 2026</p>
+  <div class="hero">
+    <h1>Paytm BizMate</h1>
+    <p class="subtitle">Just tell it what your business needs.</p>
+  </div>
+  <footer class="base"><span class="kicker">Track 3 · Autonomous AI Teammates</span></footer>
+</section>
+
+<section class="slide" aria-label="Problem Statement">
+  <p class="section-name">Problem Statement</p>
+  <h2 class="slide-title">Merchants piece together short settlements by hand.</h2>
+  <div class="cols">
+    <div class="statement">
+      <p class="kicker">Merchant request · synthetic example</p>
+      <blockquote class="question">“Why did I receive ₹18,400 instead of ₹20,000?”</blockquote>
+      <p class="body">The bank credit alone cannot explain which refunds, charges or unsettled payments account for the difference.</p>
+    </div>
+    <div class="bands">
+      <article class="band"><h3>Trace the settlement</h3><p class="body">Match payments and deductions across reports, then follow up on what is still missing.</p></article>
+      <article class="band"><h3>Bring customers back</h3><p class="body">Find people who have stopped visiting, prepare an offer and check who received it.</p></article>
+    </div>
+  </div>
+  <footer class="foot"><span>Paytm BizMate</span><span class="index">02 / 09</span></footer>
+</section>
+
+<section class="slide dark solution" aria-label="Proposed Solution">
+  <p class="section-name">Proposed Solution</p>
+  <h2 class="slide-title"><span class="pitch-line">Natural conversations.</span> <span class="pitch-line">Guided workflows.</span> <span class="pitch-line">Real outcomes.</span></h2>
+  <div class="solution-columns">
+    <div>
+      <p class="pitch">Merchants can interact with BizMate using everyday language, just like talking to a colleague. BizMate understands their intent, guides them through the process, asks for approval before important actions, and confirms when the task is completed.</p>
+      <div class="scope">
+        <article><h3 class="kicker">Product vision</h3><p>One AI teammate for everyday merchant operations.</p></article>
+        <article><h3 class="kicker">Hackathon MVP</h3><p>Settlement investigation, customer win-back and a handoff when human support is needed.</p></article>
+      </div>
+    </div>
+    <div class="conversation" aria-label="Illustrative settlement conversation">
+      <div class="turn"><p class="kicker">Merchant</p><blockquote>“Why is my settlement short?”</blockquote></div>
+      <div class="turn"><p class="kicker">BizMate</p><blockquote>“I found an unexplained difference of ₹166.80. Shall I investigate and prepare a support request?”</blockquote></div>
+      <div class="turn"><p class="kicker">Merchant</p><blockquote>“Yes, go ahead.”</blockquote></div>
+    </div>
+  </div>
+  <div class="journey" aria-label="Task flow"><span>Ask</span><b aria-hidden="true">→</b><span>Understand</span><b aria-hidden="true">→</b><span>Guide</span><b aria-hidden="true">→</b><span>Approve</span><b aria-hidden="true">→</b><span>Complete</span></div>
+  <footer class="foot"><span>Illustrative conversation using synthetic settlement data.</span><span class="index">03 / 09</span></footer>
+</section>
+
+<section class="slide" aria-label="Settlement investigation">
+  <p class="section-name">Settlement investigation</p>
+  <h2 class="slide-title">₹166.80 still needs an explanation.</h2>
+  <div class="case">
+    <figure class="proof">
+      <figcaption class="kicker">Settlement proof card · synthetic data</figcaption>
+      <dl>
+        <div><dt>Sales</dt><dd>₹20,000.00</dd></div>
+        <div><dt>Commission</dt><dd>−₹240.00</dd></div>
+        <div><dt>GST on commission</dt><dd>−₹43.20</dd></div>
+        <div><dt>Refunds</dt><dd>−₹800.00</dd></div>
+        <div><dt>Chargeback</dt><dd>−₹350.00</dd></div>
+        <div class="total"><dt>Expected after adjustments</dt><dd>₹18,566.80</dd></div>
+        <div><dt>Bank credit</dt><dd>₹18,400.00</dd></div>
+        <div class="total"><dt>Unexplained balance</dt><dd>₹166.80</dd></div>
+      </dl>
+    </figure>
+    <div>
+      <p class="kicker">Scheduled check</p>
+      <h3>Open an investigation</h3><p class="body">A scheduled check flags the short payment. When the mock settlement report times out, BizMate uses transaction, refund and chargeback records to reconcile the amounts in paise.</p>
+      <div class="follow"><h3>Resume the next morning</h3><p class="body">With the merchant’s approval, BizMate opens a support ticket, verifies it and schedules a follow-up. The next morning it checks a fresh mock settlement record for the ₹166.80 credit before closing the case.</p></div>
+    </div>
+  </div>
+  <footer class="foot"><span>Illustrative demo using mock settlement and support services.</span><span class="index">04 / 09</span></footer>
+</section>
+
+<section class="slide" aria-label="Customer win-back">
+  <p class="section-name">Customer win-back</p>
+  <h2 class="slide-title">Approve the offer. Verify who received it.</h2>
+  <div class="win">
+    <div>
+      <p class="kicker">Illustrative campaign · synthetic CRM</p>
+      <div class="funnel">
+        <div class="measure"><div class="pair"><span>Customer histories analysed</span><strong>200</strong></div><div class="bar-track"><i class="bar-fill" style="--width:100%"></i></div></div>
+  <div class="measure"><div class="pair"><span>Inactive for 30 days</span><strong>120</strong></div><div class="bar-track"><i class="bar-fill" style="--width:60%"></i></div></div>
+  <div class="measure"><div class="pair"><span>Consenting recipients approved by merchant</span><strong>120</strong></div><div class="bar-track"><i class="bar-fill" style="--width:60%"></i></div></div>
+  <div class="measure"><div class="pair"><span>Messages delivered</span><strong>118</strong></div><div class="bar-track"><i class="bar-fill" style="--width:59%"></i></div></div>
+      </div>
+      <p class="results">120 approved · 118 delivered · 2 failed</p>
+    </div>
+    <div class="bands">
+      <article class="band"><h3>Select the audience</h3><p class="body">BizMate finds customers who last visited at least 30 days ago and checks who consented to offers.</p></article>
+      <article class="band"><h3>Let the merchant decide</h3><p class="body">The illustrative campaign estimate is ₹240 for 120 recipients. The merchant reviews the cost, edits the offer and approves the simulated send.</p></article>
+      <article class="band"><h3>Verify delivery</h3><p class="body">BizMate checks the mock service’s delivery status and reports both failures.</p></article>
+    </div>
+  </div>
+  <footer class="foot"><span>Simulated delivery. Repeat visits and sales would require separate measurement.</span><span class="index">05 / 09</span></footer>
+</section>
+
+<section class="slide" aria-label="Technology / Tech Stack Used">
+  <p class="section-name">Technology / Tech Stack Used</p>
+  <h2 class="slide-title">How one agent plans, acts and verifies</h2>
+  <div class="arch" aria-label="Architecture from merchant interface through backend to orchestration">
+    <article class="node"><p class="kicker">Merchant interface</p><h3>React + TypeScript</h3><p>Accepts requests, shows evidence and collects approvals.</p></article>
+    <span class="arrow" aria-hidden="true">→</span>
+    <article class="node"><p class="kicker">Backend</p><h3>Python + FastAPI</h3><p>Validates each request and enforces merchant permissions and approvals.</p></article>
+    <span class="arrow" aria-hidden="true">→</span>
+    <article class="node"><p class="kicker">Agent orchestration</p><h3>LangGraph + LLM</h3><p>Discovers permitted tools in the registry, builds a structured plan and validates each step before execution.</p></article>
+  </div>
+  <div class="layers">
+    <article class="band"><h3>Persistent execution</h3><p class="body">SQLite and LangGraph checkpoints save the case, approvals and next action. Each tool result can trigger a retry, a revised plan or an independent verification read.</p></article>
+    <article class="band"><h3>Tools and mock services</h3><p class="body">Python functions reconcile paise and segment customers. Mock Paytm APIs, a synthetic CRM, campaign delivery and ticketing services supply records and receipts.</p></article>
+  </div>
+  <footer class="foot"><span>Paytm BizMate</span><span class="index">06 / 09</span></footer>
+</section>
+
+<section class="slide dark" aria-label="USP · Unique Selling Proposition">
+  <p class="section-name">USP · Unique Selling Proposition</p>
+  <h2 class="slide-title">An AI teammate that owns the task until it’s verified.</h2>
+  <div class="ownership">
+    <div class="bands">
+      <article class="band"><h3>Remembers unfinished tasks</h3><p>Saves the case and resumes it at the next scheduled check.</p></article>
+      <article class="band"><h3>Recovers from tool failures</h3><p>Uses transaction records when a settlement report times out.</p></article>
+      <article class="band"><h3>Requests approval before acting</h3><p>Waits for the merchant’s go-ahead before sending an offer.</p></article>
+      <article class="band"><h3>Independently verifies completion</h3><p>Checks a fresh record before marking a task complete.</p></article>
+    </div>
+    <aside class="handoff-proof">
+      <p class="kicker">When human support is needed</p>
+      <blockquote class="question">“Change my registered bank account.”</blockquote>
+      <p class="body">BizMate explains that only authorised support can make the change. With the merchant’s approval, it opens a mock support ticket and checks the ticket ID.</p>
+      <p class="status">Handoff verified. Account change pending with support.</p>
+    </aside>
+  </div>
+  <footer class="foot"><span>Paytm BizMate</span><span class="index">07 / 09</span></footer>
+</section>
+
+<section class="slide" aria-label="Impact &amp; Benefits">
+  <p class="section-name">Impact &amp; Benefits</p>
+  <h2 class="slide-title">What would count as a successful task?</h2>
+  <table class="metrics">
+    <thead><tr><th>Merchant benefit</th><th>Prototype test</th><th>Evidence to inspect</th></tr></thead>
+    <tbody>
+      <tr><td>Understand a deposit</td><td>Compare reconciliation with the seeded answer down to the paise.</td><td>Proof card and source records</td></tr>
+      <tr><td>Keep control of outreach</td><td>Check approval before sending. Target zero actions that bypass required approval.</td><td>Approval record and delivery receipt</td></tr>
+      <tr><td>Pick up unfinished work</td><td>Inject a tool timeout. Check that the task resumes or reaches human support.</td><td>Checkpoint, next action and ticket status</td></tr>
+      <tr><td>Trust the completion status</td><td>Target zero tasks marked complete without independent verification.</td><td>Verified outcome and execution receipt</td></tr>
+    </tbody>
+  </table>
+  <footer class="foot"><span>Proposed tests on synthetic records. Business impact requires merchant validation.</span><span class="index">08 / 09</span></footer>
+</section>
+
+<section class="slide" aria-label="Business Model">
+  <p class="section-name">Business Model</p>
+  <h2 class="slide-title">A subscription for ongoing automation</h2>
+  <div class="tiers">
+    <article class="tier"><h3>Basic</h3><p>Track settlements and follow up on open tasks.</p></article>
+    <article class="tier"><h3>Premium subscription</h3><p>Monitor settlements proactively, run customer win-back workflows and automate more merchant tasks.</p></article>
+    <article class="tier"><h3>Usage-based add-ons</h3><p>Pay for campaign execution and premium integrations as needed.</p></article>
+  </div>
+  <p class="model-note">The commercial proposal depends on whether merchants save manual effort, engage customers more effectively and get faster support handoffs.</p>
+  <footer class="foot"><span>Proposed commercial model for validation.</span><span class="index">09 / 09</span></footer>
+</section>
+</main>
+</div>
+<nav class="deck-controls" aria-label="Presentation controls">
+  <button id="prev" aria-label="Previous slide">‹</button>
+  <span id="position" aria-live="polite">1 / 9</span>
+  <button id="next" aria-label="Next slide">›</button>
+  <button id="present" title="Full screen · F · Esc to exit">Present</button>
+  <button id="edit" aria-pressed="false">Edit</button>
+  <button id="save" hidden>Save HTML</button>
+  <button id="print">Print / PDF</button>
+</nav>
+<script>
+/* Stage scaling and navigation. Print CSS lays all nine slides out in order. */
+const stage = document.querySelector('.deck-stage');
+const slides = Array.from(stage.querySelectorAll('.slide'));
+const prev = document.querySelector('#prev');
+const next = document.querySelector('#next');
+const pos = document.querySelector('#position');
+const edit = document.querySelector('#edit');
+const save = document.querySelector('#save');
+let current = 0;
+let editing = false;
+
+function resizeStage() {
+  const viewport = stage.parentElement;
+  const factor = Math.min(viewport.clientWidth / 1920, viewport.clientHeight / 1080);
+  const left = (viewport.clientWidth - 1920 * factor) / 2;
+  const top = (viewport.clientHeight - 1080 * factor) / 2;
+  stage.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + factor + ')';
+}
+function showSlide(n) {
+  current = Math.max(0, Math.min(slides.length - 1, n));
+  slides.forEach((slide, i) => {
+    const shown = i === current;
+    slide.classList.toggle('active', shown);
+    slide.inert = !shown;
+  });
+  pos.textContent = (current + 1) + ' / ' + slides.length;
+  prev.disabled = current === 0;
+  next.disabled = current === slides.length - 1;
+}
+function setEdit(active) {
+  editing = active;
+  stage.querySelectorAll('h1,h2,h3,p,blockquote,dt,dd,th,td,figcaption,.pair span,.pair strong,.base span,.journey span').forEach(el => {
+    el.contentEditable = active ? 'plaintext-only' : 'false';
+  });
+  edit.textContent = active ? 'Done' : 'Edit';
+  edit.setAttribute('aria-pressed', String(active));
+  save.hidden = !active;
+}
+function saveHTML() {
+  const copy = document.documentElement.cloneNode(true);
+  copy.querySelectorAll('[contenteditable],[inert]').forEach(el => {
+    el.removeAttribute('contenteditable');
+    el.removeAttribute('inert');
+  });
+  copy.querySelectorAll('.slide').forEach((el, i) => el.classList.toggle('active', i === 0));
+  copy.querySelector('.deck-stage').removeAttribute('style');
+  copy.querySelector('#edit').textContent = 'Edit';
+  copy.querySelector('#edit').setAttribute('aria-pressed', 'false');
+  copy.querySelector('#save').hidden = true;
+  const url = URL.createObjectURL(new Blob(['<!doctype html>\n', copy.outerHTML], {type:'text/html'}));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'Paytm-BizMate.html';
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+prev.onclick = () => showSlide(current - 1);
+next.onclick = () => showSlide(current + 1);
+edit.onclick = () => setEdit(!editing);
+save.onclick = saveHTML;
+function togglePresentation() {
+  if (document.fullscreenElement) return document.exitFullscreen();
+  return document.documentElement.requestFullscreen();
+}
+document.querySelector('#present').onclick = togglePresentation;
+document.addEventListener('fullscreenchange', resizeStage);
+document.querySelector('#print').onclick = () => window.print();
+addEventListener('resize', resizeStage);
+addEventListener('keydown', e => {
+  if (editing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveHTML(); return; }
+  if (e.key === 'Escape' && editing) { setEdit(false); return; }
+  if (e.target.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === ' ' && e.target.tagName === 'BUTTON') return;
+  if (['ArrowRight','PageDown',' '].includes(e.key)) { e.preventDefault(); showSlide(current + 1); }
+  if (['ArrowLeft','PageUp'].includes(e.key)) { e.preventDefault(); showSlide(current - 1); }
+  if (e.key === 'Home') showSlide(0);
+  if (e.key === 'End') showSlide(slides.length - 1);
+  if (e.key.toLowerCase() === 'f') togglePresentation();
+  if (e.key.toLowerCase() === 'e') setEdit(!editing);
+});
+let startX = 0;
+stage.addEventListener('touchstart', e => { startX = e.changedTouches[0].clientX; }, {passive:true});
+stage.addEventListener('touchend', e => {
+  const delta = e.changedTouches[0].clientX - startX;
+  if (!editing && Math.abs(delta) > 65) showSlide(current + (delta < 0 ? 1 : -1));
+}, {passive:true});
+let lastScroll = 0;
+stage.addEventListener('wheel', e => {
+  if (!editing && Math.abs(e.deltaY) > 25 && Date.now() - lastScroll > 650) {
+    showSlide(current + Math.sign(e.deltaY));
+    lastScroll = Date.now();
+  }
+}, {passive:true});
+resizeStage();
+showSlide(0);
+</script>
+</body>
+</html>
