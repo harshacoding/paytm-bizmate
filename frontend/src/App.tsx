@@ -563,12 +563,8 @@ function MerchantApp() {
             </div>
             <div className="header-actions">
               <span className="merchant">
-                <span
-                  className="merchant-logo"
-                  role="img"
-                  aria-label={t('Sharma General Store avatar')}
-                >
-                  SG
+                <span className="merchant-logo" aria-hidden="true">
+                  <Icon name="store" size={20} />
                 </span>
                 <span className="merchant-name">{t('Sharma General Store')}</span>
               </span>
