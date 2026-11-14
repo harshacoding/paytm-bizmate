@@ -9,8 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from bizmate.config import Settings
-from bizmate.domain.errors import AccessDenied, FeaturePending
-from bizmate.domain.models import Intent, Task
+from bizmate.domain.errors import AccessDenied
+from bizmate.domain.lifecycle import transition_task
+from bizmate.domain.models import Intent, Task, TaskStatus
 from bizmate.main import create_app
 from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS, demo_context
@@ -211,14 +212,13 @@ def test_registry_exposes_typed_mock_tools_and_preserves_approval_gate(providers
     register_mock_tools(registry, services)
     assert len(registry.execute("get_transactions", context, {}).records) == 200
     assert registry.execute("get_settlement_report", context, {"task_id": task.task_id})
-    with pytest.raises(FeaturePending):
+    with pytest.raises(AccessDenied):
         registry.execute(
             "create_support_ticket",
             context,
             {
                 "task_id": task.task_id,
                 "summary": "Needs approval",
-                "idempotency_key": "blocked",
             },
         )
     assert services.lookup(context, "create_support_ticket", "blocked") is None
@@ -261,6 +261,15 @@ def test_registry_typed_reads_use_stored_mock_state(providers):
         "get_campaign_delivery_status", context, {"reference": campaign.external_reference}
     )
     assert result.delivered == 118 and result.failed == 2
+    assert result.verified
+    with services.store.transaction() as db:
+        db.execute(
+            "UPDATE mock_actions SET result = ? WHERE reference = ?",
+            (json.dumps({"delivered": 117, "failed": 2}), campaign.external_reference),
+        )
+    assert not registry.execute(
+        "get_campaign_delivery_status", context, {"reference": campaign.external_reference}
+    ).verified
     tools = registry.discover(context, intent=Intent.HANDOFF)
     assert {tool.metadata.name for tool in tools} == {"get_ticket_status", "create_support_ticket"}
     assert all(tool.input_schema and tool.output_schema for tool in tools)
@@ -321,3 +330,98 @@ def test_seed_cli_and_clock_persist_across_processes(tmp_path):
     assert run("advance")["current_time"] == (DEMO_START + timedelta(days=1)).isoformat()
     assert run("seed")["current_time"] == (DEMO_START + timedelta(days=1)).isoformat()
     assert run("reset")["current_time"] == DEMO_START.isoformat()
+
+
+@pytest.mark.parametrize("action", ["create_support_ticket", "send_campaign"])
+@pytest.mark.parametrize("timeout", [False, True])
+def test_default_app_runs_approved_mock_adapters_and_replays_safely(providers, action, timeout):
+    services, context, task = providers
+    intent = Intent.SETTLEMENT if action == "create_support_ticket" else Intent.WIN_BACK
+    task = services.tasks.save(
+        context,
+        transition_task(task.with_updates(intent=intent), TaskStatus.PLANNING, "Prepare action"),
+    )
+    task = services.tasks.save(context, transition_task(task, TaskStatus.READY, "Review action"))
+    inputs = {"task_id": task.task_id, "summary": "  Telugu original message\n"}
+    if action == "send_campaign":
+        inputs = {
+            "task_id": task.task_id,
+            "message": "An approved synthetic offer",
+            "recipient_ids": [c.customer_id for c in services.customers(context).customers[:120]],
+            "cost_paise": 24000,
+        }
+    settings = Settings(_env_file=None, database_path=str(services.store.path))
+    with TestClient(create_app(settings)) as client:
+        root = f"/api/v1/tasks/{task.task_id}"
+        response = client.post(root + "/approvals", json={"action": action, "inputs": inputs})
+        assert response.status_code == 201, response.text
+        approval = response.json()
+        endpoint = root + "/approvals/" + approval["approval_id"]
+        assert approval["approved_inputs"] == inputs
+        assert client.post(endpoint + "/execute", json={"inputs": inputs}).status_code == 403
+        assert (
+            client.post(
+                endpoint, json={"decision": "approve", "input_hash": approval["input_hash"]}
+            ).status_code
+            == 200
+        )
+        changed = {
+            **inputs,
+            "summary" if action == "create_support_ticket" else "message": "Edited",
+        }
+        assert client.post(endpoint + "/execute", json={"inputs": changed}).status_code == 409
+        if timeout:
+            operation = (
+                "ticket_after_write"
+                if action == "create_support_ticket"
+                else "campaign_after_write"
+            )
+            services.inject_failure(context, FailureControl(operation=operation))
+        response = client.post(endpoint + "/execute", json={"inputs": inputs})
+        assert response.status_code == (409 if timeout else 200), response.text
+        if timeout:
+            saved = client.get(root).json()
+            key = saved["tool_executions"][0]["execution_id"]
+            assert services.lookup(context, action, key) is not None
+            assert saved["status"] == "WAITING_EXTERNAL" and not saved["receipts"]
+        else:
+            receipt = response.json()
+            assert services.lookup(context, action, receipt["idempotency_key"]) is not None
+            result = client.post(root + "/receipts/" + receipt["receipt_id"] + "/verify")
+            assert result.status_code == 200 and result.json()["verified"], result.text
+            assert client.get(root).json()["status"] == "VERIFYING"
+    with TestClient(create_app(settings)) as restarted:
+        replay = restarted.post(endpoint + "/execute", json={"inputs": inputs})
+        assert replay.status_code == (409 if timeout else 200)
+        if not timeout:
+            assert replay.json() == receipt
+    with services.store.transaction() as db:
+        assert (
+            db.execute(
+                "SELECT COUNT(*) FROM mock_actions WHERE merchant_id = ? AND action = ?",
+                (context.merchant_id, action),
+            ).fetchone()[0]
+            == 1
+        )
+
+
+def test_engine_rejects_action_inputs_for_another_task(providers):
+    from bizmate.tools.policy import ActionConflict, ApprovalEngine
+
+    services, context, task = providers
+    task = services.tasks.save(
+        context,
+        transition_task(
+            task.with_updates(intent=Intent.SETTLEMENT), TaskStatus.PLANNING, "Prepare action"
+        ),
+    )
+    services.tasks.save(context, transition_task(task, TaskStatus.READY, "Review action"))
+    registry = ToolRegistry()
+    register_mock_tools(registry, services)
+    with pytest.raises(ActionConflict, match="this task"):
+        ApprovalEngine(services.tasks, registry).request(
+            context,
+            task.task_id,
+            "create_support_ticket",
+            {"task_id": "other-task", "summary": "Wrong task"},
+        )

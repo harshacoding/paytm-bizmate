@@ -60,7 +60,7 @@ Adapters must scope every underlying query and nested record to the supplied con
 
 Call `registry.discover(context, intent=Intent.SETTLEMENT)` with the server-resolved context. Discovery returns detached, serializable `ToolDescriptor` instances in name order. It filters by intent and current permissions, including the permissions needed for an action's verification read. `Intent.UNKNOWN` returns no tools. The planner cannot request an unfiltered catalogue.
 
-Descriptors contain metadata, input/output JSON Schemas, the handler reference and an execution gate. Discovery does not call predicates or authorize an action. Input-dependent preconditions are evaluated at dispatch. `approval_engine_pending` marks side effects that cannot execute in this build, even when the merchant has their scope.
+Descriptors contain metadata, input/output JSON Schemas, the handler reference and an execution gate. Discovery does not call predicates or authorize an action. Input-dependent preconditions are evaluated at dispatch. `approval_required` marks side effects that must use the BM-06 approval engine, even when the merchant has their scope.
 
 ## Dispatch and rejection behaviour
 
@@ -76,7 +76,7 @@ Inputs are validated as strict JSON: strings/floats/booleans cannot become integ
 | Predicate returns anything except `True` | `PreconditionFailed` with tool and predicate names |
 | Predicate or adapter raises an exception | Propagated once; handler is not retried |
 | Malformed handler output | `InvalidToolOutput` with `tool_name` |
-| Side-effect dispatch | `FeaturePending("BM-06", ...)`; write handler is never called |
+| Side-effect dispatch | `AccessDenied`; use the BM-06 approval engine instead |
 
 The registry does not add transport routes, retries, audit persistence or workflow state changes. BM-07/BM-08 must translate failures into recorded task events and recovery. Catch policy failures separately from source timeouts and do not expose raw payloads or exception details to the merchant.
 
@@ -86,7 +86,7 @@ The registry does not add transport routes, retries, audit persistence or workfl
 
 `safe_retry` describes safe repetition; `none` forbids assuming retry safety; `key_required` requires durable deduplication before a write. These are policies, not implementations of retry or deduplication. A registered verification read is not evidence that verification succeeded.
 
-All side effects remain blocked by the existing approval-engine boundary. Model-supplied `approved`, hashes or keys cannot unlock them. BM-06 must replace that boundary with exact-input approval, scoped durable keys, receipt storage and independent verification. Do not remove it to test a mock ticket/send. Use adapter-level tests while that engine is pending.
+Direct registry side-effect dispatch remains blocked. The [BM-06 engine](BM_06_APPROVAL_ENGINE.md) supplies exact-input approvals, durable claims, receipts and independent verification. Write adapters return `ActionResult` and accept a server-supplied `idempotency_key`; verification adapters return `VerificationResult` from a separate stored-state read. Model-supplied approval flags or keys cannot unlock direct dispatch.
 
 ## Validation
 

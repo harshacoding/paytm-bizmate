@@ -12,7 +12,6 @@ from bizmate.domain.context import MerchantContext, require_context
 from bizmate.domain.errors import AccessDenied
 from bizmate.domain.models import Intent, Model, Scope
 from bizmate.domain.types import Identifier, ShortText, Text
-from bizmate.tools.policy import require_approval_engine
 
 IDENTITY_FIELDS = frozenset({"merchant_id", "actor_id", "scopes", "merchant_context", "session"})
 Input = TypeVar("Input", bound=Model)
@@ -83,7 +82,7 @@ class ToolDescriptor(Model):
     input_schema: dict[str, JsonValue]
     output_schema: dict[str, JsonValue]
     handler_reference: str
-    execution_gate: Literal["available", "approval_engine_pending"]
+    execution_gate: Literal["available", "approval_required"]
 
 
 @dataclass(frozen=True)
@@ -176,7 +175,7 @@ class ToolRegistry:
                     + getattr(definition.handler, "__qualname__", type(definition.handler).__name__)
                 ),
                 execution_gate=(
-                    "approval_engine_pending"
+                    "approval_required"
                     if definition.metadata.risk == "side_effect"
                     else "available"
                 ),
@@ -186,7 +185,12 @@ class ToolRegistry:
             and self._required_scopes(definition) <= context.scopes
         ]
 
-    def execute(self, name: str, context: MerchantContext, inputs: dict[str, JsonValue]) -> Model:
+    def _prepare(
+        self,
+        name: str,
+        context: MerchantContext,
+        inputs: dict[str, JsonValue],
+    ) -> tuple[_Definition, Model]:
         require_context(context)
         definition = self._tools.get(name)
         if definition is None:
@@ -199,18 +203,27 @@ class ToolRegistry:
         # JSON strict mode permits dates/enums on the wire, without coercing money or booleans.
         snapshot = json.dumps(inputs, allow_nan=False)
         parsed = definition.input_schema.model_validate_json(snapshot, strict=True)
+        return definition, parsed
+
+    def _check_preconditions(self, definition, context, parsed):
         for precondition, check in definition.preconditions:
             # A predicate cannot mutate the validated input subsequently sent to a handler.
             if check(context, parsed.model_copy(deep=True)) is not True:
-                raise PreconditionFailed(name, precondition)
+                raise PreconditionFailed(definition.metadata.name, precondition)
+
+    def execute(self, name: str, context: MerchantContext, inputs: dict[str, JsonValue]) -> Model:
+        definition, parsed = self._prepare(name, context, inputs)
         if definition.metadata.risk == "side_effect":
-            # Metadata or a model-supplied approved=True can never authorize execution.
-            require_approval_engine()
+            raise AccessDenied("Side effects must execute through the approval engine")
+        self._check_preconditions(definition, context, parsed)
         result = definition.handler(context, parsed)
+        return self._result(definition, context, result)
+
+    def _result(self, definition, context, result):
         try:
             output = definition.output_schema.model_validate(result, strict=True)
         except ValidationError as exc:
-            raise InvalidToolOutput(name) from exc
+            raise InvalidToolOutput(definition.metadata.name) from exc
         if "merchant_id" in type(output).model_fields:
             context.require_owner(output.merchant_id)
         return output.model_copy(deep=True)
