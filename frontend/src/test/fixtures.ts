@@ -1,9 +1,14 @@
-import type { ConversationThread, DemoPreview, Session, Task } from '../api/types';
+import type { ConversationThread, DemoPreview, LanguageContext, Session, Task } from '../api/types';
 
 export const session: Session = {
   actor_id: 'demo_actor_merchant_demo',
   mode: 'synthetic_local_demo',
-  merchant: { merchant_id: 'merchant_demo', display_name: 'Sharma General Store', scopes: [] },
+  merchant: {
+    merchant_id: 'merchant_demo',
+    display_name: 'Sharma General Store',
+    preferred_language: 'en',
+    scopes: [],
+  },
 };
 export const task: Task = {
   task_id: 'task-one',
@@ -65,6 +70,7 @@ export const conversationThread: ConversationThread = {
     conversation_id: 'conversation-one',
     merchant_id: 'merchant_demo',
     title: 'Business support',
+    preferred_language: 'te',
     created_at: '2026-11-14T04:00:00Z',
     updated_at: '2026-11-14T04:00:00Z',
   },
@@ -75,6 +81,8 @@ export const conversationThread: ConversationThread = {
       merchant_id: 'merchant_demo',
       role: 'user',
       content: 'Why is my settlement short?',
+      detected_language: 'en',
+      response_language: 'te',
       task_id: task.task_id,
       created_at: '2026-11-14T04:00:00Z',
     },
@@ -83,4 +91,10 @@ export const conversationThread: ConversationThread = {
     { ...task, conversation_id: 'conversation-one' },
     { ...task, task_id: 'task-two', conversation_id: 'conversation-one', goal: 'Prepare an offer' },
   ],
+};
+
+export const languageContext: LanguageContext = {
+  preferred_language: 'te',
+  detected_language: 'hi',
+  response_language: 'te',
 };

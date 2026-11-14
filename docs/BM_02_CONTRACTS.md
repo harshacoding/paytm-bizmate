@@ -1,6 +1,6 @@
 # BM-02 domain and merchant-context contract
 
-Contract version 0.3.0 defines validated entities, conversations/messages, explicit task transitions and a trusted server-side synthetic session. Persistence, LLM planning and actual approval execution remain separate work in BM-03/BM-06/BM-07.
+Contract version 0.4.0 defines validated entities, conversations/messages, language metadata, explicit task transitions and a trusted server-side synthetic session. Persistence, LLM planning and actual approval execution remain separate work in BM-03/BM-06/BM-07.
 
 ## Shared types
 
@@ -8,18 +8,27 @@ Contract version 0.3.0 defines validated entities, conversations/messages, expli
 
 ## Conversations and messages
 
-- `Conversation` is a merchant-owned header with an ID, title and aware creation/update times.
-- `Message` has its own ID, required merchant/conversation IDs, role (`user` or `assistant`), nonempty content up to 4,000 characters, creation time, and an optional task ID. Message role is display data and never grants identity, scopes or approval.
+- `Conversation` is a merchant-owned header with an ID, title, preferred_language and aware creation/update times.
+- `Message` has its own ID, required merchant/conversation IDs, role (`user` or `assistant`), original content up to 4,000 characters, detected_language, response_language, creation time, and an optional task ID. Message role and language metadata are data and never grant identity, scopes or approval.
 - `Task.conversation_id` is an optional foreign key: a conversation can have many tasks; a task can belong to at most one conversation. Null means standalone proactive/scheduled work. Repositories must resolve conversation IDs under the server's merchant context when BM-03 adds persistence.
 - `ConversationThread` is a complete read snapshot, not a second source of ownership: it groups the header, messages and tasks, rejects duplicate IDs and foreign merchant/conversation records, and resolves every message task reference against its included tasks. Partial/paginated responses must not use this full-snapshot DTO without loading referenced tasks.
 - The text primitive is now `domain.types.MessageText`, so `domain.models.Message` unambiguously means the entity. Existing task-intake/clarification `message` fields remain plain strings.
-- Conversation, Message, MessageRole and ConversationThread are included as reusable OpenAPI components and generated TypeScript aliases. No conversation storage, routes or UI behaviour is added in this domain-contract change. Current intake continues to create standalone tasks; BM-03/BM-09 will wire persisted conversations.
+- Conversation, Message, MessageRole, ConversationThread, LanguageCode and LanguageContext are included as reusable OpenAPI components and generated TypeScript aliases. No conversation storage or routes are added in this domain-contract change. Current intake continues to create standalone tasks; BM-03/BM-09 will wire persisted conversations.
 
 Fixed demo merchant resolution is unchanged: the server captures context at app creation; conversation/message IDs or roles cannot select a merchant. The existing scope and ownership boundaries still apply.
 
+## Language and original-content contracts
+
+- Supported codes are exactly `en` (English), `te` (Telugu) and `hi` (Hindi). Unsupported codes, regional variants and differently cased values are rejected rather than silently coerced.
+- Merchant and Conversation expose `preferred_language`, defaulting to `en` for existing demo records. The fixed server demo context carries the merchant's preference into its public session contract. When BM-03 creates a conversation, it should explicitly copy the merchant preference unless a conversation-specific choice is supplied.
+- LanguageContext groups `preferred_language`, `detected_language` and `response_language` for the future workflow boundary. Message exposes detected_language and response_language directly. Detection/response metadata defaults to null until known; it is not guessed from the preference or script in this domain change. Response language may differ from detected language.
+- Message.content, Task.original_request, intake/clarification strings and merchant-message events retain their original code points, whitespace, tabs and line breaks. Updating language metadata never translates, trims, case-folds or normalizes the content. The frontend submits the original composer value too.
+- Blank-only messages, non-string messages and original messages longer than 4,000 characters are rejected without rewriting valid input. Short titles and other display labels still use their existing trimmed text types.
+- This adds metadata contracts, not automatic language detection, translation, speech or multilingual response generation. Those behaviours belong to the later orchestration/UI work.
+
 ## Validation rules
 
-- IDs use 1-128 letters, digits, underscores or hyphens, beginning with a letter or digit. Human text is trimmed and nonempty; input messages are limited to 4,000 characters.
+- IDs use 1-128 letters, digits, underscores or hyphens, beginning with a letter or digit. Display text is trimmed and nonempty; original message text is preserved and limited to 4,000 characters.
 - Extra request fields are rejected. Callers cannot provide merchant identity, actor identity, scopes or a task status through task-intake/message/approval endpoints.
 - Models are frozen snapshots. Use `with_updates(...)` for validated replacements. Collections use tuples/frozen sets. JSON still serializes these as arrays. Tool and approval payloads must contain JSON values, excluding nonfinite numbers. Repository copies detach nested dictionaries from stored state.
 - Monetary values are strict integer paise. Booleans, strings and floats are rejected. Absolute amounts/costs are nonnegative; evidence, expected amount and residual support signed amounts. Values must remain within JavaScript's exact integer range, plus or minus 9,007,199,254,740,991, for the generated TypeScript number contract.
@@ -35,7 +44,7 @@ Completion requires the latest independent verification for every receipt to suc
 
 ## Trusted merchant context
 
-`MerchantContext` carries actor ID, merchant ID, display name and frozen scopes. The app resolves it once from registered server-side demo configuration. HTTP headers, query parameters, request text, tool arguments and graph/model results cannot replace this context. The public Merchant model is metadata, not an execution authority.
+`MerchantContext` carries actor ID, merchant ID, display name, preferred language and frozen scopes. The app resolves it once from registered server-side demo configuration. HTTP headers, query parameters, request text, tool arguments and graph/model results cannot replace this context. The public Merchant model is metadata, not an execution authority.
 
 Scopes are explicit: `tasks:read`, `tasks:write`, `tasks:approve`, `payments:read`, `customers:read`, `tickets:write`, `campaigns:write`. Missing scopes return HTTP 403. Cross-merchant tasks return 404. APIs apply ownership checks even if a repository adapter returns a foreign task. The demo context is not production authentication and still requires loopback-only local use.
 

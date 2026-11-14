@@ -1,6 +1,6 @@
 {
   "completion_requirement": "Every receipt needs a successful independent verification.",
-  "contract_version": "0.3.0",
+  "contract_version": "0.4.0",
   "transitions": {
     "AWAITING_APPROVAL": [
       "ESCALATED",

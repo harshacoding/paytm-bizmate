@@ -22,6 +22,28 @@ beforeEach(() => {
 });
 
 describe('merchant workspace', () => {
+  it('submits original multilingual content without trimming whitespace', async () => {
+    vi.mocked(api.createTask).mockResolvedValue(task);
+    render(<App />);
+    await screen.findByText('Sharma General Store');
+    const content = '  తెలుగు / हिन्दी / English\n\t';
+    fireEvent.change(screen.getByLabelText('Tell BizMate what you need'), {
+      target: { value: content },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Start a task/ }));
+    await waitFor(() => expect(api.createTask).toHaveBeenCalledWith(content));
+  });
+
+  it('blocks whitespace-only drafts without submitting them', async () => {
+    render(<App />);
+    await screen.findByText('Sharma General Store');
+    fireEvent.change(screen.getByLabelText('Tell BizMate what you need'), {
+      target: { value: ' \n\t' },
+    });
+    expect(screen.getByRole('button', { name: /Start a task/ })).toBeDisabled();
+    expect(api.createTask).not.toHaveBeenCalled();
+  });
+
   it('separates static previews from task execution and disables sends', async () => {
     render(<App />);
     expect(await screen.findByText('Sharma General Store')).toBeInTheDocument();

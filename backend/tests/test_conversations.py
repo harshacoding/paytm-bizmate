@@ -136,7 +136,7 @@ def test_missing_task_links_and_duplicate_ids_are_rejected():
 
 def test_messages_and_conversations_are_frozen_and_content_remains_plain_text():
     header, msg = conversation(), message(content="  नमस्ते merchant_other  ")
-    assert msg.content == "नमस्ते merchant_other"
+    assert msg.content == "  नमस्ते merchant_other  "
     with pytest.raises(ValidationError):
         header.merchant_id = "merchant_other"
     with pytest.raises(ValidationError):

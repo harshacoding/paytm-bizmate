@@ -250,6 +250,10 @@
             "title": "Merchant Id",
             "type": "string"
           },
+          "preferred_language": {
+            "$ref": "#/components/schemas/LanguageCode",
+            "default": "en"
+          },
           "title": {
             "maxLength": 200,
             "minLength": 1,
@@ -266,6 +270,7 @@
           "conversation_id",
           "merchant_id",
           "title",
+          "preferred_language",
           "created_at",
           "updated_at"
         ],
@@ -508,6 +513,51 @@
         "type": "string"
       },
       "JsonValue": {},
+      "LanguageCode": {
+        "enum": [
+          "en",
+          "te",
+          "hi"
+        ],
+        "title": "LanguageCode",
+        "type": "string"
+      },
+      "LanguageContext": {
+        "additionalProperties": false,
+        "properties": {
+          "detected_language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LanguageCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preferred_language": {
+            "$ref": "#/components/schemas/LanguageCode",
+            "default": "en"
+          },
+          "response_language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LanguageCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "preferred_language",
+          "detected_language",
+          "response_language"
+        ],
+        "title": "LanguageContext",
+        "type": "object"
+      },
       "Merchant": {
         "additionalProperties": false,
         "properties": {
@@ -522,6 +572,10 @@
             "title": "Merchant Id",
             "type": "string"
           },
+          "preferred_language": {
+            "$ref": "#/components/schemas/LanguageCode",
+            "default": "en"
+          },
           "scopes": {
             "items": {
               "$ref": "#/components/schemas/Scope"
@@ -534,6 +588,7 @@
         "required": [
           "merchant_id",
           "display_name",
+          "preferred_language",
           "scopes"
         ],
         "title": "Merchant",
@@ -558,6 +613,16 @@
             "title": "Created At",
             "type": "string"
           },
+          "detected_language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LanguageCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "merchant_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
             "title": "Merchant Id",
@@ -567,6 +632,16 @@
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
             "title": "Message Id",
             "type": "string"
+          },
+          "response_language": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LanguageCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "role": {
             "$ref": "#/components/schemas/MessageRole"
@@ -590,6 +665,8 @@
           "merchant_id",
           "role",
           "content",
+          "detected_language",
+          "response_language",
           "task_id",
           "created_at"
         ],
@@ -1243,7 +1320,7 @@
   "info": {
     "description": "Local scaffold. Memory storage, synthetic fixtures, no live actions or LLM.",
     "title": "Paytm BizMate API",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "openapi": "3.1.0",
   "paths": {

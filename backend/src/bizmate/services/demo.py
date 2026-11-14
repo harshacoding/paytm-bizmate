@@ -29,6 +29,7 @@ def demo_context(merchant_id: str) -> MerchantContext:
         actor_id=f"demo_actor_{merchant_id}",
         merchant_id=merchant.merchant_id,
         display_name=merchant.display_name,
+        preferred_language=merchant.preferred_language,
         scopes=merchant.scopes,
     )
 

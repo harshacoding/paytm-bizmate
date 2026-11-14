@@ -163,7 +163,7 @@ def test_scopes_are_immutable_and_messages_cannot_smuggle_authority():
     assert merchant.scopes == frozenset({Scope.TASKS_READ})
     with pytest.raises(ValidationError):
         CreateTaskRequest(message="Hello", scopes=[Scope.TASKS_WRITE])
-    assert CreateTaskRequest(message="  नमस्ते  ").message == "नमस्ते"
+    assert CreateTaskRequest(message="  नमस्ते  ").message == "  नमस्ते  "
 
 
 @pytest.mark.parametrize(

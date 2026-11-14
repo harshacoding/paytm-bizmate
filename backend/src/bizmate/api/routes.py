@@ -69,7 +69,8 @@ def create_task(
     result = request.app.state.graph.invoke({"request": body.message})
     task = Task(
         merchant_id=context.merchant_id,
-        goal=body.message[:90],
+        # Normalize only the display title, not the original request.
+        goal=body.message.strip()[:90],
         original_request=body.message,
         next_action="Prepare the request for planning.",
         events=[

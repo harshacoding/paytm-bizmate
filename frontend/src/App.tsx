@@ -53,7 +53,7 @@ export default function App() {
     setSending(true);
     setError('');
     try {
-      const task = await api.createTask(message.trim());
+      const task = await api.createTask(message);
       setTasks((previous) => [task, ...previous]);
       setSelected(task.task_id);
       setMessage('');

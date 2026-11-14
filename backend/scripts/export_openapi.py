@@ -11,7 +11,7 @@ root = Path(__file__).resolve().parents[2]
 exports = {
     "openapi.json": create_app().openapi(),
     "lifecycle.json": {
-        "contract_version": "0.3.0",
+        "contract_version": "0.4.0",
         "transitions": {
             source.value: sorted(target.value for target in targets)
             for source, targets in TRANSITIONS.items()

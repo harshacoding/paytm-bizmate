@@ -83,9 +83,22 @@ class MessageRole(StrEnum):
     ASSISTANT = "assistant"
 
 
+class LanguageCode(StrEnum):
+    ENGLISH = "en"
+    TELUGU = "te"
+    HINDI = "hi"
+
+
+class LanguageContext(Model):
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
+    detected_language: LanguageCode | None = None
+    response_language: LanguageCode | None = None
+
+
 class Merchant(Model):
     merchant_id: Identifier
     display_name: ShortText
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
     scopes: frozenset[Scope]
 
 
@@ -97,7 +110,7 @@ class TaskEntity(Model):
 class TaskEvent(Model):
     event_id: Identifier = Field(default_factory=new_id)
     kind: Identifier
-    message: Text
+    message: MessageText
     occurred_at: AwareDatetime = Field(default_factory=now)
 
 
@@ -270,6 +283,7 @@ class Conversation(Model):
     conversation_id: Identifier = Field(default_factory=new_id)
     merchant_id: Identifier
     title: ShortText
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
     created_at: AwareDatetime = Field(default_factory=now)
     updated_at: AwareDatetime = Field(default_factory=now)
 
@@ -286,6 +300,8 @@ class Message(Model):
     merchant_id: Identifier
     role: MessageRole
     content: MessageText
+    detected_language: LanguageCode | None = None
+    response_language: LanguageCode | None = None
     task_id: Identifier | None = None
     created_at: AwareDatetime = Field(default_factory=now)
 

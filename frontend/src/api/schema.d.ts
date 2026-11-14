@@ -228,6 +228,8 @@ export interface components {
             created_at: string;
             /** Merchant Id */
             merchant_id: string;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
             /** Title */
             title: string;
             /**
@@ -339,12 +341,26 @@ export interface components {
          */
         Intent: "settlement" | "win_back" | "handoff" | "unknown";
         JsonValue: unknown;
+        /**
+         * LanguageCode
+         * @enum {string}
+         */
+        LanguageCode: "en" | "te" | "hi";
+        /** LanguageContext */
+        LanguageContext: {
+            detected_language: components["schemas"]["LanguageCode"] | null;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
+            response_language: components["schemas"]["LanguageCode"] | null;
+        };
         /** Merchant */
         Merchant: {
             /** Display Name */
             display_name: string;
             /** Merchant Id */
             merchant_id: string;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
             /** Scopes */
             scopes: components["schemas"]["Scope"][];
         };
@@ -359,10 +375,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            detected_language: components["schemas"]["LanguageCode"] | null;
             /** Merchant Id */
             merchant_id: string;
             /** Message Id */
             message_id: string;
+            response_language: components["schemas"]["LanguageCode"] | null;
             role: components["schemas"]["MessageRole"];
             /** Task Id */
             task_id: string | null;

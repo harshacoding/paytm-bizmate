@@ -6,7 +6,7 @@ from fastapi.openapi.models import Schema
 from fastapi.openapi.utils import get_openapi
 from pydantic.json_schema import models_json_schema
 
-from bizmate.domain.models import ConversationThread
+from bizmate.domain.models import ConversationThread, LanguageContext
 
 
 def install_domain_schemas(app: FastAPI) -> None:
@@ -20,7 +20,7 @@ def install_domain_schemas(app: FastAPI) -> None:
             routes=app.routes,
         )
         _, shared = models_json_schema(
-            [(ConversationThread, "serialization")],
+            [(ConversationThread, "serialization"), (LanguageContext, "serialization")],
             ref_template="#/components/schemas/{model}",
         )
         components = schema.setdefault("components", {}).setdefault("schemas", {})

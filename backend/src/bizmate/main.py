@@ -18,7 +18,7 @@ def create_app(settings: Settings | None = None, repo: TaskRepository | None = N
         raise ValueError("Unknown synthetic merchant; choose merchant_demo or merchant_other")
     app = FastAPI(
         title="Paytm BizMate API",
-        version="0.3.0",
+        version="0.4.0",
         description="Local scaffold. Memory storage, synthetic fixtures, no live actions or LLM.",
     )
     app.state.settings = settings

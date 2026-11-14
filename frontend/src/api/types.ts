@@ -17,3 +17,5 @@ export type Conversation = components['schemas']['Conversation'];
 export type Message = components['schemas']['Message'];
 export type MessageRole = components['schemas']['MessageRole'];
 export type ConversationThread = components['schemas']['ConversationThread'];
+export type LanguageCode = components['schemas']['LanguageCode'];
+export type LanguageContext = components['schemas']['LanguageContext'];
