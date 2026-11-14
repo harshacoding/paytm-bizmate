@@ -82,6 +82,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-05 Implement the typed tool registry and permission checks
 
 - [ ] Complete
+- **Implementation status:** Registry, policy tests and BM-04 adapter registration implemented on `codex/bm-05-tool-registry`. Rebased onto main including BM-04; BM-07 planner integration and Devi's review remain pending. See `docs/BM_05_TOOL_REGISTRY.md`. Side effects remain blocked until BM-06.
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-02, BM-04
