@@ -32,6 +32,8 @@ Task records and their timelines survive backend restart/reload in `backend/.dat
 
 ## Conversation API
 
+Synthetic service APIs, fixture commands and the demo clock are documented in [BM-04 testing](docs/BM04_TESTING.md).
+
 Conversations and user/assistant message history persist in the same database. Open <http://127.0.0.1:8000/docs> and expand **conversations** to test the routes. The server resolves merchant ownership for every operation.
 
 | Method | Route | Result |

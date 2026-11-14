@@ -232,6 +232,59 @@
         "title": "ClarificationRequest",
         "type": "object"
       },
+      "ClockAdvance": {
+        "additionalProperties": false,
+        "properties": {
+          "seconds": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seconds"
+        ],
+        "title": "ClockAdvance",
+        "type": "object"
+      },
+      "ClockState": {
+        "additionalProperties": false,
+        "properties": {
+          "current_time": {
+            "format": "date-time",
+            "title": "Current Time",
+            "type": "string"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current_time",
+          "simulated"
+        ],
+        "title": "ClockState",
+        "type": "object"
+      },
+      "ConsentControl": {
+        "additionalProperties": false,
+        "properties": {
+          "marketing_consent": {
+            "title": "Marketing Consent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "marketing_consent"
+        ],
+        "title": "ConsentControl",
+        "type": "object"
+      },
       "Conversation": {
         "additionalProperties": false,
         "properties": {
@@ -482,6 +535,64 @@
         "title": "CreateTaskRequest",
         "type": "object"
       },
+      "CustomerHistory": {
+        "additionalProperties": false,
+        "properties": {
+          "customers": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRecord"
+            },
+            "title": "Customers",
+            "type": "array"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/OrderRecord"
+            },
+            "title": "Orders",
+            "type": "array"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customers",
+          "orders",
+          "evaluated_at",
+          "simulated"
+        ],
+        "title": "CustomerHistory",
+        "type": "object"
+      },
+      "CustomerRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "marketing_consent": {
+            "title": "Marketing Consent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customer_id",
+          "marketing_consent"
+        ],
+        "title": "CustomerRecord",
+        "type": "object"
+      },
       "DemoPreview": {
         "additionalProperties": false,
         "properties": {
@@ -608,6 +719,71 @@
           "captured_at"
         ],
         "title": "Evidence",
+        "type": "object"
+      },
+      "FailureControl-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 1,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "operation": {
+            "enum": [
+              "get_transactions",
+              "get_settlement_report",
+              "get_refunds_and_chargebacks",
+              "fresh_credits",
+              "get_customers_and_orders",
+              "get_ticket_status",
+              "get_campaign_delivery_status",
+              "ticket_after_write",
+              "campaign_after_write"
+            ],
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "title": "FailureControl",
+        "type": "object"
+      },
+      "FailureControl-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 1,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "operation": {
+            "enum": [
+              "get_transactions",
+              "get_settlement_report",
+              "get_refunds_and_chargebacks",
+              "fresh_credits",
+              "get_customers_and_orders",
+              "get_ticket_status",
+              "get_campaign_delivery_status",
+              "ticket_after_write",
+              "campaign_after_write"
+            ],
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "count"
+        ],
+        "title": "FailureControl",
         "type": "object"
       },
       "HealthResponse": {
@@ -827,6 +1003,87 @@
         ],
         "title": "MessageRole",
         "type": "string"
+      },
+      "OrderRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "order_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "ordered_at": {
+            "format": "date-time",
+            "title": "Ordered At",
+            "type": "string"
+          },
+          "qualifying": {
+            "default": true,
+            "title": "Qualifying",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "order_id",
+          "customer_id",
+          "ordered_at",
+          "qualifying"
+        ],
+        "title": "OrderRecord",
+        "type": "object"
+      },
+      "PaymentRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_paise": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Paise",
+            "type": "integer"
+          },
+          "available_at": {
+            "format": "date-time",
+            "title": "Available At",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "sale",
+              "commission",
+              "gst",
+              "refund",
+              "chargeback",
+              "credit"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "reference": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Reference",
+            "type": "string"
+          },
+          "settlement_reference": {
+            "default": "settlement-001",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference",
+          "settlement_reference",
+          "kind",
+          "amount_paise",
+          "available_at"
+        ],
+        "title": "PaymentRecord",
+        "type": "object"
       },
       "PlanStep": {
         "additionalProperties": false,
@@ -1100,6 +1357,43 @@
           "source_references"
         ],
         "title": "SettlementPreview",
+        "type": "object"
+      },
+      "SettlementReport": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentRecord"
+            },
+            "title": "Records",
+            "type": "array"
+          },
+          "settlement_reference": {
+            "default": "settlement-001",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "settlement_reference",
+          "records",
+          "captured_at",
+          "simulated"
+        ],
+        "title": "SettlementReport",
         "type": "object"
       },
       "Task": {
@@ -1879,6 +2173,352 @@
         ]
       }
     },
+    "/api/v1/demo/clock": {
+      "get": {
+        "operationId": "clock_api_v1_demo_clock_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClockState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Clock",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
+    "/api/v1/demo/clock/advance": {
+      "post": {
+        "operationId": "advance_api_v1_demo_clock_advance_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClockAdvance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClockState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Advance",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
+    "/api/v1/demo/customers": {
+      "get": {
+        "operationId": "customers_api_v1_demo_customers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Customers",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
+    "/api/v1/demo/customers/{customer_id}/consent": {
+      "patch": {
+        "operationId": "consent_api_v1_demo_customers__customer_id__consent_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "title": "Customer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Consent",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
+    "/api/v1/demo/failures": {
+      "post": {
+        "operationId": "failure_api_v1_demo_failures_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailureControl-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureControl-Output"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Failure",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
     "/api/v1/demo/preview": {
       "get": {
         "operationId": "demo_preview_api_v1_demo_preview_get",
@@ -1927,6 +2567,128 @@
         "summary": "Demo Preview",
         "tags": [
           "demo"
+        ]
+      }
+    },
+    "/api/v1/demo/reset": {
+      "post": {
+        "operationId": "reset_api_v1_demo_reset_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClockState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Reset",
+        "tags": [
+          "synthetic services"
+        ]
+      }
+    },
+    "/api/v1/demo/settlement": {
+      "get": {
+        "operationId": "settlement_api_v1_demo_settlement_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Settlement",
+        "tags": [
+          "synthetic services"
         ]
       }
     },
