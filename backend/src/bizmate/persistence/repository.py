@@ -21,6 +21,13 @@ def task_snapshot(context: MerchantContext, task: Task, existing: Task | None) -
     if task.revision != revision:
         raise TaskConflictError("Task changed. Reload it before saving.")
     if existing is not None:
+        old_investigation = existing.workflow_data.get("settlement")
+        if isinstance(old_investigation, dict) and old_investigation.get("proof") is not None:
+            new_investigation = task.workflow_data.get("settlement")
+            if not isinstance(new_investigation, dict) or (
+                new_investigation.get("proof") != old_investigation["proof"]
+            ):
+                raise ValueError("Settlement baseline proof is immutable")
         for field in ("receipts", "verifications", "tool_executions"):
             if any(record not in getattr(task, field) for record in getattr(existing, field)):
                 raise ValueError("Execution and verification records are append-only")

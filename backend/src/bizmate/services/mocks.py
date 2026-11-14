@@ -138,6 +138,20 @@ class MockServices:
         self._task(context, task_id, Scope.PAYMENTS_READ)
         return [self._evidence(context, task_id, record) for record in self.report(context).records]
 
+    def ledger_report(self, context: MerchantContext) -> SettlementReport:
+        """Fallback to available ledger sources without calling the report service again."""
+        credits = tuple(r for r in self._payments(context, "fresh_credits") if r.kind == "credit")
+        return SettlementReport(
+            records=(*self.transactions(context), *self.deductions(context), *credits),
+            captured_at=self.clock(context),
+        )
+
+    def follow_up_records(
+        self, context: MerchantContext, task_id: str
+    ) -> tuple[PaymentRecord, ...]:
+        self._task(context, task_id, Scope.PAYMENTS_READ)
+        return self._payments(context, "fresh_credits")
+
     @staticmethod
     def _evidence(context, task_id, record):
         return Evidence(

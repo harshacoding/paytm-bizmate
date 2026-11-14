@@ -61,6 +61,15 @@ it('resumes orchestration with a bodyless POST and no client-supplied plan or in
     { method: 'POST', headers: {} },
   ]);
 });
+it('uses bodyless settlement workflow and due-check endpoints', async () => {
+  fetchMock.mockImplementation(async () => new Response('{}'));
+  await api.resumeInvestigation('settlement/one');
+  await api.runDueSettlements();
+  expect(fetchMock.mock.calls).toEqual([
+    ['/api/v1/settlements/investigations/settlement%2Fone/resume', { method: 'POST', headers: {} }],
+    ['/api/v1/settlements/run-due', { method: 'POST', headers: {} }],
+  ]);
+});
 it.each([403, 404, 409, 422, 503])('preserves structured errors for HTTP %s', async (status) => {
   fetchMock.mockResolvedValue(
     new Response(

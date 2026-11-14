@@ -65,6 +65,8 @@ BM-14 adds editable campaign review, fresh eligibility/consent checks and indepe
 
 BM-17 adds a repeatable backend policy evaluation with local JSON/JUnit evidence and CI console results. Run `npm run evaluate:policy`. See [BM-17 coverage, observed results and pending acceptance](docs/BM17_EVALUATION.md).
 
+The [BM-11/BM-12 settlement backend](docs/BM_11_12_SETTLEMENT_FLOW.md) now supports explicit investigation APIs, approved/verified synthetic support tickets, durable due checks and fresh-credit closure. The natural-language graph and merchant task view are connected, including demo-clock schedule labels and explicit due-follow-up checks.
+
 ## Conversation API
 
 Source-linked settlement reconciliation is available through `POST /api/v1/settlements/reconcile`. See [BM-10 testing](docs/BM10_TESTING.md) for expected proof amounts and commands.
@@ -137,7 +139,7 @@ backend/src/bizmate/
   tools/                     Harsha: registry and approval policy
   workflows/                 Settlement (Harsha), campaign/handoff (Devi)
   persistence/               Devi: repository interface and SQLite adapter
-  services/                  Devi: mock ports, fixtures, scheduler
+  services/                  Devi: mocks/fixtures; Harsha: settlement scheduler
   api/                       Devi: scoped HTTP transport
 backend/tests/               API and fail-closed policy checks
 backend/scripts/             OpenAPI export
@@ -146,11 +148,11 @@ contracts/                   Shared OpenAPI schema
 docs/                        Architecture, onboarding and smoke check
 ```
 
-| Developer | Start here                                                         | Tasks                         |
-| --------- | ------------------------------------------------------------------ | ----------------------------- |
-| Harsha    | Domain contracts, registry/policy, agent graph, settlement         | BM-02, 05, 06, 07, 08, 10, 11 |
-| Devi      | Repository, service ports/mocks, APIs, scheduler, campaign/handoff | BM-03, 04, 12, 13, 14, 15, 17 |
-| Saiteja   | App, components, client, UI tests and demo docs                    | BM-01, 09, 16, 18             |
+| Developer | Start here | Tasks |
+| --- | --- | --- |
+| Harsha | Domain contracts, registry/policy, agent graph, settlement | BM-02, 05, 06, 07, 08, 10, 11, 12 |
+| Devi | Repository, service ports/mocks, APIs, campaign/handoff | BM-03, 04, 13, 14, 15, 17 |
+| Saiteja | App, components, client, UI tests and demo docs | BM-01, 09, 16, 18 |
 
 Read [Team start](docs/TEAM_START.md) before editing shared contracts. UI work can use fixtures while services are implemented. The scaffold supplies initial setup; task ownership and review requirements remain unchanged.
 

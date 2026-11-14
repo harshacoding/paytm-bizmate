@@ -148,6 +148,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-11 Complete investigation and approved support-ticket creation
 
 - [ ] Complete
+- **Implementation status:** Deterministic backend investigation, report recovery, exact case approval and separate ticket verification implemented with BM-12 on `codex/bm-11-12-settlement-follow-up`. Integrated with merged BM-07/08; UI integration and review remain pending. See `docs/BM_11_12_SETTLEMENT_FLOW.md`.
 - **Owner:** Harsha
 - **Reviewer:** Devi
 - **Depends on:** BM-06, BM-07, BM-08, BM-09, BM-10
@@ -158,8 +159,9 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-12 Add scheduled follow-up and fresh-credit verification
 
 - [ ] Complete
-- **Owner:** Devi
-- **Reviewer:** Harsha
+- **Implementation status:** Durable due-task worker, demo-clock integration, proactive scan and fresh-credit goal proof implemented with BM-11. Backend/restart policy tests added; UI integration and review remain pending.
+- **Owner:** Harsha
+- **Reviewer:** Devi
 - **Depends on:** BM-03, BM-04, BM-07, BM-11
 - **PRD:** 7.1, 9.6, 10, 14, 15
 - **Deliver:** Persisted `next_run_at`, due-task runner, controlled advance-time UI, resumed settlement checks, a synthetic proactive mismatch alert, and fresh-credit verification.

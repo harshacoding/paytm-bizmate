@@ -24,4 +24,5 @@ export type ConversationTurn = components['schemas']['ConversationTurn'];
 export type TaskEvent = components['schemas']['TaskEvent'];
 export type CustomerSegment = components['schemas']['CustomerSegment'];
 export type SettlementProof = components['schemas']['SettlementProof'];
+export type InvestigationView = components['schemas']['InvestigationView'];
 export type ActionInputs = Record<string, unknown>;

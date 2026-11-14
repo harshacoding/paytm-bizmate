@@ -1365,6 +1365,219 @@
         "title": "Intent",
         "type": "string"
       },
+      "InvestigationRequest-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "message": {
+            "default": "Why is my settlement short?",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "settlement_reference": {
+            "default": "settlement-001",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_request_id"
+        ],
+        "title": "InvestigationRequest",
+        "type": "object"
+      },
+      "InvestigationRequest-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "client_request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Client Request Id",
+            "type": "string"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "message": {
+            "default": "Why is my settlement short?",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "settlement_reference": {
+            "default": "settlement-001",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "settlement_reference",
+          "client_request_id",
+          "message",
+          "conversation_id"
+        ],
+        "title": "InvestigationRequest",
+        "type": "object"
+      },
+      "InvestigationState": {
+        "additionalProperties": false,
+        "properties": {
+          "approval_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          },
+          "case_summary": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Summary"
+          },
+          "claim_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Until"
+          },
+          "follow_up_attempts": {
+            "default": 0,
+            "title": "Follow Up Attempts",
+            "type": "integer"
+          },
+          "phase": {
+            "default": "investigate",
+            "enum": [
+              "investigate",
+              "approval",
+              "follow_up",
+              "resolved",
+              "stopped"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "proof": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettlementProof"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Id"
+          },
+          "report_attempts": {
+            "default": 0,
+            "title": "Report Attempts",
+            "type": "integer"
+          },
+          "request": {
+            "$ref": "#/components/schemas/InvestigationRequest-Output"
+          }
+        },
+        "required": [
+          "request",
+          "phase",
+          "proof",
+          "case_summary",
+          "approval_id",
+          "receipt_id",
+          "report_attempts",
+          "follow_up_attempts",
+          "claim_until"
+        ],
+        "title": "InvestigationState",
+        "type": "object"
+      },
+      "InvestigationView": {
+        "additionalProperties": false,
+        "properties": {
+          "resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettlementResolution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/InvestigationState"
+          },
+          "task": {
+            "$ref": "#/components/schemas/Task"
+          }
+        },
+        "required": [
+          "task",
+          "state",
+          "resolution"
+        ],
+        "title": "InvestigationView",
+        "type": "object"
+      },
       "JsonValue": {},
       "LanguageCode": {
         "enum": [
@@ -2094,6 +2307,81 @@
         "title": "SettlementReport",
         "type": "object"
       },
+      "SettlementResolution": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_paise": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Paise",
+            "type": "integer"
+          },
+          "available_at": {
+            "format": "date-time",
+            "title": "Available At",
+            "type": "string"
+          },
+          "baseline_captured_at": {
+            "format": "date-time",
+            "title": "Baseline Captured At",
+            "type": "string"
+          },
+          "baseline_credit_references": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "title": "Baseline Credit References",
+            "type": "array"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "outstanding_paise": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Outstanding Paise",
+            "type": "integer"
+          },
+          "settlement_reference": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Settlement Reference",
+            "type": "string"
+          },
+          "source_reference": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "task_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "merchant_id",
+          "settlement_reference",
+          "baseline_captured_at",
+          "baseline_credit_references",
+          "outstanding_paise",
+          "source_reference",
+          "amount_paise",
+          "available_at",
+          "checked_at"
+        ],
+        "title": "SettlementResolution",
+        "type": "object"
+      },
       "Task": {
         "additionalProperties": false,
         "properties": {
@@ -2219,6 +2507,15 @@
             "title": "Revision",
             "type": "integer"
           },
+          "schedule_clock": {
+            "default": "system",
+            "enum": [
+              "system",
+              "demo"
+            ],
+            "title": "Schedule Clock",
+            "type": "string"
+          },
           "simulated": {
             "default": true,
             "title": "Simulated",
@@ -2282,6 +2579,7 @@
           "workflow_data",
           "next_action",
           "next_run_at",
+          "schedule_clock",
           "checkpoint_id",
           "created_at",
           "updated_at",
@@ -3515,6 +3813,251 @@
         ]
       }
     },
+    "/api/v1/settlements/investigations": {
+      "post": {
+        "operationId": "investigate_api_v1_settlements_investigations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequest-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Investigate",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/investigations/{task_id}": {
+      "get": {
+        "operationId": "investigation_api_v1_settlements_investigations__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Investigation",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/investigations/{task_id}/resume": {
+      "post": {
+        "operationId": "resume_investigation_api_v1_settlements_investigations__task_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Resume Investigation",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
     "/api/v1/settlements/reconcile": {
       "post": {
         "operationId": "reconcile_api_v1_settlements_reconcile_post",
@@ -3549,6 +4092,26 @@
             },
             "description": "Forbidden"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3571,6 +4134,156 @@
           }
         },
         "summary": "Reconcile",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/run-due": {
+      "post": {
+        "operationId": "run_due_api_v1_settlements_run_due_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  },
+                  "title": "Response Run Due Api V1 Settlements Run Due Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Run Due",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/scan": {
+      "post": {
+        "operationId": "scan_api_v1_settlements_scan_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvestigationView"
+                  },
+                  "title": "Response Scan Api V1 Settlements Scan Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Scan",
         "tags": [
           "settlements"
         ]

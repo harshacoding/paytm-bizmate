@@ -117,6 +117,27 @@ beforeEach(() => {
   vi.spyOn(api, 'tasks').mockImplementation(async () => [structuredClone(snapshot)]);
   vi.spyOn(api, 'task').mockImplementation(async () => structuredClone(snapshot));
   vi.spyOn(api, 'resume').mockImplementation(async () => structuredClone(snapshot));
+  vi.spyOn(api, 'runDueSettlements').mockResolvedValue([]);
+  vi.spyOn(api, 'resumeInvestigation').mockImplementation(async () => ({
+    task: structuredClone(snapshot),
+    state: {
+      request: {
+        client_request_id: 'ui-settlement',
+        settlement_reference: 'settlement-001',
+        message: 'Why is my settlement short?',
+        conversation_id: 'chat-1',
+      },
+      phase: 'approval',
+      proof: null,
+      case_summary: null,
+      approval_id: null,
+      receipt_id: null,
+      report_attempts: 1,
+      follow_up_attempts: 0,
+      claim_until: null,
+    },
+    resolution: null,
+  }));
   vi.spyOn(api, 'events').mockImplementation(async () => structuredClone(snapshot.events));
   vi.spyOn(api, 'createConversation').mockResolvedValue({
     ...conversation,
@@ -578,3 +599,78 @@ it.each(['en', 'hi', 'te'] as const)(
     ).toBeInTheDocument();
   },
 );
+
+it('continues explicit settlement investigations through their workflow endpoint after approval', async () => {
+  snapshot = {
+    ...snapshot,
+    intent: 'settlement',
+    status: 'AWAITING_APPROVAL',
+    approvals: [approval],
+    workflow_data: { settlement: { phase: 'approval' } },
+  };
+  showTask();
+  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+  expect(api.resumeInvestigation).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: 'Execute approved action' }));
+  await waitFor(() => expect(api.resumeInvestigation).toHaveBeenCalledExactlyOnceWith('task-one'));
+  expect(api.execute).not.toHaveBeenCalled();
+  expect(api.verify).not.toHaveBeenCalled();
+});
+
+it.each(['en', 'hi', 'te'] as const)(
+  'labels demo due times in %s and only checks due work on request',
+  async (language) => {
+    snapshot = {
+      ...snapshot,
+      intent: 'settlement',
+      status: 'WAITING_EXTERNAL',
+      schedule_clock: 'demo',
+      next_run_at: '2025-01-02T00:00:00Z',
+      receipts: [receipt],
+      verifications: [{ ...verification, verified: true }],
+      workflow_data: { settlement: { phase: 'follow_up' } },
+    };
+    showTask(session, language);
+    await screen.findByText(
+      new RegExp(
+        workspaceText('Scheduled time (demo clock)', language).replace(
+          /[.*+?^${}()|[\]\\]/g,
+          '\\$&',
+        ),
+      ),
+    );
+    expect(api.runDueSettlements).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: workspaceText('Continue saved task', language) }),
+    ).toBeNull();
+    const button = screen.getByRole('button', {
+      name: workspaceText('Check due follow-ups', language),
+    });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(api.runDueSettlements).toHaveBeenCalledOnce());
+    await screen.findByText(
+      workspaceText('Due follow-ups checked. Review the saved status and evidence.', language),
+    );
+    expect(screen.queryByText(workspaceText('Goal completed', language))).toBeNull();
+    expect(api.execute).not.toHaveBeenCalled();
+    expect(api.resumeInvestigation).not.toHaveBeenCalled();
+  },
+);
+
+it('keeps scheduled follow-ups read-only without the payment permission', async () => {
+  snapshot = {
+    ...snapshot,
+    intent: 'settlement',
+    status: 'WAITING_EXTERNAL',
+    schedule_clock: 'demo',
+    next_run_at: date,
+    workflow_data: { settlement: { phase: 'follow_up' } },
+  };
+  showTask({
+    ...session,
+    merchant: { ...session.merchant, scopes: ['tasks:read', 'tasks:write'] },
+  });
+  expect(await screen.findByRole('button', { name: 'Check due follow-ups' })).toBeDisabled();
+  expect(api.runDueSettlements).not.toHaveBeenCalled();
+});
