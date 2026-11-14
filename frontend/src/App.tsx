@@ -1,202 +1,561 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { api } from './api/client';
-import type { DemoPreview, Session, Task } from './api/types';
-import { DemoCards } from './components/DemoCards';
-import { TaskTimeline } from './components/TaskTimeline';
+import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
+import {
+  MicrophoneWaveform,
+  ScrollingWaveform,
+  StaticWaveform,
+} from './components/elevenlabs/waveform';
+import {
+  audience,
+  breakdown,
+  detectIntent,
+  expected,
+  initialOffer,
+  loadTurns,
+  missing,
+  money,
+  questions,
+  readDelivery,
+  readFollowup,
+  received,
+  stages,
+} from './demo';
+import type { Turn } from './demo';
+import { useDictation } from './useDictation';
 
-const prompts = [
-  'Why is my settlement short?',
-  'Prepare an offer for inactive customers',
-  'Change my registered bank account',
-];
+const symbols = {
+  sparkle: 'M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z',
+  store:
+    'M3 9l2-5h14l2 5v3a3 3 0 0 1-4 2.8A3 3 0 0 1 12 14a3 3 0 0 1-5 .8A3 3 0 0 1 3 12V9zm2 6v5h14v-5M3 9h18',
+  mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-4 6v1a7 7 0 0 0 14 0v-1m-7 8v3m-3 0h6',
+  send: 'M12 20V4m-6 6l6-6 6 6',
+  replay: 'M3 12a9 9 0 1 1 2 6M3 4v8h8',
+  payment: 'M3 6h18v13H3zM3 10h18m-14 5h3',
+  campaign: 'M3 9v5h5l9 4V5L8 9H3zm5 5l2 6h3m7-11 2-2m-2 7 2 2',
+  bank: 'M3 9h18L12 3 3 9zm2 3v6m5-6v6m4-6v6m5-6v6M3 21h18',
+  arrow: 'M5 12h14m-5-5 5 5-5 5',
+} as const;
+
+function Icon({ name, size = 19 }: { name: keyof typeof symbols; size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={name === 'sparkle' ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.65"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={symbols[name]} />
+    </svg>
+  );
+}
+
+function PaymentProgress({ elapsed, reduced }: { elapsed: number; reduced: boolean }) {
+  const index = stages.filter((stage) => elapsed >= stage.at).length - 1;
+  const stage = stages[index];
+  const finished = stage.progress === 100;
+  return (
+    <section className="card">
+      <div className="card-top">
+        <span className="tile">
+          <Icon name="payment" />
+        </span>
+        <h2>{finished ? 'Payment check finished' : 'I’m checking your payment.'}</h2>
+      </div>
+      <div className="progress-status">
+        <div role="status" className="progress-copy">
+          {!finished && (
+            <BarVisualizer
+              aria-hidden="true"
+              className="thinking"
+              state={reduced ? undefined : 'thinking'}
+              barCount={5}
+              minHeight={32}
+              centerAlign
+            />
+          )}
+          {stage.label}
+        </div>
+        <strong>{stage.progress}%</strong>
+      </div>
+      <div
+        className="track"
+        role="progressbar"
+        aria-label="Payment check"
+        aria-valuenow={stage.progress}
+        aria-valuetext={stage.label}
+      >
+        <div
+          className={finished ? 'fill' : 'fill moving'}
+          style={{ width: stage.progress + '%' }}
+        />
+      </div>
+      {index === 1 && elapsed >= 3500 && (
+        <p className="delay" role="status">
+          The payment report is taking longer than usual.
+        </p>
+      )}
+      <ol className="steps">
+        {stages.slice(0, 3).map((step, i) => (
+          <li key={step.at} data-current={i === index}>
+            <span>{step.label}</span>
+            <span>{i < index ? 'Done' : i === index ? 'Checking' : 'Next'}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ChatReply({
+  turn,
+  now,
+  reduced,
+  update,
+}: {
+  turn: Turn;
+  now: number;
+  reduced: boolean;
+  update: (change: Partial<Turn>) => void;
+}) {
+  const elapsed = Math.max(0, now - turn.started);
+  const payment = turn.intent === 'payment';
+  const campaign = turn.intent === 'campaign';
+  const delivery = readDelivery(turn);
+  const reference = 'BM-' + turn.id.slice(0, 8).toUpperCase();
+  const offerCost = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(audience.length * 2);
+  const ask = () => update({ action: 'confirm' });
+  const approve = () => update({ action: 'pending', approvedAt: Date.now() });
+  return (
+    <div className="reply">
+      <span className="reply-avatar">
+        <Icon name="sparkle" size={15} />
+      </span>
+      <div className="reply-content">
+        <div className="reply-name">BizMate</div>
+        {payment && (
+          <>
+            <PaymentProgress elapsed={elapsed} reduced={reduced} />
+            {elapsed >= stages[3].at && (
+              <section className="card">
+                <h2>{money(missing)} is still missing</h2>
+                <p>I compared your sales and deductions with the amount your bank received.</p>
+                <dl className="totals">
+                  <div>
+                    <dt>Expected</dt>
+                    <dd>{money(expected)}</dd>
+                  </div>
+                  <div>
+                    <dt>Received</dt>
+                    <dd>{money(received)}</dd>
+                  </div>
+                </dl>
+                <details>
+                  <summary>
+                    View details <span>· Payment breakdown</span>
+                  </summary>
+                  <dl className="breakdown">
+                    {breakdown.map((row) => (
+                      <div key={row.label}>
+                        <dt>
+                          {row.label}
+                          <small>{row.source}</small>
+                        </dt>
+                        <dd>{money(row.paise)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="fine">Sample bank record · BANK-2026-011</p>
+                </details>
+                {!turn.action && (
+                  <button type="button" className="primary" onClick={ask}>
+                    Ask support
+                  </button>
+                )}
+              </section>
+            )}
+          </>
+        )}
+        {campaign && (
+          <section className="card">
+            <h2>Bring customers back</h2>
+            <p>
+              <strong>{audience.length} customers who agreed to receive offers</strong> haven’t
+              visited in 30 days or more. The estimated cost is <strong>{offerCost}</strong>.
+            </p>
+            <label className="offer-label" htmlFor={reference}>
+              Offer message
+            </label>
+            <textarea
+              id={reference}
+              className="offer"
+              value={turn.offer}
+              readOnly={!!turn.action}
+              onChange={(event) => update({ offer: event.target.value })}
+            />
+            {!turn.action && (
+              <button type="button" className="primary" disabled={!turn.offer.trim()} onClick={ask}>
+                Review simulated send
+              </button>
+            )}
+          </section>
+        )}
+        {turn.intent === 'bank' && (
+          <section className="card">
+            <h2>Change your bank account</h2>
+            <p>
+              Merchant support can help you change the bank account where you receive payments. I
+              can prepare a support request for you.
+            </p>
+            {!turn.action && (
+              <button type="button" className="primary" onClick={ask}>
+                Ask support
+              </button>
+            )}
+          </section>
+        )}
+        {turn.intent === 'other' && (
+          <section className="card">
+            <p>
+              I can check a short payment, prepare a customer offer, or put you in touch with
+              support for a bank account change. Which would you like help with?
+            </p>
+          </section>
+        )}
+        {turn.action === 'confirm' && (
+          <section className="card confirmation">
+            <h2>{campaign ? 'Send this offer?' : 'Create a support request?'}</h2>
+            <p>
+              {campaign
+                ? 'Simulate sending the offer above to ' +
+                  audience.length +
+                  ' customers at an estimated cost of ' +
+                  offerCost +
+                  '.'
+                : payment
+                  ? 'Share the payment breakdown and missing amount with simulated merchant support.'
+                  : 'Ask simulated merchant support to help change your bank account.'}
+            </p>
+            <div className="actions">
+              <button type="button" className="primary" onClick={approve}>
+                {campaign ? 'Confirm simulated send' : 'Confirm support request'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => update({ action: undefined })}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
+        {turn.approvedAt && campaign && delivery && (
+          <section className="card outcome">
+            <h2>Simulated delivery checked</h2>
+            <p role="status">
+              <strong>
+                {delivery.delivered} delivered, {delivery.failed} failed
+              </strong>
+            </p>
+          </section>
+        )}
+        {turn.approvedAt && !campaign && (
+          <section className="card outcome">
+            <h2>
+              {turn.action === 'verified' ? 'Missing credit verified' : 'Support request created'}
+            </h2>
+            <p role="status">
+              {turn.action === 'verified'
+                ? money(missing) + ' arrived in a fresh sample bank record. The issue is closed.'
+                : 'Pending with support.'}
+            </p>
+            {payment && turn.action === 'pending' && (
+              <>
+                <p className="fine">Follow-up scheduled for tomorrow in the demo.</p>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    if (readFollowup(turn)) update({ action: 'verified' });
+                  }}
+                >
+                  Run simulated follow-up
+                </button>
+              </>
+            )}
+            <details>
+              <summary>
+                View details <span>· Ticket reference</span>
+              </summary>
+              <p>
+                Simulated ticket <strong>{reference}</strong>
+              </p>
+              {turn.action === 'verified' && <p>Follow-up bank record · BANK-FOLLOWUP-012</p>}
+            </details>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [preview, setPreview] = useState<DemoPreview | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
-  const [reload, setReload] = useState(0);
+  const [turns, setTurns] = useState(loadTurns);
+  const [draft, setDraft] = useState('');
+  const [now, setNow] = useState(Date.now);
+  const [announcement, announce] = useState('');
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  );
+  const input = useRef<HTMLTextAreaElement>(null);
+  const chat = useRef<HTMLElement>(null);
+  const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
+  const voice = useDictation(draft, setDraft, focusComposer);
+  const working = turns.some(
+    (turn) => turn.intent === 'payment' && now - turn.started < stages[3].at,
+  );
 
   useEffect(() => {
-    let current = true;
-    setLoading(true);
-    setError('');
-    Promise.all([api.health(), api.session(), api.tasks(), api.preview()])
-      .then(([, s, t, p]) => {
-        if (current) {
-          setSession(s);
-          setTasks(t);
-          setPreview(p);
-          setSelected((previous) =>
-            t.some((task) => task.task_id === previous) ? previous : (t[0]?.task_id ?? null),
-          );
-        }
-      })
-      .catch((e) => {
-        if (current) setError(e instanceof Error ? e.message : 'Unable to connect');
-      })
-      .finally(() => {
-        if (current) setLoading(false);
-      });
-    return () => {
-      current = false;
-    };
-  }, [reload]);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!message.trim() || sending) return;
-    setSending(true);
-    setError('');
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(media?.matches ?? false);
+    media?.addEventListener('change', update);
+    return () => media?.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
     try {
-      const task = await api.createTask(message);
-      setTasks((previous) => [task, ...previous]);
-      setSelected(task.task_id);
-      setMessage('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save your request');
-    } finally {
-      setSending(false);
+      localStorage.setItem('bizmate-demo-v1', JSON.stringify(turns));
+    } catch {
+      /* Chat remains available in memory. */
     }
+  }, [turns]);
+  useEffect(() => {
+    if (!working) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [working]);
+  useEffect(() => {
+    const panel = chat.current;
+    if (!panel || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (panel.dataset.follow !== 'false') panel.scrollTop = panel.scrollHeight;
+    });
+    if (panel.firstElementChild) observer.observe(panel.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
+  function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const question = draft.trim();
+    if (!question || voice.mode) return;
+    const started = Date.now();
+    if (chat.current) chat.current.dataset.follow = 'true';
+    setNow(started);
+    setTurns((previous) => [
+      ...previous,
+      {
+        id: crypto.randomUUID(),
+        question,
+        started,
+        intent: detectIntent(question),
+        offer: initialOffer,
+      },
+    ]);
+    setDraft('');
+    voice.reset();
+    announce('Question sent.');
+    focusComposer();
   }
 
-  const active = tasks.find((task) => task.task_id === selected);
+  function replay() {
+    voice.reset();
+    setTurns([]);
+    setDraft('');
+    announce('Demo reset.');
+    focusComposer();
+  }
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="/" aria-label="BizMate home">
-          <span className="brand-mark">
-            b<span>·</span>
-          </span>
-          <span>
-            paytm <strong>BizMate</strong>
-          </span>
-        </a>
-        <div className="workspace-label">MERCHANT WORKSPACE</div>
-        <div className="nav-active">
-          <span>▦</span> My workspace <span className="nav-dot" />
-        </div>
-        <div className="task-list-heading">
-          <span>YOUR TASKS</span>
-          <button
-            onClick={() => setReload((n) => n + 1)}
-            aria-label="Refresh tasks"
-            disabled={loading}
-          >
-            ↻
-          </button>
-        </div>
-        <nav aria-label="Your tasks" className="task-list">
-          {tasks.map((task) => (
+      <header className="topbar">
+        <div className="top-inner">
+          <div className="brand">
+            <span className="brand-mark">
+              <Icon name="sparkle" size={20} />
+            </span>
+            <span>
+              <span className="paytm">
+                pay<span>tm</span>
+              </span>
+              <span className="brand-divider" />
+              BizMate
+            </span>
+          </div>
+          <div className="header-actions">
+            <span className="merchant">
+              <Icon name="store" size={17} /> Sharma General Store
+            </span>
             <button
-              key={task.task_id}
-              className={selected === task.task_id ? 'task-link selected' : 'task-link'}
-              aria-pressed={selected === task.task_id}
-              onClick={() => setSelected(task.task_id)}
+              className="replay"
+              type="button"
+              onClick={replay}
+              aria-label="Replay demo"
+              title="Replay demo"
             >
-              <span>{task.goal}</span>
-              <small>{task.status.replaceAll('_', ' ').toLowerCase()}</small>
+              <Icon name="replay" size={17} />
+              <span>Replay demo</span>
             </button>
-          ))}
-          {!loading && !tasks.length && (
-            <p className="sidebar-empty">Your requests will appear here.</p>
-          )}
-        </nav>
-        <div className="sidebar-bottom">
-          <span className="avatar">SG</span>
-          <div>
-            <strong>{session?.merchant.display_name ?? 'Demo merchant'}</strong>
-            <span>Synthetic local session</span>
           </div>
         </div>
-      </aside>
-      <main>
-        <header className="topbar">
-          <span>Your AI teammate for business</span>
-          <span className="demo-pill">
-            <i /> Local prototype
-          </span>
-        </header>
-        <div className="content">
-          <div className="welcome">
-            <span className="eyebrow">A LITTLE LESS BUSYWORK</span>
-            <h1>
-              What’s on your mind
-              <br />
-              <span>for your business?</span>
-            </h1>
-            <p>Start with a request. Keep every next step in sight.</p>
-          </div>
-          <div className="notice">
-            <span>ⓘ</span>
-            <p>
-              <strong>Synthetic workflows</strong> · Synthetic demo data.
-              Requests prepare evidence and pause for your approval. Use the API to approve and resume.
-            </p>
-          </div>
-          {loading && (
-            <p role="status" className="loading">
-              Connecting to your workspace…
-            </p>
-          )}
-          {error && (
-            <div className="error" role="alert">
-              <strong>Could not complete the request.</strong>
-              <p>{error}</p>
-              <button className="text-button" onClick={() => setReload((n) => n + 1)}>
-                Retry connection
-              </button>
-              <p className="fineprint">For local setup, start both services with npm run dev.</p>
-            </div>
-          )}
-          <section className="card composer">
-            <form onSubmit={submit}>
-              <label htmlFor="request">Tell BizMate what you need</label>
-              <textarea
-                id="request"
-                placeholder="For example, why did I receive less than yesterday’s sales?"
-                value={message}
-                maxLength={4000}
-                rows={2}
-                onChange={(event) => setMessage(event.target.value)}
-              />
-              <div className="composer-bottom">
-                <span>Synthetic data · approval required for actions</span>
-                <button
-                  className="button primary"
-                  type="submit"
-                  disabled={loading || !session || !message.trim() || sending}
-                >
-                  {sending ? 'Saving…' : 'Start a task'} <span aria-hidden="true">↗</span>
-                </button>
+      </header>
+      <main
+        className="chat"
+        ref={chat}
+        onScroll={(event) => {
+          const panel = event.currentTarget;
+          panel.dataset.follow = String(
+            panel.scrollHeight - panel.clientHeight - panel.scrollTop < 72,
+          );
+        }}
+      >
+        <div className={turns.length ? 'chat-column conversation' : 'chat-column welcome-wrap'}>
+          {turns.length === 0 ? (
+            <section className="welcome">
+              <div className="hero-mark">
+                <Icon name="sparkle" size={35} />
+                <span>✦</span>
               </div>
-            </form>
-          </section>
-          <div className="suggestions" aria-label="Example requests">
-            {prompts.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => {
-                  setMessage(prompt);
-                  document.getElementById('request')?.focus();
-                }}
-              >
-                {prompt}
-                <span aria-hidden="true">↗</span>
-              </button>
-            ))}
-          </div>
-          {active && <TaskTimeline task={active} />}
-          {preview && <DemoCards preview={preview} />}
-          <footer className="page-footer">
-            Built for the Paytm Build for India AI Hackathon · Prototype workspace
-          </footer>
+              <h1>Hi! How can I help?</h1>
+              <p>Ask about a payment, bring customers back, or get help with your account.</p>
+              <div className="prompts">
+                {questions.map((question, index) => (
+                  <button
+                    key={question}
+                    type="button"
+                    disabled={!!voice.mode}
+                    onClick={() => {
+                      setDraft(question);
+                      focusComposer();
+                    }}
+                  >
+                    <span className="tile">
+                      <Icon name={(['payment', 'campaign', 'bank'] as const)[index]} />
+                    </span>
+                    <span>{question}</span>
+                    <Icon name="arrow" size={16} />
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : (
+            turns.map((turn) => (
+              <article className="turn" key={turn.id}>
+                <div className="user-bubble">{turn.question}</div>
+                <ChatReply
+                  turn={turn}
+                  now={now}
+                  reduced={reduced}
+                  update={(change) =>
+                    setTurns((previous) =>
+                      previous.map((item) => (item.id === turn.id ? { ...item, ...change } : item)),
+                    )
+                  }
+                />
+              </article>
+            ))
+          )}
         </div>
       </main>
+      <footer className="composer-region">
+        <div className="chat-column">
+          <form className="composer" onSubmit={send}>
+            {voice.mode && (
+              <div className="listening">
+                <span className="listening-label" role="status">
+                  Listening…{voice.mode === 'simulation' && <small>Simulated dictation</small>}
+                </span>
+                <div className="wave" aria-hidden="true">
+                  {reduced ? (
+                    <StaticWaveform bars={27} height={27} barColor="#007da5" />
+                  ) : voice.mode === 'simulation' ? (
+                    <ScrollingWaveform height={27} barWidth={3} barGap={3} barColor="#007da5" />
+                  ) : (
+                    <MicrophoneWaveform
+                      active
+                      height={27}
+                      barWidth={3}
+                      barGap={3}
+                      barColor="#007da5"
+                    />
+                  )}
+                </div>
+                <button type="button" className="secondary" onClick={() => voice.end(true)}>
+                  Cancel
+                </button>
+                <button type="button" className="primary" onClick={() => voice.end()}>
+                  Done
+                </button>
+              </div>
+            )}
+            <label className="sr-only" htmlFor="question">
+              Type a question
+            </label>
+            <textarea
+              id="question"
+              ref={input}
+              rows={2}
+              maxLength={2000}
+              placeholder="Type a question…"
+              value={draft}
+              readOnly={!!voice.mode}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <div className="composer-actions">
+              <button
+                type="button"
+                className="secondary speak"
+                disabled={!!voice.mode}
+                onClick={() => voice.start(false)}
+              >
+                <Icon name="mic" size={16} /> Speak
+              </button>
+              <button
+                type="button"
+                className="simulate"
+                disabled={!!voice.mode}
+                onClick={() => voice.start(true)}
+              >
+                Simulate dictation
+              </button>
+              <button
+                type="submit"
+                className="primary send"
+                disabled={!draft.trim() || !!voice.mode}
+              >
+                Send <Icon name="send" size={16} />
+              </button>
+            </div>
+          </form>
+          <div className="notice" role="status">
+            {voice.notice}
+          </div>
+          <p className="demo-note">
+            <span /> Demo mode · Sample data and simulated actions
+          </p>
+          <div className="sr-only" role="status">
+            {announcement}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

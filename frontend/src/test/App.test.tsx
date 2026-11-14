@@ -1,96 +1,92 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from '../App';
-import { api } from '../api/client';
-import { preview, session, task } from './fixtures';
-
-vi.mock('../api/client', () => ({
-  api: { health: vi.fn(), session: vi.fn(), tasks: vi.fn(), preview: vi.fn(), createTask: vi.fn() },
-}));
 
 beforeEach(() => {
-  vi.resetAllMocks();
-  vi.mocked(api.health).mockResolvedValue({
-    status: 'ok',
-    mode: 'synthetic_workflows',
-    storage: 'memory',
-    workflows_implemented: true,
-  });
-  vi.mocked(api.session).mockResolvedValue(session);
-  vi.mocked(api.tasks).mockResolvedValue([task]);
-  vi.mocked(api.preview).mockResolvedValue(preview);
+  localStorage.clear();
+  vi.useFakeTimers();
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
-describe('merchant workspace', () => {
-  it('submits original multilingual content without trimming whitespace', async () => {
-    vi.mocked(api.createTask).mockResolvedValue(task);
-    render(<App />);
-    await screen.findByText('Sharma General Store');
-    const content = '  తెలుగు / हिन्दी / English\n\t';
-    fireEvent.change(screen.getByLabelText('Tell BizMate what you need'), {
-      target: { value: content },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Start a task/ }));
-    await waitFor(() => expect(api.createTask).toHaveBeenCalledWith(content));
-  });
+function tick(ms: number) {
+  act(() => vi.advanceTimersByTime(ms));
+}
 
-  it('blocks whitespace-only drafts without submitting them', async () => {
-    render(<App />);
-    await screen.findByText('Sharma General Store');
-    fireEvent.change(screen.getByLabelText('Tell BizMate what you need'), {
-      target: { value: ' \n\t' },
-    });
-    expect(screen.getByRole('button', { name: /Start a task/ })).toBeDisabled();
-    expect(api.createTask).not.toHaveBeenCalled();
-  });
+function choose(name: string) {
+  fireEvent.click(screen.getByRole('button', { name }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+}
 
-  it('separates static previews from task execution and disables sends', async () => {
-    render(<App />);
-    expect(await screen.findByText('Sharma General Store')).toBeInTheDocument();
-    expect(screen.getByText(/No execution receipt/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Review & send/ })).toBeDisabled();
-    expect(screen.getByText(/These values are separate/)).toBeInTheDocument();
-  });
+it('reviews simulated speech before sending, then verifies the credit after approval', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Simulate dictation' }));
+  tick(950);
+  const draft = screen.getByRole('textbox', { name: 'Type a question' });
+  expect(draft).toHaveValue('Why is my');
+  expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  tick(1200);
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(draft).toHaveValue('Why is my payment short?');
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  fireEvent.change(draft, { target: { value: 'Why is my settlement short?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20');
+  tick(3600);
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
+  expect(screen.getByText('The payment report is taking longer than usual.')).toBeInTheDocument();
+  tick(1500);
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '90');
+  tick(1900);
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+  expect(screen.getByText('₹166.80 is still missing')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Ask support' }));
+  expect(screen.queryByText('Pending with support.')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm support request' }));
+  expect(screen.getByText('Pending with support.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Run simulated follow-up' }));
+  expect(screen.getByText('Missing credit verified')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Replay demo' }));
+  expect(screen.getByRole('heading', { name: 'Hi! How can I help?' })).toBeInTheDocument();
+});
 
-  it('uses an example request and saves a task without claiming completion', async () => {
-    vi.mocked(api.createTask).mockResolvedValue({
-      ...task,
-      task_id: 'new-task',
-      goal: 'A new request',
-    });
-    render(<App />);
-    await screen.findByText('Sharma General Store');
-    fireEvent.click(screen.getByRole('button', { name: 'Why is my settlement short?' }));
-    fireEvent.click(screen.getByRole('button', { name: /Start a task/ }));
-    await waitFor(() => expect(api.createTask).toHaveBeenCalledWith('Why is my settlement short?'));
-    expect(await screen.findByRole('heading', { name: 'A new request' })).toBeInTheDocument();
-    expect(screen.getByText('AWAITING INPUT')).toBeInTheDocument();
+it('shows campaign delivery only after confirmation', () => {
+  render(<App />);
+  choose('Help me bring customers back.');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Offer message' }), {
+    target: { value: 'Save 10% today.' },
   });
+  fireEvent.click(screen.getByRole('button', { name: 'Review simulated send' }));
+  expect(screen.queryByText('118 delivered, 2 failed')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm simulated send' }));
+  expect(screen.getByText('118 delivered, 2 failed')).toBeInTheDocument();
+});
 
-  it('shows a recoverable error when the backend is offline', async () => {
-    vi.mocked(api.health).mockRejectedValue(new Error('API offline'));
-    render(<App />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('API offline');
-    expect(screen.getByRole('button', { name: /Start a task/ })).toBeDisabled();
-    vi.mocked(api.health).mockResolvedValue({
-      status: 'ok',
-      mode: 'synthetic_workflows',
-      storage: 'memory',
-      workflows_implemented: true,
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Retry connection' }));
-    expect(await screen.findByText('Sharma General Store')).toBeInTheDocument();
-  });
-
-  it('preserves the draft when saving fails', async () => {
-    vi.mocked(api.createTask).mockRejectedValue(new Error('Please retry'));
-    render(<App />);
-    await screen.findByText('Sharma General Store');
-    fireEvent.change(screen.getByLabelText('Tell BizMate what you need'), {
-      target: { value: 'Investigate' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Start a task/ }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Please retry');
-    expect(screen.getByLabelText('Tell BizMate what you need')).toHaveValue('Investigate');
-  });
+it('preserves the draft if speech is unavailable and keeps bank changes pending', () => {
+  render(<App />);
+  const draft = screen.getByRole('textbox', { name: 'Type a question' });
+  fireEvent.change(draft, { target: { value: 'My draft' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Speak' }));
+  expect(draft).toHaveValue('My draft');
+  expect(screen.getByText('You can still type your question.')).toBeInTheDocument();
+  choose('How do I change my bank account?');
+  fireEvent.click(screen.getByRole('button', { name: 'Ask support' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm support request' }));
+  expect(screen.getByText('Pending with support.')).toBeInTheDocument();
 });
