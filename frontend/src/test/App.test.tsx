@@ -12,9 +12,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.health).mockResolvedValue({
     status: 'ok',
-    mode: 'scaffold',
+    mode: 'synthetic_workflows',
     storage: 'memory',
-    workflows_implemented: false,
+    workflows_implemented: true,
   });
   vi.mocked(api.session).mockResolvedValue(session);
   vi.mocked(api.tasks).mockResolvedValue([task]);
@@ -74,9 +74,9 @@ describe('merchant workspace', () => {
     expect(screen.getByRole('button', { name: /Start a task/ })).toBeDisabled();
     vi.mocked(api.health).mockResolvedValue({
       status: 'ok',
-      mode: 'scaffold',
+      mode: 'synthetic_workflows',
       storage: 'memory',
-      workflows_implemented: false,
+      workflows_implemented: true,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Retry connection' }));
     expect(await screen.findByText('Sharma General Store')).toBeInTheDocument();

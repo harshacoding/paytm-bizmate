@@ -81,6 +81,14 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
 
     for name, scopes, intents, schema, output, handler in [
         (
+            "get_bank_credits",
+            [Scope.PAYMENTS_READ],
+            [Intent.SETTLEMENT],
+            NoInputs,
+            PaymentRecords,
+            lambda context, inputs: PaymentRecords(records=services.bank_credits(context)),
+        ),
+        (
             "get_transactions",
             [Scope.PAYMENTS_READ],
             [Intent.SETTLEMENT],

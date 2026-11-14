@@ -15,7 +15,6 @@ from bizmate.domain.chat import (
     UpdateConversationLanguageRequest,
 )
 from bizmate.domain.context import MerchantContext
-from bizmate.domain.lifecycle import transition_task
 from bizmate.domain.models import (
     Approval,
     ApprovalDecisionRequest,
@@ -30,10 +29,8 @@ from bizmate.domain.models import (
     SessionResponse,
     Task,
     TaskEvent,
-    TaskStatus,
     Verification,
     new_id,
-    now,
 )
 from bizmate.persistence.conversations import ConversationConflictError, ConversationRepository
 from bizmate.persistence.repository import TaskRepository
@@ -65,6 +62,13 @@ def owned_conversation(
 
 def repository(request: Request) -> TaskRepository:
     return request.app.state.tasks
+
+
+def orchestrator(request: Request):
+    request.app.state.setup_workflows()
+    # Preserve dependency injection for planner adapters.
+    request.app.state.orchestrator.planner = request.app.state.graph
+    return request.app.state.orchestrator
 
 
 def approval_engine(request: Request) -> ApprovalEngine:
@@ -113,22 +117,12 @@ def create_task(
 ):
     if body.conversation_id is not None:
         owned_conversation(request.app.state.conversations, context, body.conversation_id)
-    result = request.app.state.graph.invoke({"request": body.message})
-    task = Task(
-        merchant_id=context.merchant_id,
-        conversation_id=body.conversation_id,
-        # Normalize only the display title, not the original request.
-        goal=body.message.strip()[:90],
-        original_request=body.message,
-        next_action="Prepare the request for planning.",
-        events=[
-            TaskEvent(kind="request_received", message="Your request was saved."),
-            TaskEvent(kind="scaffold_pending", message=result["next_action"]),
-        ],
-    )
-    task = transition_task(task, TaskStatus.PLANNING, "Prepare the request for planning.")
-    task = transition_task(task, TaskStatus(result["status"]), result["next_action"])
-    return repo.save(context, task)
+    preferred = context.preferred_language
+    if body.conversation_id is not None:
+        preferred = owned_conversation(
+            request.app.state.conversations, context, body.conversation_id
+        ).preferred_language
+    return orchestrator(request).start(context, body.message, body.conversation_id, preferred)
 
 
 @router.get("/api/v1/tasks/{task_id}", response_model=Task, tags=["tasks"])
@@ -153,15 +147,24 @@ def task_events(
 def add_message(
     task_id: str,
     body: ClarificationRequest,
+    request: Request,
     repo: TaskRepository = Depends(repository),
     context: MerchantContext = Depends(require_task_write),
 ):
-    task = owned_task(repo, context, task_id)
-    task = task.with_updates(
-        events=(*task.events, TaskEvent(kind="merchant_message", message=body.message)),
-        updated_at=now(),
-    )
-    return repo.save(context, task)
+    owned_task(repo, context, task_id)
+    return orchestrator(request).message(context, task_id, body.message)
+
+
+@router.post("/api/v1/tasks/{task_id}/resume", response_model=Task, tags=["tasks"])
+def resume_task(
+    task_id: str,
+    request: Request,
+    repo: TaskRepository = Depends(repository),
+    context: MerchantContext = Depends(require_task_write),
+):
+    """Resume persisted input/approval checkpoints. Supply approval via its dedicated API first."""
+    owned_task(repo, context, task_id)
+    return orchestrator(request).run(context, task_id)
 
 
 @router.post(
@@ -316,9 +319,14 @@ def send_conversation_message(
         ):
             raise ConversationConflictError("Client message ID was used with different content")
         return previous
-    # Chat invokes the scaffold response without conversation IDs as task/checkpoint thread IDs.
-    # Business tasks remain separately persisted through the task API and repository.
-    result = request.app.state.graph.invoke({"request": body.content})
+    # Chat preserves a lightweight intake reply. Task creation drives durable execution.
+    result = request.app.state.graph.invoke(
+        {
+            "request": body.content,
+            "preferred_language": body.language
+            or owned_conversation(repo, context, conversation_id).preferred_language,
+        }
+    )
     try:
         return repo.save_turn(
             context,

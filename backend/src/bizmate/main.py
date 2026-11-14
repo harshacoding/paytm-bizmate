@@ -7,7 +7,8 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException
 
-from bizmate.agents.graph import build_graph
+from bizmate.agents.orchestrator import Orchestrator
+from bizmate.agents.planner import Planner
 from bizmate.api.campaign_routes import router as campaign_router
 from bizmate.api.mock_routes import router as mock_router
 from bizmate.api.routes import router
@@ -59,7 +60,7 @@ def create_app(
                             goal="Investigate a short settlement",
                             original_request="Why is my settlement short?",
                             next_action=(
-                                "Submit a request to try task intake. Execution is pending BM-07."
+                                "Submit a request to start a resumable synthetic investigation."
                             ),
                             events=[
                                 TaskEvent(
@@ -72,20 +73,12 @@ def create_app(
                 except TaskConflictError:
                     # Another worker seeded the same task while this worker was starting.
                     pass
-        app.state.mock_services = MockServices(
-            SQLiteMockStore(settings.database_file),
-            app.state.tasks,
-            controls_enabled=settings.demo_controls_enabled,
-        )
-        if tools is None:
-            register_mock_tools(app.state.tools, app.state.mock_services)
-            register_campaign_tools(app.state.tools, app.state.mock_services)
-            register_settlement_tools(app.state.tools, app.state.mock_services)
+        setup_workflows()
         yield
 
     app = FastAPI(
         title="Paytm BizMate API",
-        version="0.4.0",
+        version="0.5.0",
         description="Local prototype with durable SQLite tasks and synthetic fixtures.",
         lifespan=lifespan,
     )
@@ -95,8 +88,32 @@ def create_app(
         app.state.tasks = repo
     if chat_repo is not None:
         app.state.conversations = chat_repo
-    app.state.graph = build_graph()
+    app.state.graph = Planner(settings)
     app.state.tools = tools if tools is not None else ToolRegistry()
+
+    def setup_workflows():
+        if hasattr(app.state, "orchestrator"):
+            return
+        if not hasattr(app.state, "tasks"):
+            app.state.tasks = SQLiteTaskRepository(settings.database_file)
+        app.state.mock_services = MockServices(
+            SQLiteMockStore(settings.database_file),
+            app.state.tasks,
+            controls_enabled=settings.demo_controls_enabled,
+        )
+        if tools is None:
+            register_mock_tools(app.state.tools, app.state.mock_services)
+            register_campaign_tools(app.state.tools, app.state.mock_services)
+            register_settlement_tools(app.state.tools, app.state.mock_services)
+        app.state.orchestrator = Orchestrator(
+            app.state.tasks,
+            app.state.tools,
+            app.state.mock_services,
+            app.state.graph,
+            settings.checkpoint_file,
+        )
+
+    app.state.setup_workflows = setup_workflows
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
