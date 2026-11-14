@@ -1,10 +1,11 @@
 from collections.abc import Callable
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from bizmate.domain.errors import FeaturePending
-from bizmate.domain.models import Merchant, Model
+from bizmate.domain.context import MerchantContext, require_context
+from bizmate.domain.errors import AccessDenied, FeaturePending
+from bizmate.domain.models import Model, Scope
 
 
 class ToolMetadata(Model):
@@ -12,8 +13,8 @@ class ToolMetadata(Model):
     description: str
     category: str
     risk: Literal["read", "preparation", "side_effect"]
-    required_scopes: list[str] = Field(default_factory=list)
-    preconditions: list[str] = Field(default_factory=list)
+    required_scopes: frozenset[Scope] = frozenset()
+    preconditions: tuple[str, ...] = ()
     approval_required: bool = False
     idempotency: str = "none"
     verification_tool: str | None = None
@@ -28,19 +29,22 @@ class ToolRegistry:
             raise ValueError("Duplicate tool registration")
         self._tools[metadata.name] = (metadata, schema, handler)
 
-    def discover(self, merchant: Merchant) -> list[ToolMetadata]:
+    def discover(self, context: MerchantContext) -> list[ToolMetadata]:
+        require_context(context)
         return [
             m.model_copy(deep=True)
             for m, _, _ in self._tools.values()
-            if set(m.required_scopes) <= set(merchant.scopes)
+            if m.required_scopes <= context.scopes
         ]
 
-    def execute(self, name: str, merchant: Merchant, inputs: dict[str, Any]) -> Any:
+    def execute(self, name: str, context: MerchantContext, inputs: dict[str, Any]) -> Any:
+        require_context(context)
         metadata, schema, handler = self._tools[name]
-        if not set(metadata.required_scopes) <= set(merchant.scopes):
-            raise PermissionError("Missing tool scope")
+        context.require(*metadata.required_scopes)
         parsed = schema.model_validate(inputs)
+        if {"merchant_id", "actor_id", "scopes", "merchant_context", "session"} & inputs.keys():
+            raise AccessDenied("Tool inputs cannot supply identity or permissions")
         # Preconditions and write approvals must be enforced before adding any write handler.
         if metadata.risk != "read" or metadata.approval_required or metadata.preconditions:
             raise FeaturePending("BM-06", "Consequential tool execution is not implemented.")
-        return handler(merchant, parsed)
+        return handler(context, parsed)

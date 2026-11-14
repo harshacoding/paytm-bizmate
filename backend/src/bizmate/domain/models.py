@@ -1,12 +1,28 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Annotated, Any, Literal
+from typing import Any, Literal, Self
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    StrictBool,
+    model_validator,
+)
 
-Money = Annotated[int, Field(strict=True, ge=0)]
-Message = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+from bizmate.domain.types import (
+    Count,
+    Identifier,
+    InputHash,
+    MessageText,
+    Money,
+    Paise,
+    ShortText,
+    Text,
+)
 
 
 def now() -> datetime:
@@ -18,7 +34,27 @@ def new_id() -> str:
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        revalidate_instances="always",
+        allow_inf_nan=False,
+        json_schema_serialization_defaults_required=True,
+    )
+
+    def with_updates(self, **changes: Any) -> Self:
+        """Validated replacement. Pydantic's model_copy(update=...) skips validation."""
+        return type(self).model_validate({**self.model_dump(), **changes})
+
+
+class Scope(StrEnum):
+    TASKS_READ = "tasks:read"
+    TASKS_WRITE = "tasks:write"
+    TASKS_APPROVE = "tasks:approve"
+    PAYMENTS_READ = "payments:read"
+    CUSTOMERS_READ = "customers:read"
+    TICKETS_WRITE = "tickets:write"
+    CAMPAIGNS_WRITE = "campaigns:write"
 
 
 class TaskStatus(StrEnum):
@@ -42,115 +78,274 @@ class Intent(StrEnum):
     UNKNOWN = "unknown"
 
 
+class MessageRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+
+class LanguageCode(StrEnum):
+    ENGLISH = "en"
+    TELUGU = "te"
+    HINDI = "hi"
+
+
+class LanguageContext(Model):
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
+    detected_language: LanguageCode | None = None
+    response_language: LanguageCode | None = None
+
+
 class Merchant(Model):
-    merchant_id: str
-    display_name: str
-    scopes: list[str]
+    merchant_id: Identifier
+    display_name: ShortText
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
+    scopes: frozenset[Scope]
+
+
+class TaskEntity(Model):
+    task_id: Identifier
+    merchant_id: Identifier
 
 
 class TaskEvent(Model):
-    event_id: str = Field(default_factory=new_id)
-    kind: str
-    message: str
-    occurred_at: datetime = Field(default_factory=now)
+    event_id: Identifier = Field(default_factory=new_id)
+    kind: Identifier
+    message: MessageText
+    occurred_at: AwareDatetime = Field(default_factory=now)
 
 
-class PlanStep(Model):
-    step_id: str
-    tool_name: str
-    inputs: dict[str, Any] = Field(default_factory=dict)
-    dependencies: list[str] = Field(default_factory=list)
+class PlanStep(TaskEntity):
+    step_id: Identifier
+    tool_name: Identifier
+    inputs: dict[str, JsonValue] = Field(default_factory=dict)
+    dependencies: tuple[Identifier, ...] = ()
     status: Literal["pending", "running", "done", "failed"] = "pending"
 
+    @model_validator(mode="after")
+    def valid_dependencies(self) -> Self:
+        if self.step_id in self.dependencies or len(set(self.dependencies)) != len(
+            self.dependencies
+        ):
+            raise ValueError("Step dependencies must be unique and cannot include itself")
+        return self
 
-class Evidence(Model):
-    evidence_id: str
-    source: str
-    source_reference: str
-    description: str
-    amount_paise: Money | None = None
-    captured_at: datetime = Field(default_factory=now)
+
+class Evidence(TaskEntity):
+    evidence_id: Identifier
+    source: ShortText
+    source_reference: ShortText
+    description: Text
+    amount_paise: Paise | None = None
+    captured_at: AwareDatetime = Field(default_factory=now)
 
 
-class Approval(Model):
-    approval_id: str
-    task_id: str
-    merchant_id: str
-    action: str
-    approved_inputs: dict[str, Any]
-    input_hash: str
+class Approval(TaskEntity):
+    approval_id: Identifier
+    action: Identifier
+    approved_inputs: dict[str, JsonValue]
+    input_hash: InputHash
     decision: Literal["pending", "approved", "cancelled"] = "pending"
-    approver: str | None = None
-    decided_at: datetime | None = None
+    approver: Identifier | None = None
+    decided_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def valid_decision(self) -> Self:
+        if self.decision == "pending":
+            if self.approver is not None or self.decided_at is not None:
+                raise ValueError("Pending approval cannot contain a decision actor or time")
+        elif self.approver is None or self.decided_at is None:
+            raise ValueError("A decided approval requires its actor and time")
+        return self
 
 
-class Receipt(Model):
-    receipt_id: str
-    task_id: str
-    external_reference: str
-    input_hash: str
-    created_at: datetime = Field(default_factory=now)
+class Receipt(TaskEntity):
+    receipt_id: Identifier
+    external_reference: ShortText
+    action: Identifier
+    idempotency_key: Identifier
+    input_hash: InputHash
+    created_at: AwareDatetime = Field(default_factory=now)
 
 
-class Verification(Model):
-    verification_id: str
-    receipt_id: str
-    tool_name: str
-    verified: bool
-    evidence_reference: str
-    verified_at: datetime = Field(default_factory=now)
+class Verification(TaskEntity):
+    verification_id: Identifier
+    receipt_id: Identifier
+    tool_name: Identifier
+    verified: StrictBool
+    evidence_reference: ShortText
+    verified_at: AwareDatetime = Field(default_factory=now)
 
 
-class ToolExecution(Model):
-    execution_id: str
-    task_id: str
-    tool_name: str
-    input_hash: str
-    outcome: str
-    error: str | None = None
-    occurred_at: datetime = Field(default_factory=now)
+class ToolExecution(TaskEntity):
+    execution_id: Identifier
+    tool_name: Identifier
+    input_hash: InputHash
+    outcome: Literal["succeeded", "failed", "uncertain"]
+    error: Text | None = None
+    occurred_at: AwareDatetime = Field(default_factory=now)
 
 
-class CapabilityGap(Model):
-    gap_id: str
-    merchant_id: str
-    requested_capability: str
-    reason: str
-    handoff_reference: str | None = None
+class CapabilityGap(TaskEntity):
+    gap_id: Identifier
+    requested_capability: ShortText
+    reason: Text
+    handoff_reference: ShortText | None = None
 
 
-class Task(Model):
-    task_id: str = Field(default_factory=new_id)
-    merchant_id: str
-    goal: str
-    original_request: str
+class Task(TaskEntity):
+    task_id: Identifier = Field(default_factory=new_id)
+    conversation_id: Identifier | None = None
+    goal: ShortText
+    original_request: MessageText
     intent: Intent = Intent.UNKNOWN
     status: TaskStatus = TaskStatus.CREATED
-    plan: list[PlanStep] = Field(default_factory=list)
-    events: list[TaskEvent] = Field(default_factory=list)
-    evidence: list[Evidence] = Field(default_factory=list)
-    approvals: list[Approval] = Field(default_factory=list)
-    receipts: list[Receipt] = Field(default_factory=list)
-    verifications: list[Verification] = Field(default_factory=list)
-    next_action: str
-    next_run_at: datetime | None = None
-    checkpoint_id: str | None = None
-    created_at: datetime = Field(default_factory=now)
-    updated_at: datetime = Field(default_factory=now)
-    simulated: bool = True
+    plan: tuple[PlanStep, ...] = ()
+    events: tuple[TaskEvent, ...] = ()
+    evidence: tuple[Evidence, ...] = ()
+    approvals: tuple[Approval, ...] = ()
+    receipts: tuple[Receipt, ...] = ()
+    verifications: tuple[Verification, ...] = ()
+    tool_executions: tuple[ToolExecution, ...] = ()
+    capability_gaps: tuple[CapabilityGap, ...] = ()
+    next_action: Text
+    next_run_at: AwareDatetime | None = None
+    checkpoint_id: Identifier | None = None
+    created_at: AwareDatetime = Field(default_factory=now)
+    updated_at: AwareDatetime = Field(default_factory=now)
+    simulated: StrictBool = True
+
+    @model_validator(mode="after")
+    def valid_task(self) -> Self:
+        if self.updated_at < self.created_at:
+            raise ValueError("Task updated_at cannot precede created_at")
+        if self.next_run_at is not None and self.next_run_at < self.created_at:
+            raise ValueError("Task next_run_at cannot precede created_at")
+        collections = {
+            "step_id": self.plan,
+            "evidence_id": self.evidence,
+            "approval_id": self.approvals,
+            "receipt_id": self.receipts,
+            "verification_id": self.verifications,
+            "execution_id": self.tool_executions,
+            "gap_id": self.capability_gaps,
+        }
+        for id_field, items in collections.items():
+            if len({getattr(item, id_field) for item in items}) != len(items):
+                raise ValueError(f"Duplicate {id_field} in task")
+            if any(
+                item.task_id != self.task_id or item.merchant_id != self.merchant_id
+                for item in items
+            ):
+                raise ValueError("Attached records must belong to the same task and merchant")
+        if len({e.event_id for e in self.events}) != len(self.events):
+            raise ValueError("Duplicate event_id in task")
+        steps = {step.step_id: step for step in self.plan}
+        remaining = set(steps)
+        done: set[str] = set()
+        while remaining:
+            ready = {key for key in remaining if set(steps[key].dependencies) <= done}
+            if not ready:
+                raise ValueError("Plan contains missing dependencies or a cycle")
+            done.update(ready)
+            remaining -= ready
+        receipts_by_id = {receipt.receipt_id: receipt for receipt in self.receipts}
+        receipts = set(receipts_by_id)
+        if any(v.receipt_id not in receipts for v in self.verifications):
+            raise ValueError("Verification references a receipt not attached to this task")
+        if any(v.verified_at < receipts_by_id[v.receipt_id].created_at for v in self.verifications):
+            raise ValueError("Verification cannot precede its receipt")
+        if any(v.tool_name == receipts_by_id[v.receipt_id].action for v in self.verifications):
+            raise ValueError("Verification must use a separate read tool")
+        if self.status == TaskStatus.COMPLETED:
+            reads = {
+                key: [v for v in self.verifications if v.receipt_id == key] for key in receipts
+            }
+            verified = set()
+            for key, results in reads.items():
+                if results:
+                    latest = max(v.verified_at for v in results)
+                    if all(v.verified for v in results if v.verified_at == latest):
+                        verified.add(key)
+            if not receipts or not receipts <= verified:
+                raise ValueError(
+                    "Completion requires a successful independent read for each receipt"
+                )
+            if any(step.status != "done" for step in self.plan):
+                raise ValueError("Completion cannot leave unfinished plan steps")
+            if any(approval.decision == "pending" for approval in self.approvals):
+                raise ValueError("Completion cannot leave a pending approval")
+            if self.next_run_at is not None:
+                raise ValueError("A completed task cannot have a scheduled next run")
+        return self
+
+
+class Conversation(Model):
+    conversation_id: Identifier = Field(default_factory=new_id)
+    merchant_id: Identifier
+    title: ShortText
+    preferred_language: LanguageCode = LanguageCode.ENGLISH
+    created_at: AwareDatetime = Field(default_factory=now)
+    updated_at: AwareDatetime = Field(default_factory=now)
+
+    @model_validator(mode="after")
+    def valid_timestamps(self) -> Self:
+        if self.updated_at < self.created_at:
+            raise ValueError("Conversation updated_at cannot precede created_at")
+        return self
+
+
+class Message(Model):
+    message_id: Identifier = Field(default_factory=new_id)
+    conversation_id: Identifier
+    merchant_id: Identifier
+    role: MessageRole
+    content: MessageText
+    detected_language: LanguageCode | None = None
+    response_language: LanguageCode | None = None
+    task_id: Identifier | None = None
+    created_at: AwareDatetime = Field(default_factory=now)
+
+
+class ConversationThread(Model):
+    """Complete conversation snapshot, including all tasks needed to resolve message links."""
+
+    conversation: Conversation
+    messages: tuple[Message, ...] = ()
+    tasks: tuple[Task, ...] = ()
+
+    @model_validator(mode="after")
+    def valid_relationships(self) -> Self:
+        for records in [self.messages, self.tasks]:
+            if any(
+                record.merchant_id != self.conversation.merchant_id
+                or record.conversation_id != self.conversation.conversation_id
+                for record in records
+            ):
+                raise ValueError("Conversation records must share its merchant and conversation ID")
+        if len({message.message_id for message in self.messages}) != len(self.messages):
+            raise ValueError("Duplicate message_id in conversation")
+        task_ids = {task.task_id for task in self.tasks}
+        if len(task_ids) != len(self.tasks):
+            raise ValueError("Duplicate task_id in conversation")
+        if any(
+            message.task_id is not None and message.task_id not in task_ids
+            for message in self.messages
+        ):
+            raise ValueError("Message references a task not attached to this conversation")
+        return self
 
 
 class CreateTaskRequest(Model):
-    message: Message
+    message: MessageText
 
 
 class ApprovalDecisionRequest(Model):
     decision: Literal["approve", "cancel"]
-    input_hash: str = Field(min_length=1)
+    input_hash: InputHash
 
 
 class ClarificationRequest(Model):
-    message: Message
+    message: MessageText
 
 
 class ErrorResponse(Model):
@@ -168,6 +363,7 @@ class HealthResponse(Model):
 
 class SessionResponse(Model):
     merchant: Merchant
+    actor_id: Identifier
     mode: Literal["synthetic_local_demo"] = "synthetic_local_demo"
 
 
@@ -177,19 +373,27 @@ class SettlementPreview(Model):
     gst_paise: Money
     refunds_paise: Money
     chargeback_paise: Money
-    expected_paise: Money
+    expected_paise: Paise
     credit_paise: Money
-    residual_paise: Money
-    source_references: list[str]
+    residual_paise: Paise
+    source_references: tuple[ShortText, ...] = Field(min_length=1)
 
 
 class CampaignPreview(Model):
-    histories_count: int
-    inactivity_days: int
-    eligible_count: int
+    histories_count: Count
+    inactivity_days: Count = Field(gt=0)
+    eligible_count: Count
     estimated_cost_paise: Money
-    delivered_count: int
-    failed_count: int
+    delivered_count: Count
+    failed_count: Count
+
+    @model_validator(mode="after")
+    def valid_counts(self) -> Self:
+        if self.eligible_count > self.histories_count:
+            raise ValueError("Eligible audience exceeds histories analysed")
+        if self.delivered_count + self.failed_count > self.eligible_count:
+            raise ValueError("Delivery counts exceed the approved eligible audience")
+        return self
 
 
 class DemoPreview(Model):

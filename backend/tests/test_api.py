@@ -5,6 +5,7 @@ from bizmate.config import Settings
 from bizmate.domain.models import Task, TaskStatus
 from bizmate.main import create_app
 from bizmate.persistence.repository import MemoryTaskRepository
+from bizmate.services.demo import demo_context
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ def test_create_and_read_task_without_claiming_execution(client):
     assert "not implemented" in task["next_action"]
     assert client.get(f"/api/v1/tasks/{task['task_id']}").json() == task
     assert client.get("/api/v1/tasks").json() == [task]
-    assert len(client.get(f"/api/v1/tasks/{task['task_id']}/events").json()) == 2
+    assert len(client.get(f"/api/v1/tasks/{task['task_id']}/events").json()) == 4
 
 
 @pytest.mark.parametrize("message", ["", "  ", "x" * 4001])
@@ -65,13 +66,14 @@ def test_body_cannot_override_merchant(client):
 
 def test_cross_merchant_tasks_hidden_and_cannot_be_mutated(client, repo):
     repo.save(
+        demo_context("merchant_other"),
         Task(
             task_id="other",
             merchant_id="merchant_other",
             goal="private",
             original_request="private",
             next_action="pending",
-        )
+        ),
     )
     assert client.get("/api/v1/tasks").json() == []
     for suffix in ["", "/events"]:
@@ -84,7 +86,7 @@ def test_cross_merchant_tasks_hidden_and_cannot_be_mutated(client, repo):
             "/api/v1/tasks/other/approvals/a",
             json={
                 "decision": "approve",
-                "input_hash": "pretend",
+                "input_hash": "a" * 64,
             },
         ).status_code
         == 404
@@ -98,7 +100,7 @@ def test_approval_endpoint_fails_closed(client):
             f"/api/v1/tasks/{task['task_id']}/approvals/a",
             json={
                 "decision": decision,
-                "input_hash": "pretend-approved",
+                "input_hash": "a" * 64,
             },
         )
         assert response.status_code == 501
@@ -119,12 +121,13 @@ def test_repository_returns_detached_values_and_rejects_owner_change(repo):
     task = Task(
         merchant_id="merchant_demo", goal="test", original_request="test", next_action="wait"
     )
-    repo.save(task)
-    task.goal = "mutated outside repo"
-    assert repo.get_task("merchant_demo", task.task_id).goal == "test"
-    task.merchant_id = "merchant_other"
-    with pytest.raises(ValueError):
-        repo.save(task)
+    context = demo_context("merchant_demo")
+    repo.save(context, task)
+    changed = task.with_updates(goal="a detached edit")
+    assert repo.get_task(context, task.task_id).goal == "test"
+    assert changed.goal == "a detached edit"
+    with pytest.raises(PermissionError):
+        repo.save(context, task.with_updates(merchant_id="merchant_other"))
 
 
 def test_sessions_have_separate_process_local_stores():

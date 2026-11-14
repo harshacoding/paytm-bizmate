@@ -153,7 +153,7 @@ export interface components {
             approval_id: string;
             /** Approved Inputs */
             approved_inputs: {
-                [key: string]: unknown;
+                [key: string]: components["schemas"]["JsonValue"];
             };
             /** Approver */
             approver: string | null;
@@ -197,10 +197,63 @@ export interface components {
             /** Inactivity Days */
             inactivity_days: number;
         };
+        /** CapabilityGap */
+        CapabilityGap: {
+            /** Gap Id */
+            gap_id: string;
+            /** Handoff Reference */
+            handoff_reference: string | null;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Reason */
+            reason: string;
+            /** Requested Capability */
+            requested_capability: string;
+            /** Task Id */
+            task_id: string;
+        };
         /** ClarificationRequest */
         ClarificationRequest: {
             /** Message */
             message: string;
+        };
+        /** Conversation */
+        Conversation: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConversationThread
+         * @description Complete conversation snapshot, including all tasks needed to resolve message links.
+         */
+        ConversationThread: {
+            conversation: components["schemas"]["Conversation"];
+            /**
+             * Messages
+             * @default []
+             */
+            messages: components["schemas"]["Message"][];
+            /**
+             * Tasks
+             * @default []
+             */
+            tasks: components["schemas"]["Task"][];
         };
         /** CreateTaskRequest */
         CreateTaskRequest: {
@@ -242,10 +295,14 @@ export interface components {
             description: string;
             /** Evidence Id */
             evidence_id: string;
+            /** Merchant Id */
+            merchant_id: string;
             /** Source */
             source: string;
             /** Source Reference */
             source_reference: string;
+            /** Task Id */
+            task_id: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -283,23 +340,69 @@ export interface components {
          * @enum {string}
          */
         Intent: "settlement" | "win_back" | "handoff" | "unknown";
+        JsonValue: unknown;
+        /**
+         * LanguageCode
+         * @enum {string}
+         */
+        LanguageCode: "en" | "te" | "hi";
+        /** LanguageContext */
+        LanguageContext: {
+            detected_language: components["schemas"]["LanguageCode"] | null;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
+            response_language: components["schemas"]["LanguageCode"] | null;
+        };
         /** Merchant */
         Merchant: {
             /** Display Name */
             display_name: string;
             /** Merchant Id */
             merchant_id: string;
+            /** @default en */
+            preferred_language: components["schemas"]["LanguageCode"];
             /** Scopes */
-            scopes: string[];
+            scopes: components["schemas"]["Scope"][];
         };
+        /** Message */
+        Message: {
+            /** Content */
+            content: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            detected_language: components["schemas"]["LanguageCode"] | null;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Message Id */
+            message_id: string;
+            response_language: components["schemas"]["LanguageCode"] | null;
+            role: components["schemas"]["MessageRole"];
+            /** Task Id */
+            task_id: string | null;
+        };
+        /**
+         * MessageRole
+         * @enum {string}
+         */
+        MessageRole: "user" | "assistant";
         /** PlanStep */
         PlanStep: {
-            /** Dependencies */
+            /**
+             * Dependencies
+             * @default []
+             */
             dependencies: string[];
             /** Inputs */
             inputs: {
-                [key: string]: unknown;
+                [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Merchant Id */
+            merchant_id: string;
             /**
              * Status
              * @default pending
@@ -308,11 +411,15 @@ export interface components {
             status: "pending" | "running" | "done" | "failed";
             /** Step Id */
             step_id: string;
+            /** Task Id */
+            task_id: string;
             /** Tool Name */
             tool_name: string;
         };
         /** Receipt */
         Receipt: {
+            /** Action */
+            action: string;
             /**
              * Created At
              * Format: date-time
@@ -320,15 +427,26 @@ export interface components {
             created_at: string;
             /** External Reference */
             external_reference: string;
+            /** Idempotency Key */
+            idempotency_key: string;
             /** Input Hash */
             input_hash: string;
+            /** Merchant Id */
+            merchant_id: string;
             /** Receipt Id */
             receipt_id: string;
             /** Task Id */
             task_id: string;
         };
+        /**
+         * Scope
+         * @enum {string}
+         */
+        Scope: "tasks:read" | "tasks:write" | "tasks:approve" | "payments:read" | "customers:read" | "tickets:write" | "campaigns:write";
         /** SessionResponse */
         SessionResponse: {
+            /** Actor Id */
+            actor_id: string;
             merchant: components["schemas"]["Merchant"];
             /**
              * Mode
@@ -360,18 +478,34 @@ export interface components {
         };
         /** Task */
         Task: {
-            /** Approvals */
+            /**
+             * Approvals
+             * @default []
+             */
             approvals: components["schemas"]["Approval"][];
+            /**
+             * Capability Gaps
+             * @default []
+             */
+            capability_gaps: components["schemas"]["CapabilityGap"][];
             /** Checkpoint Id */
             checkpoint_id: string | null;
+            /** Conversation Id */
+            conversation_id: string | null;
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
-            /** Events */
+            /**
+             * Events
+             * @default []
+             */
             events: components["schemas"]["TaskEvent"][];
-            /** Evidence */
+            /**
+             * Evidence
+             * @default []
+             */
             evidence: components["schemas"]["Evidence"][];
             /** Goal */
             goal: string;
@@ -385,9 +519,15 @@ export interface components {
             next_run_at: string | null;
             /** Original Request */
             original_request: string;
-            /** Plan */
+            /**
+             * Plan
+             * @default []
+             */
             plan: components["schemas"]["PlanStep"][];
-            /** Receipts */
+            /**
+             * Receipts
+             * @default []
+             */
             receipts: components["schemas"]["Receipt"][];
             /**
              * Simulated
@@ -399,11 +539,19 @@ export interface components {
             /** Task Id */
             task_id: string;
             /**
+             * Tool Executions
+             * @default []
+             */
+            tool_executions: components["schemas"]["ToolExecution"][];
+            /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
-            /** Verifications */
+            /**
+             * Verifications
+             * @default []
+             */
             verifications: components["schemas"]["Verification"][];
         };
         /** TaskEvent */
@@ -425,6 +573,31 @@ export interface components {
          * @enum {string}
          */
         TaskStatus: "CREATED" | "PLANNING" | "READY" | "RUNNING" | "AWAITING_INPUT" | "AWAITING_APPROVAL" | "WAITING_EXTERNAL" | "VERIFYING" | "COMPLETED" | "ESCALATED" | "FAILED";
+        /** ToolExecution */
+        ToolExecution: {
+            /** Error */
+            error: string | null;
+            /** Execution Id */
+            execution_id: string;
+            /** Input Hash */
+            input_hash: string;
+            /** Merchant Id */
+            merchant_id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "succeeded" | "failed" | "uncertain";
+            /** Task Id */
+            task_id: string;
+            /** Tool Name */
+            tool_name: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -442,8 +615,12 @@ export interface components {
         Verification: {
             /** Evidence Reference */
             evidence_reference: string;
+            /** Merchant Id */
+            merchant_id: string;
             /** Receipt Id */
             receipt_id: string;
+            /** Task Id */
+            task_id: string;
             /** Tool Name */
             tool_name: string;
             /** Verification Id */

@@ -1,5 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from bizmate.api.dependencies import (
+    current_context,
+    require_task_approval,
+    require_task_read,
+    require_task_write,
+)
+from bizmate.domain.context import MerchantContext
+from bizmate.domain.lifecycle import transition_task
 from bizmate.domain.models import (
     ApprovalDecisionRequest,
     ClarificationRequest,
@@ -7,7 +15,6 @@ from bizmate.domain.models import (
     DemoPreview,
     ErrorResponse,
     HealthResponse,
-    Merchant,
     SessionResponse,
     Task,
     TaskEvent,
@@ -15,24 +22,19 @@ from bizmate.domain.models import (
     now,
 )
 from bizmate.persistence.repository import TaskRepository
-from bizmate.services.demo import MERCHANTS, preview
+from bizmate.services.demo import preview
 from bizmate.tools.policy import require_approval_engine
 
 router = APIRouter()
-
-
-def current_merchant(request: Request) -> Merchant:
-    # Local-only synthetic identity: NO caller-provided header/query/body override.
-    return MERCHANTS[request.app.state.settings.demo_merchant_id].model_copy(deep=True)
 
 
 def repository(request: Request) -> TaskRepository:
     return request.app.state.tasks
 
 
-def owned_task(repo: TaskRepository, merchant: Merchant, task_id: str) -> Task:
-    task = repo.get_task(merchant.merchant_id, task_id)
-    if task is None:
+def owned_task(repo: TaskRepository, context: MerchantContext, task_id: str) -> Task:
+    task = repo.get_task(context, task_id)
+    if task is None or task.merchant_id != context.merchant_id:
         raise HTTPException(404, "Task not found")
     return task
 
@@ -43,15 +45,16 @@ def health():
 
 
 @router.get("/api/v1/session", response_model=SessionResponse, tags=["session"])
-def session(merchant: Merchant = Depends(current_merchant)):
-    return SessionResponse(merchant=merchant)
+def session(context: MerchantContext = Depends(current_context)):
+    return SessionResponse(merchant=context.public_merchant(), actor_id=context.actor_id)
 
 
 @router.get("/api/v1/tasks", response_model=list[Task], tags=["tasks"])
 def tasks(
-    repo: TaskRepository = Depends(repository), merchant: Merchant = Depends(current_merchant)
+    repo: TaskRepository = Depends(repository),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return repo.list_tasks(merchant.merchant_id)
+    return [task for task in repo.list_tasks(context) if task.merchant_id == context.merchant_id]
 
 
 @router.post(
@@ -61,39 +64,41 @@ def create_task(
     body: CreateTaskRequest,
     request: Request,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
     result = request.app.state.graph.invoke({"request": body.message})
     task = Task(
-        merchant_id=merchant.merchant_id,
-        goal=body.message[:90],
+        merchant_id=context.merchant_id,
+        # Normalize only the display title, not the original request.
+        goal=body.message.strip()[:90],
         original_request=body.message,
-        status=TaskStatus(result["status"]),
-        next_action=result["next_action"],
+        next_action="Prepare the request for planning.",
         events=[
             TaskEvent(kind="request_received", message="Your request was saved in demo memory."),
             TaskEvent(kind="scaffold_pending", message=result["next_action"]),
         ],
     )
-    return repo.save(task)
+    task = transition_task(task, TaskStatus.PLANNING, "Prepare the request for planning.")
+    task = transition_task(task, TaskStatus(result["status"]), result["next_action"])
+    return repo.save(context, task)
 
 
 @router.get("/api/v1/tasks/{task_id}", response_model=Task, tags=["tasks"])
 def task_detail(
     task_id: str,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return owned_task(repo, merchant, task_id)
+    return owned_task(repo, context, task_id)
 
 
 @router.get("/api/v1/tasks/{task_id}/events", response_model=list[TaskEvent], tags=["tasks"])
 def task_events(
     task_id: str,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_read),
 ):
-    return owned_task(repo, merchant, task_id).events
+    return owned_task(repo, context, task_id).events
 
 
 @router.post("/api/v1/tasks/{task_id}/messages", response_model=Task, tags=["tasks"])
@@ -101,12 +106,14 @@ def add_message(
     task_id: str,
     body: ClarificationRequest,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_write),
 ):
-    task = owned_task(repo, merchant, task_id)
-    task.events.append(TaskEvent(kind="merchant_message", message=body.message))
-    task.updated_at = now()
-    return repo.save(task)
+    task = owned_task(repo, context, task_id)
+    task = task.with_updates(
+        events=(*task.events, TaskEvent(kind="merchant_message", message=body.message)),
+        updated_at=now(),
+    )
+    return repo.save(context, task)
 
 
 @router.post(
@@ -120,13 +127,13 @@ def decide_approval(
     approval_id: str,
     body: ApprovalDecisionRequest,
     repo: TaskRepository = Depends(repository),
-    merchant: Merchant = Depends(current_merchant),
+    context: MerchantContext = Depends(require_task_approval),
 ):
-    owned_task(repo, merchant, task_id)
+    owned_task(repo, context, task_id)
     # Both approve/cancel need the real action snapshot/state engine; never report fake success.
     require_approval_engine()
 
 
 @router.get("/api/v1/demo/preview", response_model=DemoPreview, tags=["demo"])
-def demo_preview(merchant: Merchant = Depends(current_merchant)):
+def demo_preview(context: MerchantContext = Depends(require_task_read)):
     return preview()
