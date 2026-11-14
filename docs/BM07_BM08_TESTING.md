@@ -93,4 +93,4 @@ Regression tests cover separate OS processes exiting immediately after both prov
 
 ## Remaining integration
 
-The shared BM-07/08 engine is usable through the APIs now. The current UI starts tasks and displays their timelines. Rich clarification/approval controls and proof cards remain frontend work. Automatic due-task scheduling and fresh-credit closure remain BM-12. Settlement, campaign and support adapters demonstrate the orchestration interfaces, while their broader BM-11/14/15 acceptance and reviewer sign-off remain separate backlog items.
+The shared BM-07/08 engine is usable through the APIs now. The current UI starts tasks and displays their timelines. Rich clarification/approval controls and proof cards remain frontend work. Automatic due-task scheduling and fresh-credit closure remain BM-12. BM-14/15 now extend campaign review and human handoff through the [dedicated backend workflows](BM14_BM15_TESTING.md). Broader BM-11 integration and reviewer sign-off remain separate backlog items.

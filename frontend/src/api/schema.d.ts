@@ -331,6 +331,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/campaign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Campaign */
+        get: operations["get_campaign_api_v1_tasks__task_id__campaign_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit Campaign */
+        patch: operations["edit_campaign_api_v1_tasks__task_id__campaign_patch"];
+        trace?: never;
+    };
     "/api/v1/tasks/{task_id}/events": {
         parameters: {
             query?: never;
@@ -340,6 +358,23 @@ export interface paths {
         };
         /** Task Events */
         get: operations["task_events_api_v1_tasks__task_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Handoff */
+        get: operations["get_handoff_api_v1_tasks__task_id__handoff_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -486,6 +521,32 @@ export interface components {
                 [key: string]: components["schemas"]["JsonValue"];
             };
         };
+        /** CampaignDelivery */
+        CampaignDelivery: {
+            /** Delivered */
+            delivered: number;
+            /** Evidence Reference */
+            evidence_reference: string;
+            /** External Reference */
+            external_reference: string;
+            /** Failed */
+            failed: number;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Task Id */
+            task_id: string;
+            /** Verified */
+            verified: boolean;
+        };
+        /** CampaignEdit */
+        CampaignEdit: {
+            /** Expected Revision */
+            expected_revision: number;
+            /** Inactivity Days */
+            inactivity_days?: number | null;
+            /** Message */
+            message: string;
+        };
         /** CampaignPreview */
         CampaignPreview: {
             /** Delivered Count */
@@ -500,6 +561,43 @@ export interface components {
             histories_count: number;
             /** Inactivity Days */
             inactivity_days: number;
+        };
+        /** CampaignReview */
+        CampaignReview: {
+            approval: components["schemas"]["Approval"] | null;
+            /**
+             * Commercial Outcome
+             * @default not_measured
+             * @constant
+             */
+            commercial_outcome: "not_measured";
+            delivery: components["schemas"]["CampaignDelivery"] | null;
+            /** Editable */
+            editable: boolean;
+            /** Eligible Count */
+            eligible_count: number | null;
+            /** Estimated Cost Paise */
+            estimated_cost_paise: number | null;
+            /** Inactivity Days */
+            inactivity_days: number;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Message */
+            message: string | null;
+            receipt: components["schemas"]["Receipt"] | null;
+            /** Recipient Ids */
+            recipient_ids: string[];
+            /** Revision */
+            revision: number;
+            /**
+             * Simulated
+             * @default true
+             * @constant
+             */
+            simulated: true;
+            /** Task Id */
+            task_id: string;
+            verification: components["schemas"]["Verification"] | null;
         };
         /** CapabilityGap */
         CapabilityGap: {
@@ -772,6 +870,69 @@ export interface components {
              * @enum {string}
              */
             operation: "get_transactions" | "get_bank_credits" | "get_settlement_report" | "get_refunds_and_chargebacks" | "fresh_credits" | "get_customers_and_orders" | "get_ticket_status" | "get_campaign_delivery_status" | "ticket_after_write" | "campaign_after_write";
+        };
+        /** HandoffDraft */
+        HandoffDraft: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "missing_capability" | "permission_denied";
+            /** Requested Capability */
+            requested_capability: string;
+            /**
+             * Required Information
+             * @default []
+             */
+            required_information: string[];
+            /**
+             * Routing
+             * @default merchant_support
+             * @constant
+             */
+            routing: "merchant_support";
+            /**
+             * Simulated
+             * @default true
+             * @constant
+             */
+            simulated: true;
+            /** Summary */
+            summary: string;
+        };
+        /** HandoffReview */
+        HandoffReview: {
+            approval: components["schemas"]["Approval"] | null;
+            draft: components["schemas"]["HandoffDraft"];
+            /** Explanation */
+            explanation: string;
+            /** Gaps */
+            gaps: components["schemas"]["CapabilityGap"][];
+            /** Merchant Id */
+            merchant_id: string;
+            receipt: components["schemas"]["Receipt"] | null;
+            /**
+             * Requested Change Status
+             * @default pending_human_support
+             * @constant
+             */
+            requested_change_status: "pending_human_support";
+            /** Revision */
+            revision: number;
+            /**
+             * Routing Status
+             * @enum {string}
+             */
+            routing_status: "awaiting_approval" | "approved" | "cancelled" | "unavailable" | "unverified" | "verified";
+            /**
+             * Simulated
+             * @default true
+             * @constant
+             */
+            simulated: true;
+            /** Task Id */
+            task_id: string;
+            verification: components["schemas"]["Verification"] | null;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -2461,6 +2622,126 @@ export interface operations {
             };
         };
     };
+    get_campaign_api_v1_tasks__task_id__campaign_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CampaignReview"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    edit_campaign_api_v1_tasks__task_id__campaign_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CampaignEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     task_events_api_v1_tasks__task_id__events_get: {
         parameters: {
             query?: never;
@@ -2500,6 +2781,64 @@ export interface operations {
                 };
             };
             /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_handoff_api_v1_tasks__task_id__handoff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffReview"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;

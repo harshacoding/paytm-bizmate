@@ -47,6 +47,10 @@ The [BM-06 approval engine](docs/BM_06_APPROVAL_ENGINE.md) provides exact-input 
 
 Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 
+BM-14 adds editable campaign review, fresh eligibility/consent checks and independently verified delivery. BM-15 adds minimal approved human-support handoffs with verified routing and honest pending status. See [BM-14/BM-15 API flow and test commands](docs/BM14_BM15_TESTING.md). BM-09 UI changes are separate.
+
+BM-17 adds a repeatable backend policy evaluation with local JSON/JUnit evidence and CI console results. Run `npm run evaluate:policy`. See [BM-17 coverage, observed results and pending acceptance](docs/BM17_EVALUATION.md).
+
 ## Conversation API
 
 Source-linked settlement reconciliation is available through `POST /api/v1/settlements/reconcile`. See [BM-10 testing](docs/BM10_TESTING.md) for expected proof amounts and commands.

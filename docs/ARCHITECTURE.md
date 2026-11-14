@@ -16,6 +16,8 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 
 ## Implemented now
 
+- BM-14/15 typed campaign and handoff review APIs, revision-checked draft edits, fresh atomic audience validation, minimal support drafts, permission-gap telemetry and independent support-route verification. See [testing guide](BM14_BM15_TESTING.md).
+
 - BM-10 deterministic source-linked settlement proof, unknown evidence handling, typed registry tool and reconciliation API.
 
 - BM-13 deterministic consent-aware customer segmentation, typed tool registration and campaign-cost API.
@@ -37,8 +39,6 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 | Product tool registration and workflow integration | BM-04 adapters bind through `tools/registry.py` and the [BM-06 approval engine](BM_06_APPROVAL_ENGINE.md) | Devi BM-04 / Harsha BM-07 |
 | Settlement investigation workflow | `workflows/settlement.py` | Harsha BM-11 |
 | Scheduler and new-credit verification | `services/scheduler.py` | Devi BM-12 |
-| Approved campaign simulation | `workflows/campaign.py` | Devi BM-14 |
-| Confirmed human handoff | `workflows/handoff.py` | Devi BM-15 |
 | Full approvals, clarification and evidence interaction | `frontend/src/components`, `App.tsx` | Saiteja BM-09/16 |
 
 ## Identity and deployment boundary

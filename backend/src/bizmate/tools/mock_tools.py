@@ -37,6 +37,7 @@ class EvidenceRecords(Model):
 
 class TicketStatus(VerificationResult):
     status: ShortText
+    routing: ShortText | None = None
 
 
 class CampaignDelivery(VerificationResult):
@@ -53,8 +54,10 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             task_id=row["task_id"],
             external_reference=row["reference"],
             evidence_reference=row["reference"],
-            verified=status in {"open", "closed"},
+            verified=status in {"open", "closed"}
+            and json.loads(row["result"]).get("routing") == "merchant_support",
             status=status,
+            routing=json.loads(row["result"]).get("routing"),
         )
 
     def campaign_delivery(context, inputs):
@@ -176,7 +179,8 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
             description="Simulate approved campaign delivery",
             category="campaign",
             risk="side_effect",
-            required_scopes=[Scope.TASKS_READ, Scope.CAMPAIGNS_WRITE],
+            required_scopes=[Scope.TASKS_READ, Scope.CAMPAIGNS_WRITE, Scope.CUSTOMERS_READ],
+            preconditions=["campaign_audience_current"],
             intents=[Intent.WIN_BACK],
             approval_required=True,
             idempotency="key_required",
@@ -188,4 +192,5 @@ def register_mock_tools(registry: ToolRegistry, services: MockServices):
         SendInputs,
         send_campaign,
         output_schema=ActionResult,
+        preconditions={"campaign_audience_current": services.campaign_audience_current},
     )

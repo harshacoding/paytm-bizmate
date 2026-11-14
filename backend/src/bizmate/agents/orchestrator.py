@@ -16,7 +16,6 @@ from bizmate.domain.context import require_context
 from bizmate.domain.errors import AccessDenied
 from bizmate.domain.lifecycle import transition_task
 from bizmate.domain.models import (
-    CapabilityGap,
     Intent,
     PlanStep,
     Scope,
@@ -29,6 +28,9 @@ from bizmate.domain.models import (
 )
 from bizmate.services.mock_models import SettlementReport
 from bizmate.tools.policy import ActionConflict, ApprovalEngine
+from bizmate.tools.registry import PreconditionFailed
+from bizmate.workflows.handoff import CapabilityUnavailable, prepare_handoff
+from bizmate.workflows.review import CampaignEdit
 from bizmate.workflows.settlement import SettlementProof, reconcile_settlement
 
 
@@ -85,7 +87,7 @@ class Orchestrator:
     def thread_id(context, task_id):
         return hashlib.sha256(f"{context.merchant_id}:{task_id}".encode()).hexdigest()
 
-    def run(self, context, task_id, message=None):
+    def run(self, context, task_id, message=None, campaign_edit=None):
         task = self.recovery.task(context, task_id)
         if task.workflow_data.get("engine_version") != 1:
             raise ActionConflict("This legacy task has no resumable orchestration plan")
@@ -103,6 +105,8 @@ class Orchestrator:
                         context.require(Scope.TASKS_APPROVE)
                         if approval.approver != context.actor_id:
                             raise AccessDenied("Only the approving actor can resume this action")
+                if campaign_edit is not None:
+                    task = self._edit_campaign(context, task, campaign_edit)
                 if message is not None:
                     language = detect_language(message) or task.workflow_data["response_language"]
                     data = {
@@ -156,6 +160,142 @@ class Orchestrator:
         except Timeout:
             raise ActionConflict("Task is already running. Reload its saved state") from None
 
+    def _edit_campaign(self, context, task, edit):
+        edit = CampaignEdit.model_validate(edit)
+        if task.revision != edit.expected_revision:
+            raise ActionConflict("Campaign changed. Reload its review before editing")
+        if (
+            task.intent != Intent.WIN_BACK
+            or task.status
+            not in {
+                TaskStatus.AWAITING_INPUT,
+                TaskStatus.AWAITING_APPROVAL,
+                TaskStatus.READY,
+                TaskStatus.PLANNING,
+                TaskStatus.RUNNING,
+            }
+            or task.receipts
+            or task.has_unresolved_execution
+        ):
+            raise ActionConflict("Only an unexecuted campaign can be edited")
+        current = task.approvals[task.workflow_data.get("approval_start", 0) :]
+        if current and current[-1].decision != "cancelled":
+            approval = current[-1]
+            self.engine.decide(
+                context, task.task_id, approval.approval_id, "cancel", approval.input_hash
+            )
+            task = self.recovery.task(context, task.task_id)
+        if task.status != TaskStatus.PLANNING:
+            task = self._save(context, task, status=TaskStatus.PLANNING, key="campaign_changed")
+        data = task.workflow_data
+        extraction = {
+            **data.get("extraction", {}),
+            "offer_message": edit.message,
+            "inactivity_days": edit.inactivity_days
+            or data.get("extraction", {}).get("inactivity_days", 30),
+        }
+        language = detect_language(edit.message) or data["response_language"]
+        task = self._save(
+            context,
+            task,
+            status=TaskStatus.READY,
+            key="campaign_changed",
+            workflow_data={
+                **data,
+                "extraction": extraction,
+                "phase": "prepare",
+                "input_pending": False,
+                "response_language": str(language),
+                "read_generation": data.get("read_generation", 0) + 1,
+                "approval_start": len(task.approvals),
+            },
+            plan=(
+                PlanStep(
+                    task_id=task.task_id,
+                    merchant_id=context.merchant_id,
+                    step_id="prepare",
+                    tool_name="segment_inactive_customers",
+                    inputs={"inactivity_days": extraction["inactivity_days"]},
+                ),
+            ),
+            events=(
+                *task.events,
+                TaskEvent(
+                    kind="campaign_review_changed", message=say("campaign_changed", language)
+                ),
+            ),
+        )
+        return task
+
+    def _gap(self, context, task_id, capability, reason):
+        task = self.recovery.task(context, task_id)
+        draft, gap = prepare_handoff(context, task, capability=capability, reason=reason)
+        language = task.workflow_data["response_language"]
+        gaps = task.capability_gaps if gap in task.capability_gaps else (*task.capability_gaps, gap)
+        if task.workflow_data.get("handoff_draft"):
+            from bizmate.workflows.review import HandoffDraft
+
+            draft = HandoffDraft.model_validate(task.workflow_data["handoff_draft"])
+        task = self._save(
+            context,
+            task,
+            capability_gaps=gaps,
+            workflow_data={
+                **task.workflow_data,
+                "handoff_draft": draft.model_dump(mode="json"),
+                "handoff_explanation": say("handoff_limit", language),
+            },
+            events=(
+                *task.events,
+                TaskEvent(kind="capability_gap_detected", message=say("handoff_limit", language)),
+            ),
+        )
+        tools = {t.metadata.name for t in self.registry.discover(context, intent=Intent.HANDOFF)}
+        if (
+            "create_support_ticket" not in tools
+            or task.receipts
+            or task.has_unresolved_execution
+            or task.workflow_data["phase"] in {"verify", "finalize"}
+        ):
+            self._save(
+                context,
+                task,
+                status=TaskStatus.ESCALATED,
+                key="handoff_limit",
+                workflow_data={**task.workflow_data, "phase": "review"},
+            )
+            return "end"
+        current = task.approvals[task.workflow_data.get("approval_start", 0) :]
+        if current and current[-1].decision != "cancelled":
+            if Scope.TASKS_APPROVE not in context.scopes:
+                self._save(
+                    context,
+                    task,
+                    status=TaskStatus.ESCALATED,
+                    key="handoff_limit",
+                    workflow_data={**task.workflow_data, "phase": "review"},
+                )
+                return "end"
+            old = current[-1]
+            self.engine.decide(context, task_id, old.approval_id, "cancel", old.input_hash)
+            task = self.recovery.task(context, task_id)
+        if task.status != TaskStatus.PLANNING:
+            task = self._save(context, task, status=TaskStatus.PLANNING, key="handoff_limit")
+        self._save(
+            context,
+            task,
+            status=TaskStatus.READY,
+            key="handoff_limit",
+            intent=Intent.HANDOFF,
+            plan=(),
+            workflow_data={
+                **task.workflow_data,
+                "phase": "prepare",
+                "approval_start": len(task.approvals),
+            },
+        )
+        return "continue"
+
     def _save(self, context, task, *, status=None, key=None, **updates):
         if key:
             updates["next_action"] = say(key, task.workflow_data["response_language"])
@@ -183,7 +323,37 @@ class Orchestrator:
             if phase == "finalize":
                 return self._finalize(context, task)
             return "pause"
-        except (PermissionError, ValueError, LookupError, RecoveryExhausted, ActionConflict) as exc:
+        except PreconditionFailed as exc:
+            task = self.recovery.task(context, task_id)
+            if (
+                task.intent == Intent.WIN_BACK
+                and exc.precondition == "campaign_audience_current"
+                and not task.has_unresolved_execution
+                and not task.receipts
+            ):
+                self._edit_campaign(
+                    context,
+                    task,
+                    CampaignEdit(
+                        expected_revision=task.revision,
+                        message=task.workflow_data["extraction"]["offer_message"],
+                    ),
+                )
+                return "continue"
+            raise
+        except PermissionError as exc:
+            capability = getattr(exc, "capability", "requested_action")
+            return self._gap(
+                context, task_id, capability, getattr(exc, "reason", "permission_denied")
+            )
+        except (
+            ValueError,
+            LookupError,
+            TimeoutError,
+            ConnectionError,
+            RecoveryExhausted,
+            ActionConflict,
+        ) as exc:
             # Persist a public, localized error. Never place provider/model secrets in events.
             task = self.recovery.task(context, task_id)
             self._save(
@@ -303,7 +473,12 @@ class Orchestrator:
     def _validate_tool(self, context, intent, name, inputs):
         available = {tool.metadata.name for tool in self.registry.discover(context, intent=intent)}
         if name not in available:
-            raise PermissionError("No permitted tool for this plan")
+            raise CapabilityUnavailable(
+                name,
+                reason="missing_capability"
+                if name not in self.registry._tools
+                else "permission_denied",
+            )
         self.registry._prepare(name, context, inputs)
 
     def _prepare(self, context, task):
@@ -377,6 +552,7 @@ class Orchestrator:
             )
             task = self.recovery.task(context, task.task_id)
             data = {**task.workflow_data, "segment": segment.model_dump(mode="json")}
+            task = self._save(context, task, workflow_data=data)
             if not segment.recipient_ids:
                 raise RecoveryExhausted("No eligible consenting customers")
             data["approval_summary"] = say(
@@ -394,17 +570,34 @@ class Orchestrator:
                 "cost_paise": segment.estimated_cost_paise,
             }
         else:
-            action = "create_support_ticket"
-            inputs = {"task_id": task.task_id, "summary": task.original_request}
+            existing = data.get("handoff_draft", {})
+            draft, gap = prepare_handoff(
+                context,
+                task,
+                capability=existing.get("requested_capability", "bank_account_change"),
+                reason=existing.get("reason", "missing_capability"),
+            )
             gaps = (
-                CapabilityGap(
-                    task_id=task.task_id,
-                    merchant_id=context.merchant_id,
-                    gap_id=new_id(),
-                    requested_capability="bank_account_change",
-                    reason="A human support agent must perform bank-account changes.",
+                task.capability_gaps
+                if gap in task.capability_gaps
+                else (*task.capability_gaps, gap)
+            )
+            data.update(
+                handoff_draft=draft.model_dump(mode="json"),
+                handoff_explanation=say("handoff_limit", data["response_language"]),
+            )
+            task = self._save(
+                context,
+                task,
+                capability_gaps=gaps,
+                workflow_data=data,
+                events=(
+                    *task.events,
+                    TaskEvent(kind="handoff_drafted", message=data["handoff_explanation"]),
                 ),
             )
+            action = "create_support_ticket"
+            inputs = {"task_id": task.task_id, "summary": draft.summary}
         self._validate_tool(context, task.intent, action, inputs)
         definition, parsed = self.registry._prepare(action, context, inputs)
         verifier = definition.metadata.verification.tool_name
@@ -462,6 +655,8 @@ class Orchestrator:
                 cost=rupees(segment["estimated_cost_paise"]),
                 message=data["extraction"]["offer_message"],
             )
+        if task.intent == Intent.HANDOFF:
+            summary = say("handoff_limit", language)
         self._save(
             context,
             task,
@@ -572,7 +767,10 @@ class Orchestrator:
                 context,
                 task,
                 status=TaskStatus.ESCALATED,
-                key="handoff",
+                key="handoff"
+                if task.workflow_data["handoff_draft"]["requested_capability"]
+                == "bank_account_change"
+                else "handoff_generic",
                 capability_gaps=tuple(
                     g.with_updates(handoff_reference=receipt.external_reference)
                     for g in task.capability_gaps

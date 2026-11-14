@@ -18,6 +18,26 @@ def detect_language(text: str) -> LanguageCode | None:
 
 
 MESSAGES = {
+    "handoff_generic": (
+        "The support reference was independently verified. The requested action remains "
+        "pending with human support.",
+        "సహాయ అభ్యర్థన విడిగా నిర్ధారించబడింది. కోరిన పని ప్రతినిధి వద్ద ఇంకా పెండింగ్‌లో ఉంది.",
+        "सहायता संदर्भ अलग से सत्यापित हुआ। माँगा गया काम प्रतिनिधि के पास अभी लंबित है।",
+    ),
+    "handoff_limit": (
+        "This request needs human support because the capability or permission is unavailable. "
+        "Review the minimal support draft before approving. The requested change remains pending.",
+        "ఈ పని చేయడానికి సౌకర్యం లేదా అనుమతి లేదు. ప్రతినిధి సహాయం అవసరం. "
+        "ఆమోదించే ముందు సహాయ అభ్యర్థన పరిశీలించండి. కోరిన మార్పు ఇంకా పెండింగ్‌లో ఉంది.",
+        "यह सुविधा या अनुमति उपलब्ध नहीं है। प्रतिनिधि की सहायता चाहिए। "
+        "मंजूरी से पहले सहायता अनुरोध की समीक्षा करें। माँगा गया बदलाव अभी लंबित है।",
+    ),
+    "campaign_changed": (
+        "The audience or offer changed. Review the updated recipients, message and cost "
+        "and approve the new snapshot before sending.",
+        "కస్టమర్లు లేదా ఆఫర్ మారింది. కొత్త కస్టమర్లు, సందేశం, ఖర్చు పరిశీలించి మళ్లీ ఆమోదించండి.",
+        "ग्राहक सूची या ऑफर बदल गया। नई सूची, संदेश और लागत देखकर फिर से मंजूरी दें।",
+    ),
     "intake": (
         "Request understood. Start a task to prepare evidence and review any proposed action.",
         "అభ్యర్థన అర్థమైంది. ఆధారాలు సిద్ధం చేసి ప్రతిపాదించిన పనిని పరిశీలించడానికి పని ప్రారంభించండి.",

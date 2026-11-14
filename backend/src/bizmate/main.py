@@ -11,6 +11,7 @@ from bizmate.agents.orchestrator import Orchestrator
 from bizmate.agents.planner import Planner
 from bizmate.api.campaign_routes import router as campaign_router
 from bizmate.api.mock_routes import router as mock_router
+from bizmate.api.review_routes import router as review_router
 from bizmate.api.routes import router
 from bizmate.api.schema import install_domain_schemas
 from bizmate.api.settlement_routes import router as settlement_router
@@ -209,6 +210,7 @@ def create_app(
     app.include_router(router)
     app.include_router(mock_router)
     app.include_router(campaign_router)
+    app.include_router(review_router)
     app.include_router(settlement_router)
     app.include_router(voice_router)
     install_domain_schemas(app)
