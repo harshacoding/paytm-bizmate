@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 PENDING = [
     "Combined BM-09/BM-16 browser acceptance and BM-14 edit controls need final review.",
-    "BM-12 scheduler and fresh matching-credit closure remain unimplemented.",
+    "BM-11/BM-12 scheduler and fresh-credit closure require reviewer acceptance.",
     "Live LLM/provider behavior is not measured by this synthetic offline evaluation.",
 ]
 

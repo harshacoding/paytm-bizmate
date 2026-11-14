@@ -28,6 +28,7 @@ export const task: Task = {
   capability_gaps: [],
   workflow_data: {},
   next_action: 'Workflow execution is not implemented (BM-07).',
+  schedule_clock: 'system',
   next_run_at: null,
   checkpoint_id: null,
   events: [

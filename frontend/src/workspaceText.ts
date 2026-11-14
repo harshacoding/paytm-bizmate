@@ -3,6 +3,25 @@ import type { LanguageCode } from './api/types';
 
 // Interface labels only. Original API messages, evidence and identifiers are never translated here.
 const copy: Record<string, [string, string]> = {
+  'Scheduled time (demo clock)': ['निर्धारित समय (डेमो घड़ी)', 'నిర్దేశిత సమయం (డెమో గడియారం)'],
+  'Settlement follow-up': ['सेटलमेंट की अगली जाँच', 'సెటిల్‌మెంట్ తదుపరి తనిఖీ'],
+  'The ticket is verified. The settlement stays open until a fresh matching credit is verified.': [
+    'टिकट की पुष्टि हुई। नया मिलान वाला क्रेडिट सत्यापित होने तक सेटलमेंट खुला रहेगा।',
+    'టికెట్ ధృవీకరించబడింది. సరిపోయే కొత్త జమ నిర్ధారణ వరకు సెటిల్‌మెంట్ తెరిచి ఉంటుంది.',
+  ],
+  'This schedule uses the controlled demo clock, not your device time.': [
+    'यह समय नियंत्रित डेमो घड़ी के अनुसार है, आपके उपकरण की घड़ी के अनुसार नहीं।',
+    'ఈ షెడ్యూల్ నియంత్రిత డెమో గడియారాన్ని వాడుతుంది, మీ పరికర సమయాన్ని కాదు.',
+  ],
+  'Check due follow-ups': ['समय पर अगली जाँच करें', 'సమయం వచ్చిన తనిఖీలు చేయండి'],
+  'Due follow-ups checked. Review the saved status and evidence.': [
+    'समय पर अगली जाँच हुई। सहेजी स्थिति और सबूत देखें।',
+    'సమయం వచ్చిన తనిఖీలు పూర్తయ్యాయి. భద్రపరచిన స్థితి, ఆధారాలు చూడండి.',
+  ],
+  'Checks due settlement tasks in this workspace without advancing demo time.': [
+    'डेमो समय बढ़ाए बिना इस कार्यक्षेत्र में समय पर सेटलमेंट जाँच करता है।',
+    'డెమో సమయం మార్చకుండా ఈ వర్క్‌స్పేస్‌లో సమయం వచ్చిన సెటిల్‌మెంట్లను తనిఖీ చేస్తుంది.',
+  ],
   'Task continued. Check the current status and verification.': [
     'काम आगे बढ़ाया गया। वर्तमान स्थिति और पुष्टि देखें।',
     'పని కొనసాగించబడింది. ప్రస్తుత స్థితి, ధృవీకరణ చూడండి.',

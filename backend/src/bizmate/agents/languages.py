@@ -38,6 +38,11 @@ MESSAGES = {
         "కస్టమర్లు లేదా ఆఫర్ మారింది. కొత్త కస్టమర్లు, సందేశం, ఖర్చు పరిశీలించి మళ్లీ ఆమోదించండి.",
         "ग्राहक सूची या ऑफर बदल गया। नई सूची, संदेश और लागत देखकर फिर से मंजूरी दें।",
     ),
+    "settlement_done": (
+        "Fresh synthetic credit resolves the settlement gap. No further follow-up is scheduled.",
+        "కొత్త నమూనా జమతో సెటిల్‌మెంట్ తేడా పరిష్కరించబడింది. తదుపరి తనిఖీ అవసరం లేదు.",
+        "नए नकली क्रेडिट से सेटलमेंट का अंतर हल हो गया। अगली जाँच निर्धारित नहीं है।",
+    ),
     "intake": (
         "Request understood. Start a task to prepare evidence and review any proposed action.",
         "అభ్యర్థన అర్థమైంది. ఆధారాలు సిద్ధం చేసి ప్రతిపాదించిన పనిని పరిశీలించడానికి పని ప్రారంభించండి.",
@@ -96,10 +101,11 @@ MESSAGES = {
     ),
     "settlement_wait": (
         "The support ticket was independently verified. Settlement remains open pending fresh "
-        "matching credit evidence. Follow-up scheduling is a separate workflow.",
-        "సహాయ టికెట్ విడిగా నిర్ధారించబడింది. సరిపోయే కొత్త జమ ఆధారం వచ్చే వరకు సెటిల్‌మెంట్ పని తెరిచి ఉంటుంది. తదుపరి తనిఖీ వేరే పని.",
+        "matching credit evidence. The next check is scheduled in demo time.",
+        "సహాయ టికెట్ విడిగా నిర్ధారించబడింది. సరిపోయే కొత్త జమ ఆధారం వచ్చే వరకు సెటిల్‌మెంట్ పని తెరిచి ఉంటుంది. "
+        "నమూనా సమయం ప్రకారం తదుపరి తనిఖీ నిర్ణయించబడింది.",
         "सहायता टिकट की अलग से पुष्टि हुई। मिलान वाला नया क्रेडिट सबूत मिलने तक "
-        "सेटलमेंट खुला रहेगा। अगली जाँच अलग कार्य है।",
+        "सेटलमेंट खुला रहेगा। अगली जाँच डेमो समय के अनुसार निर्धारित है।",
     ),
     "campaign_done": (
         "Campaign delivery was independently verified. Delivered {delivered}, failed {failed}. "

@@ -10,11 +10,11 @@ These are human team assignments. Each task has one accountable owner; support a
 
 | Person | Primary responsibility | Owned tasks | Completion responsibility |
 | --- | --- | --- | --- |
-| **You / Senior 1** | Architecture, agent execution, trust controls, and settlement investigation | BM-02, BM-05, BM-06, BM-07, BM-08, BM-10, BM-11 | Prove the hero workflow can act only with permission and approval, recover safely, and explain the exact settlement gap. Review final integration and product behaviour. |
-| **Senior 2** | Persistence, mock integrations, scheduled follow-up, win-back, handoff, and regression testing | BM-03, BM-04, BM-12, BM-13, BM-14, BM-15, BM-17 | Provide durable service contracts and independently verifiable mock outcomes; integrate all workflows and demonstrate restart safety. |
+| **You / Senior 1** | Architecture, agent execution, trust controls, settlement investigation and follow-up | BM-02, BM-05, BM-06, BM-07, BM-08, BM-10, BM-11, BM-12 | Prove the hero workflow can act only with permission and approval, recover safely, and explain the exact settlement gap. Review final integration and product behaviour. |
+| **Senior 2** | Persistence, mock integrations, win-back, handoff, and regression testing | BM-03, BM-04, BM-13, BM-14, BM-15, BM-17 | Provide durable service contracts and independently verifiable mock outcomes; integrate all workflows and demonstrate restart safety. |
 | **Junior** | App skeleton, chat/task interface, evidence views, setup documentation, and demo preparation | BM-01, BM-09, BM-16, BM-18 | Deliver usable merchant screens and a reproducible local demo. Implement approval interactions against backend contracts; backend authorization remains senior-owned. |
 
-Task counts are not equal effort. Your seven tasks contain the highest-risk shared logic; Senior 2 has seven service/integration tasks; the junior's four tasks cover the application interface and packaging. Keep your time focused on the engine by letting Senior 2 handle routine backend integration and review the junior's changes.
+Task counts are not equal effort. Your eight tasks contain the highest-risk shared logic; Senior 2 has six service/integration tasks; the junior's four tasks cover the application interface and packaging. Keep your time focused on the engine by letting Senior 2 handle routine backend integration and review the junior's changes.
 
 ## Detailed assignments and handoffs
 
@@ -31,7 +31,7 @@ Task counts are not equal effort. Your seven tasks contain the highest-risk shar
 | BM-09 Chat and task workspace | Junior | Senior 2 | Reusable conversation, task list/detail, timeline, clarification, approval, loading, and error components. Use fixtures until APIs are ready. |
 | BM-10 Reconciliation and proof card | You | Senior 2 | Deterministic calculation and source-linked proof response. Junior builds the proof-card component in the shared UI. |
 | BM-11 Settlement investigation | You | Senior 2 | Integrated request-to-ticket workflow that stays open after ticket verification. Junior connects the settlement views; Senior 2 supplies ticket/report adapters. |
-| BM-12 Scheduler and fresh-credit follow-up | Senior 2 | You | Persisted due-task runner and fresh-credit matching through your graph. Junior connects the demo time-control and pending/closed views. |
+| BM-12 Scheduler and fresh-credit follow-up | You | Senior 2 | Persisted due-task runner and fresh-credit matching through your graph. Junior connects the demo time-control and pending/closed views. |
 | BM-13 Segmentation and campaign cost | Senior 2 | You | Deterministic inactivity/consent result and cost estimate for the approved audience. |
 | BM-14 Campaign execution | Senior 2 | You | End-to-end campaign flow using your approval/verification engine. Junior connects editable message, audience/cost review, and delivery result components. |
 | BM-15 Capability-gap handoff | Senior 2 | You | Honest unsupported-request flow, confirmed support ticket, and pending human-owned status. Junior adds the limitation/handoff view. |
@@ -64,7 +64,7 @@ Exit condition: a permitted mock action can pause for approval, resume once, pro
 ### Checkpoint 3: settlement journey works end to end
 
 - You finish BM-10 and BM-11: exact Rs 166.80 reconciliation, evidence, recovery, approved ticket, independent ticket verification.
-- Senior 2 finishes BM-12 using your graph: scheduled resume and fresh-credit verification.
+- You finish BM-12 using the settlement workflow: scheduled resume and fresh-credit verification.
 - Junior connects proof, ticket, waiting state, time advancement, and verified closure.
 
 Exit condition: the complete hero journey works from the merchant screen, survives restart, and closes only on fresh matching credit evidence.
@@ -92,7 +92,7 @@ These ownership boundaries now map to the runnable scaffold. See `docs/TEAM_STAR
 | Owner | Primary code areas |
 | --- | --- |
 | You | Backend domain/session contracts, tool policy/registry, approval/verification engine, LangGraph orchestration/recovery, reconciliation, settlement workflow |
-| Senior 2 | Database/repositories, task API transport, mock integrations/fixtures, scheduler, customer/campaign/handoff workflows, integration tests |
+| Senior 2 | Database/repositories, task API transport, mock integrations/fixtures, customer/campaign/handoff workflows, integration tests |
 | Junior | Frontend components/screens/API client, project startup skeleton, demo documentation and recording |
 
 - Keep shared contract definitions under your ownership. Senior 2 owns their database mappings and transport implementation. Agree changes before changing the contract or lifecycle semantics.

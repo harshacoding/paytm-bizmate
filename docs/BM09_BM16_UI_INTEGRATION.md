@@ -170,3 +170,8 @@ items. These are shared workflow dependencies, not hidden frontend simulations.
 
 Devi's acceptance review is still required. This document records implemented
 frontend scope, not approval of the complete MVP or BM-18's final rehearsal.
+
+
+## BM-11/BM-12 task screen integration
+
+The settlement branch now supplies startup/due follow-up and fresh-credit closure. Its task view labels the controlled demo clock, checks due work on explicit request and uses the settlement resume endpoint for explicit investigations. Managed graph tasks retain their normal orchestration endpoint. Ticket verification and settlement completion stay distinct; polling follows server status and evidence. See `BM_11_12_SETTLEMENT_FLOW.md` for demo clock controls and remaining reviewer acceptance.

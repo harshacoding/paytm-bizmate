@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from bizmate.api.dependencies import current_context
 from bizmate.domain.context import MerchantContext
-from bizmate.domain.models import ErrorResponse
+from bizmate.domain.models import ErrorResponse, Scope
 from bizmate.services.mock_models import (
     ClockAdvance,
     ClockState,
@@ -15,6 +15,7 @@ from bizmate.services.mock_models import (
     SettlementReport,
 )
 from bizmate.services.mocks import MockServices
+from bizmate.services.scheduler import run_due_tasks
 
 router = APIRouter(
     prefix="/api/v1/demo",
@@ -52,11 +53,14 @@ def clock(context: Context, providers: Services):
 
 
 @router.post("/clock/advance", response_model=ClockState)
-def advance(body: ClockAdvance, context: Context, providers: Services):
+def advance(body: ClockAdvance, request: Request, context: Context, providers: Services):
     try:
-        return ClockState(current_time=providers.advance(context, body.seconds))
+        result = ClockState(current_time=providers.advance(context, body.seconds))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    if {Scope.TASKS_READ, Scope.TASKS_WRITE, Scope.PAYMENTS_READ} <= context.scopes:
+        run_due_tasks(request.app.state.settlements, context)
+    return result
 
 
 @router.post("/reset", response_model=ClockState)

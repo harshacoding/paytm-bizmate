@@ -186,6 +186,27 @@ class VerificationResult(TaskEntity):
     evidence_reference: ShortText
 
 
+class SettlementResolution(TaskEntity):
+    settlement_reference: Identifier
+    baseline_captured_at: AwareDatetime
+    baseline_credit_references: tuple[Identifier, ...]
+    outstanding_paise: Money = Field(gt=0)
+    source_reference: Identifier
+    amount_paise: Money
+    available_at: AwareDatetime
+    checked_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def fresh_matching_credit(self) -> Self:
+        if self.source_reference in self.baseline_credit_references:
+            raise ValueError("Settlement closure cannot reuse baseline credit")
+        if self.available_at <= self.baseline_captured_at or self.checked_at < self.available_at:
+            raise ValueError("Settlement closure requires a freshly available credit")
+        if self.amount_paise != self.outstanding_paise:
+            raise ValueError("Fresh credit must exactly match the outstanding amount")
+        return self
+
+
 class ToolExecution(TaskEntity):
     execution_id: Identifier
     tool_name: Identifier
@@ -221,6 +242,7 @@ class Task(TaskEntity):
     workflow_data: dict[str, JsonValue] = Field(default_factory=dict)
     next_action: Text
     next_run_at: AwareDatetime | None = None
+    schedule_clock: Literal["system", "demo"] = "system"
     checkpoint_id: Identifier | None = None
     created_at: AwareDatetime = Field(default_factory=now)
     updated_at: AwareDatetime = Field(default_factory=now)
@@ -243,7 +265,11 @@ class Task(TaskEntity):
     def valid_task(self) -> Self:
         if self.updated_at < self.created_at:
             raise ValueError("Task updated_at cannot precede created_at")
-        if self.next_run_at is not None and self.next_run_at < self.created_at:
+        if (
+            self.schedule_clock == "system"
+            and self.next_run_at is not None
+            and self.next_run_at < self.created_at
+        ):
             raise ValueError("Task next_run_at cannot precede created_at")
         collections = {
             "step_id": self.plan,
@@ -303,6 +329,34 @@ class Task(TaskEntity):
                 raise ValueError("Completion cannot leave a pending approval")
             if self.next_run_at is not None:
                 raise ValueError("A completed task cannot have a scheduled next run")
+            if self.intent == Intent.SETTLEMENT:
+                resolution = SettlementResolution.model_validate(
+                    self.workflow_data.get("settlement_resolution")
+                )
+                if resolution.task_id != self.task_id or resolution.merchant_id != self.merchant_id:
+                    raise ValueError("Settlement resolution must belong to this task")
+                investigation = self.workflow_data.get("settlement")
+                baseline = investigation.get("proof") if isinstance(investigation, dict) else None
+                if not isinstance(baseline, dict) or baseline.get("status") != "complete":
+                    raise ValueError("Settlement closure requires its saved baseline proof")
+                if (
+                    resolution.settlement_reference != baseline["settlement_reference"]
+                    or resolution.outstanding_paise != baseline["residual"]["amount_paise"]
+                    or resolution.baseline_captured_at
+                    != datetime.fromisoformat(baseline["captured_at"])
+                    or set(resolution.baseline_credit_references)
+                    != set(baseline["credit"]["source_references"])
+                    or resolution.source_reference in {r["reference"] for r in baseline["sources"]}
+                ):
+                    raise ValueError("Settlement resolution must match the original baseline proof")
+                if not any(
+                    e.source == "synthetic_payments"
+                    and e.source_reference == resolution.source_reference
+                    and e.amount_paise == resolution.amount_paise
+                    and e.captured_at == resolution.available_at
+                    for e in self.evidence
+                ):
+                    raise ValueError("Settlement closure needs attached fresh-credit evidence")
         return self
 
 

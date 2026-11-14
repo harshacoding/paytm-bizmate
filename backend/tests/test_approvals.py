@@ -436,7 +436,7 @@ def test_receipt_alone_and_latest_failed_verification_cannot_complete(setup):
     with pytest.raises(ValidationError):
         repo.get_task(ctx, "t1").with_updates(status=TaskStatus.COMPLETED)
     engine.verify(ctx, "t1", receipt.receipt_id)
-    assert repo.get_task(ctx, "t1").with_updates(status=TaskStatus.COMPLETED)
+    assert repo.get_task(ctx, "t1").with_updates(intent=Intent.HANDOFF, status=TaskStatus.COMPLETED)
     task = repo.get_task(ctx, "t1")
     unresolved = ToolExecution(
         execution_id="another-claim",

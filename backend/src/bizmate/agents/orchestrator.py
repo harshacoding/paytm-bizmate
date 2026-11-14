@@ -30,6 +30,11 @@ from bizmate.services.mock_models import SettlementReport
 from bizmate.tools.policy import ActionConflict, ApprovalEngine
 from bizmate.tools.registry import PreconditionFailed
 from bizmate.workflows.handoff import CapabilityUnavailable, prepare_handoff
+from bizmate.workflows.investigation import (
+    InvestigationRequest,
+    InvestigationState,
+    SettlementInvestigation,
+)
 from bizmate.workflows.review import CampaignEdit
 from bizmate.workflows.settlement import SettlementProof, reconcile_settlement
 
@@ -509,6 +514,16 @@ class Orchestrator:
                 )
             proof = SettlementProof.model_validate(proof)
             data["settlement_proof"] = proof.model_dump(mode="json")
+            data["settlement"] = InvestigationState(
+                request=InvestigationRequest(
+                    client_request_id=task.task_id,
+                    message=task.original_request,
+                    conversation_id=task.conversation_id,
+                    settlement_reference=proof.settlement_reference,
+                ),
+                phase="approval",
+                proof=proof,
+            ).model_dump(mode="json")
             evidence = tuple(
                 self.services._evidence(context, task.task_id, record) for record in proof.sources
             )
@@ -598,6 +613,11 @@ class Orchestrator:
             )
             action = "create_support_ticket"
             inputs = {"task_id": task.task_id, "summary": draft.summary}
+        if task.intent == Intent.SETTLEMENT:
+            state = InvestigationState.model_validate(data["settlement"])
+            data["settlement"] = state.with_updates(case_summary=inputs["summary"]).model_dump(
+                mode="json"
+            )
         self._validate_tool(context, task.intent, action, inputs)
         definition, parsed = self.registry._prepare(action, context, inputs)
         verifier = definition.metadata.verification.tool_name
@@ -760,7 +780,7 @@ class Orchestrator:
         receipt = task.receipts[-1]
         task = task.with_updates(workflow_data={**task.workflow_data, "phase": "finished"})
         if task.intent == Intent.SETTLEMENT:
-            self._save(context, task, status=TaskStatus.WAITING_EXTERNAL, key="settlement_wait")
+            SettlementInvestigation(self.repo, self.services, self.registry).schedule(context, task)
             return "pause"
         if task.intent == Intent.HANDOFF:
             self._save(

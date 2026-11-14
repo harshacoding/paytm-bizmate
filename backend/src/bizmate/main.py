@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -18,7 +20,7 @@ from bizmate.api.settlement_routes import router as settlement_router
 from bizmate.api.voice import router as voice_router
 from bizmate.config import Settings
 from bizmate.domain.errors import AccessDenied, FeaturePending
-from bizmate.domain.models import ErrorResponse, Task, TaskEvent
+from bizmate.domain.models import ErrorResponse, Scope, Task, TaskEvent
 from bizmate.persistence.conversations import (
     ConversationConflictError,
     ConversationRepository,
@@ -29,11 +31,13 @@ from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS, demo_context
 from bizmate.services.mock_store import MockTimeout, SQLiteMockStore
 from bizmate.services.mocks import MockServices
+from bizmate.services.scheduler import run_due_tasks
 from bizmate.tools.campaign_tools import register_campaign_tools
 from bizmate.tools.mock_tools import register_mock_tools
 from bizmate.tools.policy import ActionNotFound
 from bizmate.tools.registry import PreconditionFailed, ToolRegistry, UnknownTool
 from bizmate.tools.settlement_tools import register_settlement_tools
+from bizmate.workflows.investigation import SettlementInvestigation
 
 
 def create_app(
@@ -76,7 +80,36 @@ def create_app(
                     # Another worker seeded the same task while this worker was starting.
                     pass
         setup_workflows()
-        yield
+        stop = asyncio.Event()
+
+        async def due_worker():
+            while not stop.is_set():
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=5)
+                except TimeoutError:
+                    try:
+                        await asyncio.to_thread(
+                            run_due_tasks, app.state.settlements, app.state.merchant_context
+                        )
+                    except Exception:
+                        logging.getLogger(__name__).exception("Settlement due-task pass failed")
+
+        worker = None
+        if {
+            Scope.TASKS_READ,
+            Scope.TASKS_WRITE,
+            Scope.PAYMENTS_READ,
+        } <= app.state.merchant_context.scopes:
+            await asyncio.to_thread(
+                run_due_tasks, app.state.settlements, app.state.merchant_context
+            )
+            worker = asyncio.create_task(due_worker())
+        try:
+            yield
+        finally:
+            stop.set()
+            if worker is not None:
+                await worker
 
     app = FastAPI(
         title="Paytm BizMate API",
@@ -113,6 +146,9 @@ def create_app(
             app.state.mock_services,
             app.state.graph,
             settings.checkpoint_file,
+        )
+        app.state.settlements = SettlementInvestigation(
+            app.state.tasks, app.state.mock_services, app.state.tools
         )
 
     app.state.setup_workflows = setup_workflows

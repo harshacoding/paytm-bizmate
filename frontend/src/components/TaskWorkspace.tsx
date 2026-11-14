@@ -181,6 +181,9 @@ export function TaskWorkspace({
     );
   const campaign = task.intent === 'win_back';
   const managed = task.workflow_data.engine_version === 1;
+  const investigation = task.intent === 'settlement' && !!task.workflow_data.settlement;
+  const workflowManaged = managed || investigation;
+  const resume = () => (investigation && !managed ? api.resumeInvestigation(id) : api.resume(id));
   const action = campaign ? 'send_campaign' : 'create_support_ticket';
   const actionScopes = campaign ? ['campaigns:write', 'customers:read'] : ['tickets:write'];
   const canAction = canWrite && has(...actionScopes);
@@ -190,7 +193,7 @@ export function TaskWorkspace({
     (approval) => approval.decision === 'approved' && !sameAction(approval, task),
   );
   const editable =
-    !managed &&
+    !workflowManaged &&
     ['READY', 'RUNNING'].includes(task.status) &&
     !pending &&
     !approvedUnsent &&
@@ -231,7 +234,8 @@ export function TaskWorkspace({
         <p>{task.next_action}</p>
         {task.next_run_at && (
           <small>
-            {t('Scheduled time')} · {stamp(task.next_run_at, language)} ·{' '}
+            {t(task.schedule_clock === 'demo' ? 'Scheduled time (demo clock)' : 'Scheduled time')} ·{' '}
+            {stamp(task.next_run_at, language)} ·{' '}
             {t('Execution is not guaranteed by this timestamp.')}
           </small>
         )}
@@ -246,7 +250,9 @@ export function TaskWorkspace({
           <p>{t('Refresh saved records before trying another action.')}</p>
         </div>
       )}
-      {(uncertain || unresolvedClaim(task) || task.status === 'WAITING_EXTERNAL') && (
+      {(uncertain ||
+        unresolvedClaim(task) ||
+        (task.status === 'WAITING_EXTERNAL' && !task.next_run_at)) && (
         <div className="api-warning">
           <strong>{t('Outcome unresolved')}</strong>
           <p>
@@ -255,6 +261,36 @@ export function TaskWorkspace({
             )}
           </p>
         </div>
+      )}
+
+      {investigation && task.status === 'WAITING_EXTERNAL' && task.next_run_at && (
+        <section className="api-evidence" aria-label={t('Settlement follow-up')}>
+          <h3>{t('Settlement follow-up')}</h3>
+          <p>
+            {t(
+              'The ticket is verified. The settlement stays open until a fresh matching credit is verified.',
+            )}
+          </p>
+          {task.schedule_clock === 'demo' && (
+            <p>{t('This schedule uses the controlled demo clock, not your device time.')}</p>
+          )}
+          <button
+            className="secondary"
+            disabled={!canWrite || !has('payments:read') || busy}
+            onClick={() =>
+              void mutate(
+                () => api.runDueSettlements(),
+                t('Due follow-ups checked. Review the saved status and evidence.'),
+                false,
+              )
+            }
+          >
+            {t('Check due follow-ups')}
+          </button>
+          <small>
+            {t('Checks due settlement tasks in this workspace without advancing demo time.')}
+          </small>
+        </section>
       )}
 
       {task.status === 'AWAITING_INPUT' && (
@@ -550,9 +586,9 @@ export function TaskWorkspace({
                     }
                     onClick={() =>
                       void mutate(
-                        () => (managed ? api.resume(id) : api.execute(id, approval)),
+                        () => (workflowManaged ? resume() : api.execute(id, approval)),
                         t(
-                          managed
+                          workflowManaged
                             ? 'Task continued. Check the current status and verification.'
                             : 'Action executed. Independent verification is still required.',
                         ),
@@ -631,7 +667,7 @@ export function TaskWorkspace({
                   <p>{receipt.idempotency_key}</p>
                   {verification && <p>{verification.evidence_reference}</p>}
                 </details>
-                {!managed && (
+                {!workflowManaged && (
                   <button
                     className="secondary"
                     disabled={!canWrite || !has(verifierScope) || busy}
@@ -660,10 +696,12 @@ export function TaskWorkspace({
         </section>
       )}
 
-      {managed &&
+      {workflowManaged &&
         !pending &&
         !approvedUnsent &&
+        !(investigation && !managed && task.approvals.at(-1)?.decision === 'cancelled') &&
         task.workflow_data.phase !== 'finished' &&
+        !(investigation && task.next_run_at) &&
         ['CREATED', 'PLANNING', 'READY', 'RUNNING', 'VERIFYING', 'WAITING_EXTERNAL'].includes(
           task.status,
         ) && (
@@ -671,10 +709,7 @@ export function TaskWorkspace({
             className="secondary"
             disabled={!canWrite || busy}
             onClick={() =>
-              void mutate(
-                () => api.resume(id),
-                t('Task continued. Check the current status and verification.'),
-              )
+              void mutate(resume, t('Task continued. Check the current status and verification.'))
             }
           >
             {t('Continue saved task')}

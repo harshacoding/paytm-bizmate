@@ -6,13 +6,13 @@ The existing PRD and TASKS.md remain the build authority. This scaffold contribu
 
 Start with `backend/src/bizmate/domain/models.py` and `contracts/openapi.json`. Agree schema changes with Devi and Saiteja, regenerate types, then implement `tools/policy.py`, registry preconditions and `agents/graph.py`. Add intent, validated plans and checkpoints. Implement `workflows/settlement.py` after the payment adapter contract is agreed.
 
-Owned tasks: BM-02, BM-05, BM-06, BM-07, BM-08, BM-10, BM-11.
+Owned tasks: BM-02, BM-05, BM-06, BM-07, BM-08, BM-10, BM-11, BM-12.
 
 ## Devi
 
-Start with `persistence/repository.py` and `services/ports.py`. Replace memory with SQLite and build stateful synthetic ticket, payment, customer and campaign adapters. Register them through Harsha's registry. Then implement scheduler, campaign and handoff modules. Own the transport routes and final integration tests.
+Start with `persistence/repository.py` and `services/ports.py`. Replace memory with SQLite and build stateful synthetic ticket, payment, customer and campaign adapters. Register them through Harsha's registry. Then implement campaign and handoff modules; Harsha owns the settlement scheduler. Own the transport routes and final integration tests.
 
-Owned tasks: BM-03, BM-04, BM-12, BM-13, BM-14, BM-15, BM-17.
+Owned tasks: BM-03, BM-04, BM-13, BM-14, BM-15, BM-17.
 
 ## Saiteja
 
