@@ -1,5 +1,6 @@
 # Local presentation build and review artifacts
 .frontend-slides/
+.local-artifacts/
 
 # Credentials and local configuration
 .env
