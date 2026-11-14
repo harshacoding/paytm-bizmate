@@ -593,6 +593,100 @@
         "title": "CustomerRecord",
         "type": "object"
       },
+      "CustomerSegment": {
+        "additionalProperties": false,
+        "properties": {
+          "eligible_count": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Eligible Count",
+            "type": "integer"
+          },
+          "estimated_cost_paise": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Estimated Cost Paise",
+            "type": "integer"
+          },
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "excluded_unknown_history": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Excluded Unknown History",
+            "type": "integer"
+          },
+          "excluded_without_consent": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Excluded Without Consent",
+            "type": "integer"
+          },
+          "histories_analysed": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Histories Analysed",
+            "type": "integer"
+          },
+          "inactive_count": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Inactive Count",
+            "type": "integer"
+          },
+          "inactivity_days": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Inactivity Days",
+            "type": "integer"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "recipient_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "title": "Recipient Ids",
+            "type": "array"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "unit_cost_paise": {
+            "default": 200,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Unit Cost Paise",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "merchant_id",
+          "evaluated_at",
+          "inactivity_days",
+          "histories_analysed",
+          "inactive_count",
+          "eligible_count",
+          "excluded_without_consent",
+          "excluded_unknown_history",
+          "recipient_ids",
+          "unit_cost_paise",
+          "estimated_cost_paise",
+          "simulated"
+        ],
+        "title": "CustomerSegment",
+        "type": "object"
+      },
       "DemoPreview": {
         "additionalProperties": false,
         "properties": {
@@ -1219,6 +1313,21 @@
         "title": "Scope",
         "type": "string"
       },
+      "SegmentRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "inactivity_days": {
+            "default": 30,
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Inactivity Days",
+            "type": "integer"
+          }
+        },
+        "title": "SegmentRequest",
+        "type": "object"
+      },
       "SendConversationMessageRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1791,6 +1900,67 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/campaigns/segment": {
+      "post": {
+        "operationId": "segment_api_v1_campaigns_segment_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerSegment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Segment",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "operationId": "conversations_api_v1_conversations_get",

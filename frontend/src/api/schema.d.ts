@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/campaigns/segment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Segment */
+        post: operations["segment_api_v1_campaigns_segment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations": {
         parameters: {
             query?: never;
@@ -528,6 +545,43 @@ export interface components {
             /** Marketing Consent */
             marketing_consent: boolean;
         };
+        /** CustomerSegment */
+        CustomerSegment: {
+            /** Eligible Count */
+            eligible_count: number;
+            /** Estimated Cost Paise */
+            estimated_cost_paise: number;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Excluded Unknown History */
+            excluded_unknown_history: number;
+            /** Excluded Without Consent */
+            excluded_without_consent: number;
+            /** Histories Analysed */
+            histories_analysed: number;
+            /** Inactive Count */
+            inactive_count: number;
+            /** Inactivity Days */
+            inactivity_days: number;
+            /** Merchant Id */
+            merchant_id: string;
+            /** Recipient Ids */
+            recipient_ids: string[];
+            /**
+             * Simulated
+             * @default true
+             * @constant
+             */
+            simulated: true;
+            /**
+             * Unit Cost Paise
+             * @default 200
+             */
+            unit_cost_paise: number;
+        };
         /** DemoPreview */
         DemoPreview: {
             campaign: components["schemas"]["CampaignPreview"];
@@ -771,6 +825,14 @@ export interface components {
          * @enum {string}
          */
         Scope: "tasks:read" | "tasks:write" | "tasks:approve" | "payments:read" | "customers:read" | "tickets:write" | "campaigns:write";
+        /** SegmentRequest */
+        SegmentRequest: {
+            /**
+             * Inactivity Days
+             * @default 30
+             */
+            inactivity_days: number;
+        };
         /** SendConversationMessageRequest */
         SendConversationMessageRequest: {
             /** Client Message Id */
@@ -999,6 +1061,57 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    segment_api_v1_campaigns_segment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerSegment"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     conversations_api_v1_conversations_get: {
         parameters: {
             query?: never;

@@ -35,6 +35,8 @@ Task records and their timelines survive backend restart/reload in `backend/.dat
 
 Synthetic service APIs, fixture commands and the demo clock are documented in [BM-04 testing](docs/BM04_TESTING.md).
 
+Customer segmentation and campaign cost are available through `POST /api/v1/campaigns/segment`. See [BM-13 testing](docs/BM13_TESTING.md) for expected results and commands.
+
 Conversations and user/assistant message history persist in the same database. Open <http://127.0.0.1:8000/docs> and expand **conversations** to test the routes. The server resolves merchant ownership for every operation.
 
 | Method | Route | Result |

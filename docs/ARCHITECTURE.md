@@ -16,6 +16,8 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 
 ## Implemented now
 
+- BM-13 deterministic consent-aware customer segmentation, typed tool registration and campaign-cost API.
+
 - Vite/React/TypeScript workspace and FastAPI package, root commands and locked dependencies.
 - Shared Pydantic models, generated OpenAPI and frontend types.
 - Server-configured synthetic merchant context and merchant-scoped SQLite task adapter.
@@ -35,7 +37,7 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 | LLM intent, plans, checkpoint/resume and recovery | `agents/graph.py` | Harsha BM-07/08 |
 | Deterministic reconciliation and settlement workflow | `workflows/settlement.py` | Harsha BM-10/11 |
 | Scheduler and new-credit verification | `services/scheduler.py` | Devi BM-12 |
-| Segmentation and approved campaign simulation | `workflows/campaign.py` | Devi BM-13/14 |
+| Approved campaign simulation | `workflows/campaign.py` | Devi BM-14 |
 | Confirmed human handoff | `workflows/handoff.py` | Devi BM-15 |
 | Full approvals, clarification and evidence interaction | `frontend/src/components`, `App.tsx` | Saiteja BM-09/16 |
 
