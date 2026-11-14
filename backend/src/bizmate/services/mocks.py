@@ -189,6 +189,18 @@ class MockServices:
             evaluated_at=self.store.clock(context.merchant_id),
         )
 
+    def campaign_audience_current(self, context, inputs) -> bool:
+        from bizmate.workflows.campaign import segment_inactive_customers
+
+        self._task(context, inputs.task_id, Scope.CUSTOMERS_READ)
+        task = self.tasks.get_task(context, inputs.task_id)
+        days = task.workflow_data.get("extraction", {}).get("inactivity_days", 30)
+        segment = segment_inactive_customers(context, self.customers(context), days)
+        return (
+            tuple(inputs.recipient_ids) == segment.recipient_ids
+            and inputs.cost_paise == segment.estimated_cost_paise
+        )
+
     def prepare_campaign(
         self, context: MerchantContext, task_id: str, payload: CampaignPayload
     ) -> str:
@@ -212,7 +224,7 @@ class MockServices:
             "create_support_ticket",
             idempotency_key,
             {"task_id": task_id, "summary": summary},
-            {"status": "open"},
+            {"status": "open", "routing": "merchant_support"},
         )
 
     def send(
@@ -267,6 +279,42 @@ class MockServices:
                     raise MockConflictError(
                         "The demo draft was reset. Prepare and review it again."
                     )
+                # Recheck eligibility, consent, the complete audience and cost using the
+                # same transaction that commits the provider action. Clock/order/consent
+                # updates cannot interleave between this check and the write.
+                from bizmate.workflows.campaign import segment_inactive_customers
+
+                context.require(Scope.CUSTOMERS_READ)
+                task = self.tasks.get_task(context, task_id)
+                days = task.workflow_data.get("extraction", {}).get("inactivity_days", 30)
+                rows = connection.execute(
+                    "SELECT kind, payload FROM mock_records WHERE merchant_id=? "
+                    "AND kind IN ('customer','order') ORDER BY reference",
+                    (context.merchant_id,),
+                ).fetchall()
+                clock = connection.execute(
+                    "SELECT clock_value FROM mock_clocks WHERE merchant_id=?",
+                    (context.merchant_id,),
+                ).fetchone()[0]
+                history = CustomerHistory(
+                    customers=tuple(
+                        CustomerRecord.model_validate_json(r["payload"])
+                        for r in rows
+                        if r["kind"] == "customer"
+                    ),
+                    orders=tuple(
+                        OrderRecord.model_validate_json(r["payload"])
+                        for r in rows
+                        if r["kind"] == "order"
+                    ),
+                    evaluated_at=clock,
+                )
+                segment = segment_inactive_customers(context, history, days)
+                if (
+                    tuple(inputs["recipient_ids"]) != segment.recipient_ids
+                    or inputs["cost_paise"] != segment.estimated_cost_paise
+                ):
+                    raise MockConflictError("Audience changed. Review and approve a new campaign")
                 for customer_id in inputs["recipient_ids"]:
                     row = connection.execute(
                         """SELECT payload FROM mock_records

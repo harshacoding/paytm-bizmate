@@ -132,6 +132,95 @@
         "title": "ApprovalRequest",
         "type": "object"
       },
+      "CampaignDelivery": {
+        "additionalProperties": false,
+        "properties": {
+          "delivered": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Delivered",
+            "type": "integer"
+          },
+          "evidence_reference": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Evidence Reference",
+            "type": "string"
+          },
+          "external_reference": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "External Reference",
+            "type": "string"
+          },
+          "failed": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "task_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "task_id",
+          "merchant_id",
+          "external_reference",
+          "verified",
+          "evidence_reference",
+          "delivered",
+          "failed"
+        ],
+        "title": "CampaignDelivery",
+        "type": "object"
+      },
+      "CampaignEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "inactivity_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inactivity Days"
+          },
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "message"
+        ],
+        "title": "CampaignEdit",
+        "type": "object"
+      },
       "CampaignPreview": {
         "additionalProperties": false,
         "properties": {
@@ -182,6 +271,151 @@
           "failed_count"
         ],
         "title": "CampaignPreview",
+        "type": "object"
+      },
+      "CampaignReview": {
+        "additionalProperties": false,
+        "properties": {
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Approval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commercial_outcome": {
+            "const": "not_measured",
+            "default": "not_measured",
+            "title": "Commercial Outcome",
+            "type": "string"
+          },
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CampaignDelivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editable": {
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "eligible_count": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible Count"
+          },
+          "estimated_cost_paise": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Paise"
+          },
+          "inactivity_days": {
+            "title": "Inactivity Days",
+            "type": "integer"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Receipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipient_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+              "type": "string"
+            },
+            "title": "Recipient Ids",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "task_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "task_id",
+          "merchant_id",
+          "revision",
+          "message",
+          "inactivity_days",
+          "recipient_ids",
+          "eligible_count",
+          "estimated_cost_paise",
+          "approval",
+          "receipt",
+          "verification",
+          "delivery",
+          "editable",
+          "simulated",
+          "commercial_outcome"
+        ],
+        "title": "CampaignReview",
         "type": "object"
       },
       "CapabilityGap": {
@@ -920,6 +1154,166 @@
           "count"
         ],
         "title": "FailureControl",
+        "type": "object"
+      },
+      "HandoffDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "enum": [
+              "missing_capability",
+              "permission_denied"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "requested_capability": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Requested Capability",
+            "type": "string"
+          },
+          "required_information": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Information",
+            "type": "array"
+          },
+          "routing": {
+            "const": "merchant_support",
+            "default": "merchant_support",
+            "title": "Routing",
+            "type": "string"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "summary": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested_capability",
+          "reason",
+          "summary",
+          "routing",
+          "required_information",
+          "simulated"
+        ],
+        "title": "HandoffDraft",
+        "type": "object"
+      },
+      "HandoffReview": {
+        "additionalProperties": false,
+        "properties": {
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Approval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draft": {
+            "$ref": "#/components/schemas/HandoffDraft"
+          },
+          "explanation": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityGap"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "merchant_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Receipt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_change_status": {
+            "const": "pending_human_support",
+            "default": "pending_human_support",
+            "title": "Requested Change Status",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "routing_status": {
+            "enum": [
+              "awaiting_approval",
+              "approved",
+              "cancelled",
+              "unavailable",
+              "unverified",
+              "verified"
+            ],
+            "title": "Routing Status",
+            "type": "string"
+          },
+          "simulated": {
+            "const": true,
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "task_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$",
+            "title": "Task Id",
+            "type": "string"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "task_id",
+          "merchant_id",
+          "revision",
+          "draft",
+          "explanation",
+          "gaps",
+          "approval",
+          "receipt",
+          "verification",
+          "routing_status",
+          "requested_change_status",
+          "simulated"
+        ],
+        "title": "HandoffReview",
         "type": "object"
       },
       "HealthResponse": {
@@ -3611,6 +4005,158 @@
         ]
       }
     },
+    "/api/v1/tasks/{task_id}/campaign": {
+      "get": {
+        "operationId": "get_campaign_api_v1_tasks__task_id__campaign_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Campaign",
+        "tags": [
+          "campaign and handoff review"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_campaign_api_v1_tasks__task_id__campaign_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Edit Campaign",
+        "tags": [
+          "campaign and handoff review"
+        ]
+      }
+    },
     "/api/v1/tasks/{task_id}/events": {
       "get": {
         "operationId": "task_events_api_v1_tasks__task_id__events_get",
@@ -3674,6 +4220,78 @@
         "summary": "Task Events",
         "tags": [
           "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}/handoff": {
+      "get": {
+        "operationId": "get_handoff_api_v1_tasks__task_id__handoff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Handoff",
+        "tags": [
+          "campaign and handoff review"
         ]
       }
     },

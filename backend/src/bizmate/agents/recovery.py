@@ -50,7 +50,9 @@ class Recovery:
             or task.intent not in definition.metadata.intents
         ):
             raise AccessDenied("Recovery only dispatches relevant safe reads/preparation")
-        key = input_hash(context.merchant_id, task_id, name, inputs)
+        generation = task.workflow_data.get("read_generation", 0)
+        hash_inputs = {"generation": generation, "inputs": inputs} if generation else inputs
+        key = input_hash(context.merchant_id, task_id, name, hash_inputs)
         cache = task.workflow_data.get("read_results", {})
         if key in cache:
             result = definition.output_schema.model_validate_json(json.dumps(cache[key]))
