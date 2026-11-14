@@ -15,10 +15,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     database_path: str = ".data/bizmate.sqlite3"
     demo_controls_enabled: bool = True
-    planner_mode: Literal["demo", "openai"] = "demo"
-    planner_model: str = "gpt-4o-mini"
+    planner_mode: Literal["demo", "openai", "sarvam"] = "demo"
+    planner_model: str | None = None
     openai_api_key: SecretStr | None = None
     elevenlabs_api_key: SecretStr | None = None
+    sarvam_api_key: SecretStr | None = None
 
     @property
     def checkpoint_file(self) -> Path:
