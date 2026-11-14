@@ -33,6 +33,7 @@ import { useChats } from './useChats';
 import { LanguageProvider, useLanguage, languages, canonical } from './i18n';
 import type { Language } from './i18n';
 import { followup, answerFollowup } from './followup';
+import { SalesReport } from './components/SalesReport';
 
 const symbols = {
   sparkle: 'M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z',
@@ -41,6 +42,7 @@ const symbols = {
   mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-4 6v1a7 7 0 0 0 14 0v-1m-7 8v3m-3 0h6',
   send: 'M12 20V4m-6 6l6-6 6 6',
   replay: 'M3 12a9 9 0 1 1 2 6M3 4v8h8',
+  sales: 'M4 20h17M7 16v-4m5 4V8m5 8V4',
   payment: 'M3 6h18v13H3zM3 10h18m-14 5h3',
   campaign: 'M3 9v5h5l9 4V5L8 9H3zm5 5l2 6h3m7-11 2-2m-2 7 2 2',
   bank: 'M3 9h18L12 3 3 9zm2 3v6m5-6v6m4-6v6m5-6v6M3 21h18',
@@ -168,6 +170,9 @@ function ChatReply({
       </span>
       <div className="reply-content">
         <div className="reply-name">BizMate</div>
+        {turn.intent === 'sales' && (
+          <SalesReport turn={turn} now={now} reduced={reduced} update={update} />
+        )}
         {turn.replyText && (
           <section className="card">
             <p>{t(turn.replyText)}</p>
@@ -390,7 +395,11 @@ function MerchantApp() {
   const chat = useRef<HTMLElement>(null);
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
   const voice = useDictation(draft, setDraft, focusComposer, language);
-  const working = turns.some((turn) => now - turn.started < responseDuration(turn) + followupDelay);
+  const working = turns.some(
+    (turn) =>
+      now - turn.started < responseDuration(turn) + followupDelay ||
+      (!!turn.reportRequestedAt && now - turn.reportRequestedAt < replyDelay),
+  );
 
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -426,7 +435,8 @@ function MerchantApp() {
       previousTurn.intent !== 'other' &&
       (detected === 'other' || followup(previousTurn.intent).options.includes(canonical(question)));
     const intent = contextual ? previousTurn.intent : detected;
-    const replyText = contextual ? answerFollowup(intent, canonical(question)) : undefined;
+    const replyText =
+      contextual && intent !== 'sales' ? answerFollowup(intent, canonical(question)) : undefined;
     setTurns((previous) => [
       ...previous,
       {
@@ -628,12 +638,16 @@ function MerchantApp() {
                       type="button"
                       disabled={!!voice.mode}
                       onClick={() => {
+                        if (index === 3) {
+                          sendQuestion(t(question));
+                          return;
+                        }
                         setDraft(t(question));
                         focusComposer();
                       }}
                     >
                       <span className="tile">
-                        <Icon name={(['payment', 'campaign', 'bank'] as const)[index]} />
+                        <Icon name={(['payment', 'campaign', 'bank', 'sales'] as const)[index]} />
                       </span>
                       <span>{t(question)}</span>
                       <Icon name="arrow" size={16} />
@@ -664,6 +678,7 @@ function MerchantApp() {
           {!!turns.length &&
             (() => {
               const last = turns[turns.length - 1];
+              if (last.intent === 'sales') return null;
               const elapsed = now - last.started;
               const duration = responseDuration(last);
               if (elapsed < duration) return null;

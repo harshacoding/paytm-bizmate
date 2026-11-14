@@ -2,6 +2,7 @@ export const questions = [
   'Why is my payment short?',
   'Help me bring customers back.',
   'How do I change my bank account?',
+  'Review my sales report.',
 ];
 export const stages = [
   { at: 0, progress: 20, label: 'Fetching your payment records' },
@@ -32,7 +33,7 @@ export const audience = Array.from({ length: 200 }, (_, index) => ({
 })).filter((customer) => customer.daysSinceVisit >= 30 && customer.consent);
 export const initialOffer =
   'We miss you at Sharma General Store! Show this message on your next visit for 10% off your purchase this week.';
-export type Intent = 'payment' | 'campaign' | 'bank' | 'other';
+export type Intent = 'payment' | 'campaign' | 'bank' | 'sales' | 'other';
 export type Action = 'confirm' | 'pending' | 'verified';
 export type Turn = {
   id: string;
@@ -43,8 +44,12 @@ export type Turn = {
   action?: Action;
   approvedAt?: number;
   replyText?: string;
+  salesPeriod?: { start: string; end: string };
+  salesMode?: 'today' | 'date' | 'month' | 'range';
+  reportRequestedAt?: number;
 };
 export function detectIntent(question: string): Intent {
+  if (/sales|statement|revenue|बिक्री|रिपोर्ट|అమ్మక|నివేదిక/i.test(question)) return 'sales';
   if (/bank account|account details|ifsc|बैंक खाता|बैंक अकाउंट|బ్యాంకు|బ్యాంక్/i.test(question))
     return 'bank';
   if (

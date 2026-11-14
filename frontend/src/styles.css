@@ -1320,3 +1320,104 @@ html:lang(te) {
     grid-row: 2;
   }
 }
+
+.period-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 16px 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.period-picker label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  min-height: 44px;
+  font-size: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.period-picker label[data-selected='true'] {
+  border-color: #008fbe;
+  background: var(--pale);
+  color: var(--accent);
+  font-weight: 600;
+}
+.period-picker input {
+  accent-color: #007eab;
+  margin: 0;
+  flex: none;
+}
+.report-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.report-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.report-field input,
+.report-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+}
+.report-field input:focus-visible,
+.report-field select:focus-visible {
+  outline: 3px solid #008fbe;
+  outline-offset: 2px;
+}
+.sales-card form > .primary {
+  margin-top: 14px;
+}
+.sales-card .response-activity,
+.sales-result {
+  margin-top: 16px;
+}
+.sales-result {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.sales-result h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.sales-card .report-error {
+  color: #a83e26;
+  font-size: 14px;
+  margin-top: 10px;
+}
+[data-theme='dark'] .sales-card .report-error {
+  color: #ffb7a6;
+}
+@media (max-width: 600px) {
+  .period-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-block: 12px;
+  }
+  .report-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .period-picker label {
+    justify-content: flex-start;
+  }
+}

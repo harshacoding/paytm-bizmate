@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from '../App';
 import { speechLocales, translate } from '../i18n';
 import type { Language } from '../i18n';
+import { merchantToday, sampleSales, validPeriod } from '../components/SalesReport';
 
 beforeEach(() => {
   localStorage.clear();
@@ -154,6 +155,51 @@ it('shows response activity before answers and before follow-up questions', () =
   tick(200);
   expect(screen.getByText('What kind of offer would suit your customers?')).toBeInTheDocument();
   expect(screen.queryByText('Thinking…')).toBeNull();
+});
+
+it('opens the sales period picker and generates reports for dates, months and ranges', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Review my sales report.' }));
+  tick(2200);
+  expect(screen.getByRole('radio', { name: 'Today' })).toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'View sales report' }));
+  expect(screen.queryByText('Your sample sales report')).toBeNull();
+  tick(2200);
+  expect(screen.getByText('Your sample sales report')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Select date' }));
+  const date = screen.getByLabelText('Select date', { selector: 'input[type="date"]' });
+  expect(date).toHaveAttribute('max', merchantToday());
+  fireEvent.change(date, { target: { value: '2025-11-12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'View sales report' }));
+  tick(2200);
+  expect(screen.getByText('12 Nov 2025 — 12 Nov 2025')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Monthly' }));
+  fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2024' } });
+  fireEvent.change(screen.getByLabelText('Month'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'View sales report' }));
+  tick(2200);
+  expect(screen.getByText('1 Feb 2024 — 29 Feb 2024')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Date range' }));
+  fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2025-11-12' } });
+  fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2025-11-11' } });
+  fireEvent.click(screen.getByRole('button', { name: 'View sales report' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('The start date must come first.');
+  fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2025-11-13' } });
+  fireEvent.click(screen.getByRole('button', { name: 'View sales report' }));
+  tick(2200);
+  expect(screen.getByText('12 Nov 2025 — 13 Nov 2025')).toBeInTheDocument();
+});
+
+it('aggregates inclusive sales periods exactly and rejects future or invalid dates', () => {
+  const first = sampleSales({ start: '2025-11-12', end: '2025-11-12' });
+  const second = sampleSales({ start: '2025-11-13', end: '2025-11-13' });
+  const both = sampleSales({ start: '2025-11-12', end: '2025-11-13' });
+  expect(both.gross).toBe(first.gross + second.gross);
+  expect(both.payments).toBe(first.payments + second.payments);
+  expect(both.upi + both.cards + both.cash).toBe(both.gross);
+  expect(both.net).toBe(both.gross - both.refunds);
+  expect(validPeriod({ start: '2025-02-29', end: '2025-03-01' }, '2026-11-14')).toBe(false);
+  expect(validPeriod({ start: '2026-11-15', end: '2026-11-15' }, '2026-11-14')).toBe(false);
 });
 
 it.each(['en', 'hi', 'te'] as Language[])(
