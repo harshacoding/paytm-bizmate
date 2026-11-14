@@ -1421,3 +1421,108 @@ html:lang(te) {
     justify-content: flex-start;
   }
 }
+
+/* Keep the initial draft compact, expanding only as the merchant types. */
+.composer {
+  padding: 6px 8px;
+  border-radius: 16px;
+}
+.composer textarea {
+  min-height: 38px;
+  max-height: 120px;
+  padding: 6px 7px;
+  overflow-y: auto;
+}
+.composer-actions {
+  margin-top: 2px;
+}
+.composer-region {
+  padding-top: 6px;
+}
+.welcome-wrap {
+  padding: 20px 0 14px;
+}
+.hero-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  margin-bottom: 12px;
+}
+.hero-mark svg {
+  width: 28px;
+  height: 28px;
+}
+.hero-mark > span {
+  top: 5px;
+  right: 7px;
+  font-size: 12px;
+}
+.welcome h1 {
+  font-size: clamp(26px, 3vw, 36px);
+}
+.welcome > p {
+  margin: 10px auto 16px;
+}
+.prompts {
+  width: min(100%, 720px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.prompts button {
+  min-width: 0;
+  min-height: 54px;
+  padding: 9px 11px;
+  gap: 9px;
+  font-size: 14px;
+}
+.prompts button > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .welcome-wrap {
+    padding: 16px 0 10px;
+  }
+  .welcome > p {
+    margin: 8px auto 12px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .prompts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .prompts button {
+    min-height: 46px;
+    padding: 7px 10px;
+  }
+  .composer textarea {
+    min-height: 36px;
+  }
+  .demo-note {
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+}
+@media (max-width: 600px) and (max-height: 760px) {
+  .hero-mark {
+    display: none;
+  }
+  .welcome-wrap {
+    padding-top: 12px;
+  }
+  .welcome > p {
+    margin-bottom: 10px;
+  }
+  .prompts button {
+    padding-block: 6px;
+  }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  .prompts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .welcome-wrap {
+    padding-block: 10px;
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BarVisualizer } from './components/elevenlabs/bar-visualizer';
 import {
@@ -393,6 +393,11 @@ function MerchantApp() {
   );
   const input = useRef<HTMLTextAreaElement>(null);
   const chat = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (!input.current) return;
+    input.current.style.height = 'auto';
+    input.current.style.height = Math.min(input.current.scrollHeight, 120) + 'px';
+  }, [draft, activeId, language]);
   const focusComposer = () => window.requestAnimationFrame(() => input.current?.focus());
   const voice = useDictation(draft, setDraft, focusComposer, language);
   const working = turns.some(
@@ -754,7 +759,7 @@ function MerchantApp() {
                 <textarea
                   id="question"
                   ref={input}
-                  rows={2}
+                  rows={1}
                   maxLength={2000}
                   placeholder={t('Type a question…')}
                   value={draft}
