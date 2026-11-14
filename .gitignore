@@ -23,3 +23,17 @@ venv/
 Thumbs.db
 ~$*
 *.tmp
+
+# Local app state, tests, coverage and caches
+.data/
+*.sqlite3
+*.sqlite3-*
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+*.egg-info/
+*.tsbuildinfo
+playwright-report/
+test-results/

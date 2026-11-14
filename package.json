@@ -1,0 +1,33 @@
+{
+  "name": "paytm-bizmate",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.12 <25"
+  },
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k --names api,web \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "uv run --project backend uvicorn bizmate.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir backend/src",
+    "dev:web": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "typecheck": "npm run typecheck --workspace frontend",
+    "test:web": "npm run test --workspace frontend",
+    "test:api": "uv run --project backend pytest backend/tests",
+    "lint:api": "uv run --project backend ruff check backend",
+    "contracts:export": "uv run --project backend python backend/scripts/export_openapi.py",
+    "contracts:types": "openapi-typescript contracts/openapi.json -o frontend/src/api/schema.d.ts",
+    "contracts:generate": "npm run contracts:export && npm run contracts:types",
+    "contracts:check": "uv run --project backend python backend/scripts/export_openapi.py --check",
+    "check": "npm run lint:api && npm run test:api && npm run test:web && npm run typecheck && npm run build && npm run contracts:check",
+    "format": "prettier --write frontend/src frontend/vite.config.ts package.json frontend/package.json",
+    "format:api": "uv run --project backend ruff format backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "openapi-typescript": "^7.10.0",
+    "prettier": "3.10.1"
+  }
+}

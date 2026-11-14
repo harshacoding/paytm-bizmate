@@ -1,0 +1,7 @@
+# Harsha owns trust/contract semantics. Add Devi/Saiteja's verified handles later.
+/backend/src/bizmate/domain/ @harshacoding
+/backend/src/bizmate/agents/ @harshacoding
+/backend/src/bizmate/tools/ @harshacoding
+/backend/src/bizmate/workflows/settlement.py @harshacoding
+/contracts/ @harshacoding
+/.github/CODEOWNERS @harshacoding
