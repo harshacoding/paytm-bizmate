@@ -18,7 +18,8 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 
 - Vite/React/TypeScript workspace and FastAPI package, root commands and locked dependencies.
 - Shared Pydantic models, generated OpenAPI and frontend types.
-- Server-configured synthetic merchant context and merchant-scoped memory task adapter.
+- Server-configured synthetic merchant context and merchant-scoped SQLite task adapter.
+- Durable task snapshots including plans, approvals, evidence, receipts, verification, execution/error history, due times and checkpoint references.
 - Request intake through a minimal LangGraph node; saved request history and task timeline.
 - Static PRD fixtures for independent frontend component work, explicitly separate from real task evidence.
 - Policy/registry boundaries that reject consequential execution while it is unfinished.
@@ -28,7 +29,6 @@ React workspace -> typed API client -> FastAPI routes -> server merchant context
 
 | Capability | Extension point | Owner / task |
 | --- | --- | --- |
-| Durable tasks and events | `persistence/repository.py`: implement SQLite behind `TaskRepository` | Devi BM-03 |
 | Stateful mock integrations and fixtures | `services/ports.py`, `services/demo.py` | Devi BM-04 |
 | Full tool metadata and approved execution | `tools/registry.py`, `tools/policy.py` | Harsha BM-05/06 |
 | LLM intent, plans, checkpoint/resume and recovery | `agents/graph.py` | Harsha BM-07/08 |
@@ -44,7 +44,13 @@ The default merchant is chosen from backend configuration, not from user text or
 
 ## Persistence and completion
 
-The memory adapter resets on backend restart or reload. No durable recovery is claimed. Devi should implement durable repositories and agree checkpoint boundaries with Harsha. The eventual task engine must require matching receipt plus independent verification before completing a goal. Ticket existence is not settlement resolution; bank change must remain pending with human support. Static preview records are never completion evidence.
+`SQLiteTaskRepository` implements the existing merchant-scoped `TaskRepository` protocol. A versioned SQLite schema stores each complete validated task as one JSON snapshot, with indexed merchant ownership and creation time. Each operation uses its own connection. Atomic transactions and revision checks protect concurrent updates. The memory adapter remains available for dependency injection and follows the same revision contract.
+
+New tasks start at revision zero. `save(task)` returns a detached snapshot with the next revision and a refreshed `updated_at`. Callers retain that returned snapshot or reload before the next save. Saving a stale revision raises `TaskConflictError`; HTTP clients receive 409 with code `TASK_CONFLICT` and should reload before retrying their intended change. Task lists order by creation time descending, then task ID descending. Timelines preserve chronological event order with insertion order for equal timestamps. Naive timestamps are interpreted as UTC when ordering records.
+
+Task writes persist `checkpoint_id` together with the task state. BM-07 owns the graph checkpointer, task-to-thread mapping, and coordination of checkpoint commits with task writes. Durable graph pause/resume remains an integration requirement for BM-07. The eventual task engine must require a matching receipt and successful independent verification before completing a goal. Settlement closure requires fresh matching credit evidence, and a bank change remains pending with human support.
+
+The API supports polling through `GET /api/v1/tasks`, `GET /api/v1/tasks/{task_id}` and `GET /api/v1/tasks/{task_id}/events`. Reads preserve IDs and revisions. The frontend currently refreshes manually; BM-09 can poll these same endpoints while a task view is active. Errors use `ErrorResponse` with `code`, `message` and `task_reference`, including 404 for unavailable tasks, 409 for stale writes and 422 for invalid requests.
 
 ## Reading references
 

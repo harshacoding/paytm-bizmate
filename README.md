@@ -24,9 +24,11 @@ No API key is required. Optional settings: copy `backend/.env.example` to `backe
 
 - React/TypeScript workspace with task navigation, request intake, timeline, loading/error/retry states, and labelled settlement/campaign component previews.
 - FastAPI task create/list/detail/events/messages, synthetic session and health endpoints, plus a minimal LangGraph entry point.
-- Merchant-scoped temporary memory repository, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
+- Merchant-scoped SQLite task storage, typed domain/service interfaces, fail-closed action boundaries, generated OpenAPI/frontend types, tests, CI, and ownership docs.
 
-**Not implemented:** LLM intent, workflow execution, durable storage/checkpoints, approval execution, tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. Requests remain awaiting implementation. Approval decisions return HTTP 501; the send button is disabled. Static previews are separate from task evidence. Backend restart/reload resets tasks.
+**Pending implementation:** LLM intent, workflow execution, durable graph checkpoints, approval execution, tickets, scheduling, reconciliation, segmentation, campaign sends and delivery verification. Requests remain awaiting implementation. Approval decisions return HTTP 501; the send button is disabled. Static previews are separate from task evidence.
+
+Task records and their timelines survive backend restart/reload in `backend/.data/bizmate.sqlite3`. Set `BIZMATE_DATABASE_PATH` to select another file. Relative paths resolve from `backend/`. Startup creates the database and seeds the example task once, preserving subsequent edits. Local database files stay outside Git.
 
 ## Structure and ownership
 
@@ -40,7 +42,7 @@ backend/src/bizmate/
   agents/                    Harsha: LangGraph entry point
   tools/                     Harsha: registry and approval policy
   workflows/                 Settlement (Harsha), campaign/handoff (Devi)
-  persistence/               Devi: repository interface and memory adapter
+  persistence/               Devi: repository interface and SQLite adapter
   services/                  Devi: mock ports, fixtures, scheduler
   api/                       Devi: scoped HTTP transport
 backend/tests/               API and fail-closed policy checks

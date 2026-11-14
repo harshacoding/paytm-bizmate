@@ -15,10 +15,17 @@ from bizmate.domain.models import (
     now,
 )
 from bizmate.persistence.repository import TaskRepository
+from bizmate.persistence.sqlite import SQLiteTaskRepository
 from bizmate.services.demo import MERCHANTS, preview
 from bizmate.tools.policy import require_approval_engine
 
-router = APIRouter()
+router = APIRouter(
+    responses={
+        404: {"model": ErrorResponse},
+        409: {"model": ErrorResponse},
+        422: {"model": ErrorResponse},
+    }
+)
 
 
 def current_merchant(request: Request) -> Merchant:
@@ -38,8 +45,8 @@ def owned_task(repo: TaskRepository, merchant: Merchant, task_id: str) -> Task:
 
 
 @router.get("/health", response_model=HealthResponse, tags=["system"])
-def health():
-    return HealthResponse()
+def health(repo: TaskRepository = Depends(repository)):
+    return HealthResponse(storage="sqlite" if isinstance(repo, SQLiteTaskRepository) else "memory")
 
 
 @router.get("/api/v1/session", response_model=SessionResponse, tags=["session"])
@@ -71,7 +78,7 @@ def create_task(
         status=TaskStatus(result["status"]),
         next_action=result["next_action"],
         events=[
-            TaskEvent(kind="request_received", message="Your request was saved in demo memory."),
+            TaskEvent(kind="request_received", message="Your request was saved."),
             TaskEvent(kind="scaffold_pending", message=result["next_action"]),
         ],
     )

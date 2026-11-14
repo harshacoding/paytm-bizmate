@@ -134,7 +134,7 @@ export default function App() {
           <div className="notice">
             <span>ⓘ</span>
             <p>
-              <strong>Development scaffold</strong> · Synthetic data, temporary memory storage.
+              <strong>Development scaffold</strong> · Synthetic demo data.
               Requests can be saved; investigations, approvals and sends are still being built.
             </p>
           </div>
