@@ -44,7 +44,7 @@ const unresolvedClaim = (task: Task) =>
 export function TaskWorkspace({
   id,
   session,
-  language,
+  language: fallbackLanguage,
   onTask,
   onClose,
 }: {
@@ -54,8 +54,14 @@ export function TaskWorkspace({
   onTask: (task: Task) => void;
   onClose: () => void;
 }) {
-  const t = (text: string) => workspaceText(text, language);
   const [task, setTask] = useState<Task | null>(null);
+  const responseLanguage =
+    task?.workflow_data.engine_version === 1 ? task.workflow_data.response_language : null;
+  const language =
+    responseLanguage === 'en' || responseLanguage === 'hi' || responseLanguage === 'te'
+      ? responseLanguage
+      : fallbackLanguage;
+  const t = (text: string) => workspaceText(text, language);
   const [events, setEvents] = useState<TaskEvent[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -174,6 +180,7 @@ export function TaskWorkspace({
       </section>
     );
   const campaign = task.intent === 'win_back';
+  const managed = task.workflow_data.engine_version === 1;
   const action = campaign ? 'send_campaign' : 'create_support_ticket';
   const actionScopes = campaign ? ['campaigns:write', 'customers:read'] : ['tickets:write'];
   const canAction = canWrite && has(...actionScopes);
@@ -183,6 +190,7 @@ export function TaskWorkspace({
     (approval) => approval.decision === 'approved' && !sameAction(approval, task),
   );
   const editable =
+    !managed &&
     ['READY', 'RUNNING'].includes(task.status) &&
     !pending &&
     !approvedUnsent &&
@@ -255,10 +263,17 @@ export function TaskWorkspace({
           onSubmit={(event) => {
             event.preventDefault();
             if (clarification.trim())
-              void mutate(async () => {
-                await api.clarify(id, clarification);
-                setClarification('');
-              }, t('Clarification saved. The backend will determine the next step.'));
+              void mutate(
+                async () => {
+                  await api.clarify(id, clarification);
+                  setClarification('');
+                },
+                t(
+                  managed
+                    ? 'Task continued. Check the current status and verification.'
+                    : 'Clarification saved. The backend will determine the next step.',
+                ),
+              );
           }}
         >
           <label htmlFor="task-clarification">{t('Add clarification')}</label>
@@ -272,7 +287,13 @@ export function TaskWorkspace({
           <button className="primary" disabled={!canWrite || busy || !clarification.trim()}>
             {t('Save clarification')}
           </button>
-          <small>{t('Saving a clarification does not mean execution has resumed.')}</small>
+          <small>
+            {t(
+              managed
+                ? 'Your clarification continues the saved task. Check its next action.'
+                : 'Saving a clarification does not mean execution has resumed.',
+            )}
+          </small>
         </form>
       )}
 
@@ -529,8 +550,12 @@ export function TaskWorkspace({
                     }
                     onClick={() =>
                       void mutate(
-                        () => api.execute(id, approval),
-                        t('Action executed. Independent verification is still required.'),
+                        () => (managed ? api.resume(id) : api.execute(id, approval)),
+                        t(
+                          managed
+                            ? 'Task continued. Check the current status and verification.'
+                            : 'Action executed. Independent verification is still required.',
+                        ),
                       )
                     }
                   >
@@ -606,33 +631,76 @@ export function TaskWorkspace({
                   <p>{receipt.idempotency_key}</p>
                   {verification && <p>{verification.evidence_reference}</p>}
                 </details>
-                <button
-                  className="secondary"
-                  disabled={!canWrite || !has(verifierScope) || busy}
-                  onClick={() =>
-                    void mutate(
-                      async () => {
-                        const result = await api.verify(id, receipt.receipt_id);
-                        if (!result.verified)
-                          setError(
-                            t(
-                              'Verification did not confirm the action. The work remains unresolved.',
-                            ),
-                          );
-                      },
-                      t('Verification attempt recorded'),
-                      false,
-                    )
-                  }
-                >
-                  {t(verification ? 'Check verification again' : 'Verify action')}
-                </button>
+                {!managed && (
+                  <button
+                    className="secondary"
+                    disabled={!canWrite || !has(verifierScope) || busy}
+                    onClick={() =>
+                      void mutate(
+                        async () => {
+                          const result = await api.verify(id, receipt.receipt_id);
+                          if (!result.verified)
+                            setError(
+                              t(
+                                'Verification did not confirm the action. The work remains unresolved.',
+                              ),
+                            );
+                        },
+                        t('Verification attempt recorded'),
+                        false,
+                      )
+                    }
+                  >
+                    {t(verification ? 'Check verification again' : 'Verify action')}
+                  </button>
+                )}
               </article>
             );
           })}
         </section>
       )}
 
+      {managed &&
+        !pending &&
+        !approvedUnsent &&
+        task.workflow_data.phase !== 'finished' &&
+        ['CREATED', 'PLANNING', 'READY', 'RUNNING', 'VERIFYING', 'WAITING_EXTERNAL'].includes(
+          task.status,
+        ) && (
+          <button
+            className="secondary"
+            disabled={!canWrite || busy}
+            onClick={() =>
+              void mutate(
+                () => api.resume(id),
+                t('Task continued. Check the current status and verification.'),
+              )
+            }
+          >
+            {t('Continue saved task')}
+          </button>
+        )}
+      {managed && unresolvedClaim(task) && approvedUnsent && (
+        <button
+          className="secondary"
+          disabled={
+            !canApprove ||
+            busy ||
+            !task.approvals.some(
+              (approval) =>
+                approval.decision === 'approved' && approval.approver === session.actor_id,
+            )
+          }
+          onClick={() =>
+            void mutate(
+              () => api.resume(id),
+              t('Task continued. Check the current status and verification.'),
+            )
+          }
+        >
+          {t('Inspect saved action')}
+        </button>
+      )}
       {task.capability_gaps.length > 0 && (
         <section>
           <h3>{t('Support handoff')}</h3>

@@ -116,6 +116,7 @@ beforeEach(() => {
   vi.spyOn(api, 'messages').mockImplementation(async () => structuredClone(history));
   vi.spyOn(api, 'tasks').mockImplementation(async () => [structuredClone(snapshot)]);
   vi.spyOn(api, 'task').mockImplementation(async () => structuredClone(snapshot));
+  vi.spyOn(api, 'resume').mockImplementation(async () => structuredClone(snapshot));
   vi.spyOn(api, 'events').mockImplementation(async () => structuredClone(snapshot.events));
   vi.spyOn(api, 'createConversation').mockResolvedValue({
     ...conversation,
@@ -393,6 +394,90 @@ it('prevents approval and execution when merchant permissions are missing', asyn
   expect(await screen.findByRole('button', { name: 'Approve' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   expect(api.decide).not.toHaveBeenCalled();
+});
+
+it('continues managed approvals through orchestration rather than dispatching or verifying independently', async () => {
+  snapshot = {
+    ...snapshot,
+    intent: 'settlement',
+    status: 'AWAITING_APPROVAL',
+    approvals: [approval],
+    workflow_data: { engine_version: 1, phase: 'action', response_language: 'en' },
+  };
+  vi.mocked(api.resume).mockImplementation(async () => {
+    snapshot = {
+      ...snapshot,
+      status: 'WAITING_EXTERNAL',
+      receipts: [receipt],
+      verifications: [{ ...verification, verified: true }],
+      workflow_data: { ...snapshot.workflow_data, phase: 'finished' },
+    };
+    return structuredClone(snapshot);
+  });
+  showTask();
+  fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+  const execute = await screen.findByRole('button', { name: 'Execute approved action' });
+  expect(api.resume).not.toHaveBeenCalled();
+  fireEvent.click(execute);
+  fireEvent.click(execute);
+  await screen.findByText('Action verified');
+  expect(screen.getByText('Pending externally')).toBeInTheDocument();
+  expect(api.resume).toHaveBeenCalledExactlyOnceWith('task-one');
+  expect(api.execute).not.toHaveBeenCalled();
+  expect(api.verify).not.toHaveBeenCalled();
+  expect(screen.queryByText('Goal completed')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Check verification again' })).toBeNull();
+});
+
+it('uses persisted task response language even when the conversation preference differs', async () => {
+  snapshot = {
+    ...snapshot,
+    workflow_data: { engine_version: 1, response_language: 'te', phase: 'plan' },
+  };
+  showTask(session, 'en');
+  const clarification = await screen.findByRole('textbox', {
+    name: workspaceText('Add clarification', 'te'),
+  });
+  expect(clarification.closest('section')).toHaveAttribute('lang', 'te');
+  expect(screen.getByText(workspaceText('Needs your input', 'te'))).toBeInTheDocument();
+});
+
+it('can continue a cancelled managed plan without creating another approval locally', async () => {
+  snapshot = {
+    ...snapshot,
+    status: 'PLANNING',
+    approvals: [{ ...approval, decision: 'cancelled' }],
+    workflow_data: { engine_version: 1, phase: 'action', response_language: 'en' },
+  };
+  vi.mocked(api.resume).mockImplementation(async () => {
+    snapshot = {
+      ...snapshot,
+      status: 'AWAITING_INPUT',
+      workflow_data: { ...snapshot.workflow_data, phase: 'plan', input_pending: true },
+    };
+    return structuredClone(snapshot);
+  });
+  showTask();
+  fireEvent.click(await screen.findByRole('button', { name: 'Continue saved task' }));
+  await screen.findByRole('textbox', { name: 'Add clarification' });
+  expect(api.requestApproval).not.toHaveBeenCalled();
+  expect(api.execute).not.toHaveBeenCalled();
+});
+
+it('allows completion only when the managed backend returns its completed campaign result', async () => {
+  snapshot = {
+    ...snapshot,
+    intent: 'win_back',
+    status: 'COMPLETED',
+    next_action: '118 delivered, 2 failed.',
+    receipts: [{ ...receipt, action: 'send_campaign' }],
+    verifications: [{ ...verification, verified: true }],
+    workflow_data: { engine_version: 1, phase: 'finished', response_language: 'en' },
+  };
+  showTask();
+  await screen.findByText('Goal completed');
+  expect(screen.getByText('118 delivered, 2 failed.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Continue saved task' })).toBeNull();
 });
 
 it.each([ticketFixture, campaignFixture])(

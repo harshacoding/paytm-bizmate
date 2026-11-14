@@ -6,8 +6,8 @@ Owner: Saiteja. Reviewer: Devi. Frontend implementation ready for review.
 
 The supplied `Paytm_BizMate_UI_API_Contract.zip` describes backend commit
 `de8ff05ed3d6ffc710e78d6d0b3d40b4250e679a` (BM-02/03/04/05/06/13).
-This branch integrates `origin/main` through `8cbe069`, including BM-10's
-source-linked settlement reconciliation, and preserves the backend voice proxy.
+This branch integrates `origin/main` through `725f833`, including BM-07/BM-08
+orchestration/recovery and BM-10 source-linked settlement reconciliation, and preserves the backend voice proxy.
 The checked-in OpenAPI and TypeScript definitions are generated from this combined
 backend. The two READY task fixtures in `frontend/src/test/contract-fixtures/`
 are copied unchanged from the supplied packet. They are response snapshots,
@@ -23,8 +23,8 @@ not task creation payloads.
   the same uncertain turn without changing its content or creating a second ID.
   Pending turns survive a page reload in session storage, scoped by merchant.
 - Sending a chat does **not** also create a task. Each user message has an explicit
-  “Start a task from this question” action. The contract's intake currently returns
-  AWAITING_INPUT. The UI displays that state and the server's next action.
+  “Start a task from this question” action. Current task intake runs the backend orchestrator, which may pause for
+  clarification or approval. The UI displays the returned state and next action.
 - “Your tasks” shows this conversation's tasks, with an “All tasks” view for
   older/unlinked work. Details include lifecycle status, next action, plan progress,
   clarification, timeline, approvals, execution receipts, verification and handoffs.
@@ -33,8 +33,9 @@ not task creation payloads.
 - Language selection PATCHes the conversation's fallback preference. Original
   history is never translated or rewritten. Message `response_language` determines
   assistant content language and the associated task interface language where
-  available. The current backend scaffold replies in English until BM-07 implements
-  detection and generation; the UI does not pretend otherwise.
+  available. For managed tasks, the persisted version-1 workflow response language
+  takes precedence, including after clarification changes the input language.
+  BM-07 now implements English/Hindi/Telugu detection and localized generation.
 - Numeric unread badges count unread assistant messages and clear when the
   conversation is opened. Browser read markers contain sequences, not message text.
 - The existing animated, timed walkthrough remains at `/?demo=1`, labelled as
@@ -50,7 +51,11 @@ not task creation payloads.
 3. Review shows the server's exact saved summary/offer, recipient count and cost.
    Approval uses the returned `input_hash`. Cancel records a decision; “Decide later”
    leaves approval pending without a mutation. Editors do not overwrite snapshots.
-4. Execution is a separate explicit action and submits `approved_inputs` exactly.
+4. Execution is a separate explicit action. Managed version-1 tasks use bodyless
+   POST `/tasks/{id}/resume`, so the orchestrator reloads immutable approvals,
+   executes and independently verifies under its recovery budget. The UI does not
+   dispatch or verify managed tasks through competing direct-action handlers.
+   Legacy contract fixtures submit `approved_inputs` exactly to the execute API.
    Duplicate clicks are locked. Network/conflict errors reconcile Task first;
    uncertain claims never trigger an automatic resend.
 5. Receipts prove execution only. Independent verification is bodyless POST, and
@@ -80,8 +85,9 @@ switch conversations, start an explicit task and save a clarification. Change th
 language selector and confirm earlier assistant messages remain in their original
 language.
 
-New chat/intake does not yet generate an executable plan. To review approval
-screens against real endpoints, prepare a **dedicated local database** explicitly:
+New chat messages remain separate from task execution. Starting a settlement,
+campaign or bank-support task now generates a backend-owned plan. To review the
+older manual approval contract independently, prepare a **dedicated local database**:
 
 ```powershell
 uv run --project backend python backend/scripts/seed_ui_review.py --database backend/.data/ui-review.sqlite3
@@ -113,7 +119,7 @@ duplicate clicks, deferral/cancellation, readonly permissions, structured HTTP
 errors, preserved drafts, uncertain dispatch and latest failed verification.
 The packet's READY fixtures are also exercised without task creation or execution.
 
-Observed final checks on 14 November 2026: 69 frontend tests passed; 376 backend
+Pre-rebase checks on 14 November 2026: 69 frontend tests passed; 376 backend
 tests passed with one in-memory/disk-only combination skipped; TypeScript and
 production build passed; Ruff and generated-contract drift checks passed. An
 earlier concurrent run hit a 30-second subprocess startup timeout in the restart
@@ -130,15 +136,37 @@ Responsive browser checks passed for 18 combinations: 320/768/1440-pixel widths,
 English/Hindi/Telugu and light/dark themes, with reduced motion enabled. Checks
 covered horizontal overflow, composer visibility and language-picker placement.
 
+## Rebase verification against BM-07/BM-08
+
+Rebased `feature/ui` onto main `725f833` without dropping merchant UI or voice
+features. Regenerated OpenAPI/frontend types include both the task-resume and
+voice routes. Locked dependency installation includes checkpoint SQLite, filelock
+and WebSockets together.
+
+The combined branch passed 74 frontend tests, the production build, Ruff and
+contract checks, and 414 backend tests with one expected in-memory/disk-only skip.
+New UI tests cover bodyless resume, explicit approval before continuation,
+managed-task response language, cancellation/replanning, authoritative campaign
+completion and absence of competing direct execute/verify calls.
+
+A live browser run against an isolated database started real managed settlement
+and campaign tasks. The support ticket was executed and independently verified,
+with the settlement left WAITING_EXTERNAL. The campaign returned COMPLETED with
+118 delivered and 2 failed. Exactly two `/resume` calls and no direct `/execute`
+or `/verify` calls were made; no browser runtime errors were observed. The
+legacy READY fixtures retain the original explicit manual approval flow.
+
 ## Remaining shared workflow dependencies
 
-BM-07 must connect chat/intake to language detection and executable plans;
-clarifications currently record events rather than resuming the graph. BM-11/12
-must own settlement investigation/follow-up and verified fresh-credit closure.
-BM-14 must supply guided campaign results (including delivery counts) beyond this
-contract's receipt/verification shapes. BM-15 must prepare unsupported-capability
-handoffs. Arbitrary `workflow_data` is intentionally not interpreted by the UI.
-These are backend workflow dependencies, not hidden frontend simulations.
+BM-07/BM-08 are now integrated from main: task intake, clarification, explicit
+resume, checkpoints, language resolution and safe recovery are backend-owned.
+The UI reads only the documented version-1 engine marker and response language
+from workflow metadata; other workflow data remains opaque. Settlement ticket
+verification stays pending externally; campaign completion/delivery counts and
+handoff escalation are rendered only when returned by the backend. Automated
+scheduled follow-up and verified fresh-credit closure remain BM-12. Broader
+BM-11/14/15 workflow acceptance and reviewer sign-off remain separate backlog
+items. These are shared workflow dependencies, not hidden frontend simulations.
 
 Devi's acceptance review is still required. This document records implemented
 frontend scope, not approval of the complete MVP or BM-18's final rehearsal.

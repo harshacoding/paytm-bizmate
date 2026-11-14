@@ -53,6 +53,14 @@ it('verification is a bodyless POST and does not execute the action', async () =
     { method: 'POST', headers: {} },
   ]);
 });
+
+it('resumes orchestration with a bodyless POST and no client-supplied plan or inputs', async () => {
+  await api.resume('managed-task');
+  expect(fetchMock.mock.calls[0]).toEqual([
+    '/api/v1/tasks/managed-task/resume',
+    { method: 'POST', headers: {} },
+  ]);
+});
 it.each([403, 404, 409, 422, 503])('preserves structured errors for HTTP %s', async (status) => {
   fetchMock.mockResolvedValue(
     new Response(

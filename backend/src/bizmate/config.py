@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     planner_mode: Literal["demo", "openai"] = "demo"
     planner_model: str = "gpt-4o-mini"
     openai_api_key: SecretStr | None = None
+    elevenlabs_api_key: SecretStr | None = None
 
     @property
     def checkpoint_file(self) -> Path:
@@ -27,4 +28,3 @@ class Settings(BaseSettings):
     def database_file(self) -> Path:
         path = Path(self.database_path).expanduser()
         return path if path.is_absolute() else BACKEND_ROOT / path
-    elevenlabs_api_key: SecretStr | None = None

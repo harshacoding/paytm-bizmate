@@ -124,7 +124,7 @@ The three-person ownership split and handoffs are in [TEAM_PLAN.md](TEAM_PLAN.md
 ### BM-09 Build the chat and task workspace
 
 - [x] Frontend implementation complete against the supplied UI API contract
-- **Review status:** Ready for Devi review; full workflow acceptance still depends on BM-07.
+- **Review status:** Ready for Devi review; BM-07/BM-08 orchestration is integrated, with explicit task resume after approval.
 - **Evidence:** [Integration, tests and review instructions](docs/BM09_BM16_UI_INTEGRATION.md).
 - **Owner:** Saiteja
 - **Reviewer:** Devi

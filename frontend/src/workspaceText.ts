@@ -3,6 +3,16 @@ import type { LanguageCode } from './api/types';
 
 // Interface labels only. Original API messages, evidence and identifiers are never translated here.
 const copy: Record<string, [string, string]> = {
+  'Task continued. Check the current status and verification.': [
+    'काम आगे बढ़ाया गया। वर्तमान स्थिति और पुष्टि देखें।',
+    'పని కొనసాగించబడింది. ప్రస్తుత స్థితి, ధృవీకరణ చూడండి.',
+  ],
+  'Your clarification continues the saved task. Check its next action.': [
+    'आपकी जानकारी से सहेजा काम आगे बढ़ता है। अगला कदम देखें।',
+    'మీ సమాచారం భద్రపరచిన పనిని కొనసాగిస్తుంది. తదుపరి చర్యను చూడండి.',
+  ],
+  'Continue saved task': ['सहेजा काम जारी रखें', 'భద్రపరచిన పనిని కొనసాగించండి'],
+  'Inspect saved action': ['सहेजी कार्रवाई जाँचें', 'భద్రపరచిన చర్యను పరిశీలించండి'],
   'Your permissions do not allow this action. Contact merchant support.': [
     'आपको इस कार्रवाई की अनुमति नहीं है। व्यापारी सहायता से संपर्क करें।',
     'ఈ చర్యకు మీకు అనుమతి లేదు. వ్యాపారి సహాయ బృందాన్ని సంప్రదించండి.',

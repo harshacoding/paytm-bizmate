@@ -84,6 +84,7 @@ export const api = {
       `/api/v1/tasks${conversationId ? `?conversation_id=${pathId(conversationId)}` : ''}`,
     ),
   task: (id: string) => request<Task>(taskPath(id)),
+  resume: (id: string) => request<Task>(`${taskPath(id)}/resume`, { method: 'POST' }),
   events: (id: string) => request<TaskEvent[]>(`${taskPath(id)}/events`),
   preview: () => request<DemoPreview>('/api/v1/demo/preview'),
   createTask: (message: string, conversation_id?: string) =>

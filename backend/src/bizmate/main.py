@@ -210,8 +210,8 @@ def create_app(
     app.include_router(mock_router)
     app.include_router(campaign_router)
     app.include_router(settlement_router)
-    install_domain_schemas(app)
     app.include_router(voice_router)
+    install_domain_schemas(app)
     return app
 
 
